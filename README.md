@@ -1,3 +1,3 @@
-# alda-plugin
+# Lutra-plugin
 
-Plugins for alda.
+Plugins for Lutra.
