@@ -1,0 +1,6 @@
+name = "Slack"
+description = "Send messages to Slack."
+
+[[required_actions]]
+action_reference_type = "augmented_request"
+augmented_request_configuration_id = "7a70db83-6403-4885-877f-187372551bea"
