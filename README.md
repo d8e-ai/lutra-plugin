@@ -1,3 +1,3 @@
-# Lutra-plugin
+# lutra-plugin
 
 Plugins for Lutra.
