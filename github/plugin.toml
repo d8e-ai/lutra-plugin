@@ -1,0 +1,6 @@
+name = "GitHub"
+description = "Use GitHub."
+
+[[required_actions]]
+action_reference_type = "augmented_request"
+augmented_request_configuration_id = "2598dbb1-c887-4151-a833-78760eebf6bd"
