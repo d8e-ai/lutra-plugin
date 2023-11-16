@@ -37,7 +37,7 @@ def github_pulls(owner: str, repo: str) -> List[PullRequest]:
             id=obj["id"],
             url=obj["url"],
             title=obj["title"],
-            state=obj.get("state", "unknown"),
+            state=obj["state"],
             draft=obj["draft"],
             body=obj.get("body"),
             user_id=obj["user"]["id"],
