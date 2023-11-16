@@ -30,7 +30,7 @@ def github_pulls(owner: str, repo: str) -> List[PullRequest]:
         response_json = (
             client.get(
                 f"https://api.github.com/repos/{owner}/{repo}/pulls",
-                params={"state", "all"},
+                params={"state": "all"},
             )
             .raise_for_status()
             .json()
