@@ -1,10 +1,17 @@
 import httpx
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, List
 
 from lutraai.augmented_request_client import AugmentedTransport
 
 
-def github_pulls(owner: str, repo: str) -> Any:
+@dataclass
+class PullRequest:
+    title: str
+    url: str
+
+
+def github_pulls(owner: str, repo: str) -> List[PullRequest]:
     """
     Returns the results of the GitHub `pulls` API call.
 
@@ -14,8 +21,12 @@ def github_pulls(owner: str, repo: str) -> Any:
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_github)
     ) as client:
-        return (
+        response_json = (
             client.get(f"https://api.github.com/repos/{owner}/{repo}/pulls")
             .raise_for_status()
             .json()
         )
+    pull_requests = [
+        PullRequest(title=obj["title"], url=obj["url"]) for obj in response_json
+    ]
+    return pull_requests
