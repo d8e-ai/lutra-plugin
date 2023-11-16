@@ -18,7 +18,12 @@ class PullRequest:
 
 
 def github_pulls(
-    owner: str, repo: str, state: str = "open", page: int = 1
+    owner: str,
+    repo: str,
+    state: str = "open",
+    sort: str = "created",
+    sort_direction: str | None = None,
+    page: int = 1,
 ) -> List[PullRequest]:
     """
     Returns results of the GitHub `pulls` API call.
@@ -28,17 +33,25 @@ def github_pulls(
     call this function again.
 
     Parameters:
-        state: may be one of {"open", "closed", "all"}.
-        page: the page of results to return.
+        owner: the owner of the repository.
+        repo: the repository name.
+        state: may be one of {"open","closed","all"}.
+        sort: by what to sort results.
+            One of {"created","updated","popularity","long-running"}.
+        sort_direction: the direction of the sort.  One of {"asc","desc"}.  If None,
+            "desc" for sort by "created", "asc" otherwise.
+        page: the page of results to return. Each page has at most 30 results.
 
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_github)
     ) as client:
+        params = {"state": state, "page": page, "sort": sort}
+        if sort_direction is not None:
+            params["direction"] = sort_direction
         response_json = (
             client.get(
-                f"https://api.github.com/repos/{owner}/{repo}/pulls",
-                params={"state": state, "page": page},
+                f"https://api.github.com/repos/{owner}/{repo}/pulls", params=params
             )
             .raise_for_status()
             .json()
