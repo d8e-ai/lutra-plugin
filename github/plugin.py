@@ -17,12 +17,12 @@ class PullRequest:
     user_login: str
 
 
-def github_pulls(owner: str, repo: str) -> List[PullRequest]:
+def github_pulls(owner: str, repo: str, state: str = "open") -> List[PullRequest]:
     """
     Returns the results of the GitHub `pulls` API call.
 
-    Returns a listing of pull requests as documented at
-    https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28
+    Returns a listing of pull requests in the given `repo` owned by `owner`.  `state`
+    filters by state and may be one of {"open", "closed", "all"}.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_github)
@@ -30,7 +30,7 @@ def github_pulls(owner: str, repo: str) -> List[PullRequest]:
         response_json = (
             client.get(
                 f"https://api.github.com/repos/{owner}/{repo}/pulls",
-                params={"state": "all"},
+                params={"state": state},
             )
             .raise_for_status()
             .json()
