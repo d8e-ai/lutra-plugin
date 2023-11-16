@@ -8,7 +8,7 @@ from lutraai.augmented_request_client import AugmentedTransport
 @dataclass
 class PullRequest:
     id: int
-    url: str
+    html_url: str
     title: str
     state: str
     draft: bool
@@ -38,7 +38,7 @@ def github_pulls(owner: str, repo: str, state: str = "open") -> List[PullRequest
     pull_requests = [
         PullRequest(
             id=obj["id"],
-            url=obj["url"],
+            html_url=obj["html_url"],
             title=obj["title"],
             state=obj["state"],
             draft=obj["draft"],
