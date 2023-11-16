@@ -21,9 +21,12 @@ def github_pulls(
     owner: str, repo: str, state: str = "open", page: int = 1
 ) -> List[PullRequest]:
     """
-    Returns the results of the GitHub `pulls` API call.
+    Returns a page of at most 30 results of the GitHub `pulls` API call.
 
-    Returns a listing of pull requests in the given `repo` owned by `owner`.
+    Returns a listing of pull requests in the given `repo` owned by `owner`.  Each page
+    has at most 30 results.  To get more results, increment the `page` and call this
+    function again.
+
     Parameters:
         state: may be one of {"open", "closed", "all"}.
         page: the page of results to return.
