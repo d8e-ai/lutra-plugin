@@ -1,6 +1,6 @@
 import httpx
 from dataclasses import dataclass
-from typing import Any, List
+from typing import List
 
 from lutraai.augmented_request_client import AugmentedTransport
 
