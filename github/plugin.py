@@ -1,6 +1,5 @@
 import httpx
 from dataclasses import dataclass
-from typing import List
 
 from lutraai.augmented_request_client import AugmentedTransport
 
@@ -24,7 +23,7 @@ def github_pulls(
     sort: str = "created",
     sort_direction: str | None = None,
     page: int = 1,
-) -> List[PullRequest]:
+) -> list[PullRequest]:
     """
     Returns results of a GitHub `pulls` API call.
 
