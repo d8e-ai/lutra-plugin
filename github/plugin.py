@@ -26,7 +26,7 @@ def github_pulls(
     page: int = 1,
 ) -> List[PullRequest]:
     """
-    Returns results of the GitHub `pulls` API call.
+    Returns results of a GitHub `pulls` API call.
 
     Returns a paginated listing of pull requests in the given `repo` owned by `owner`.
     Each page has at most 30 results.  To get more results, increment the `page` and
