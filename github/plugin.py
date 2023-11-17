@@ -1,6 +1,6 @@
 import httpx
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List
 
 from lutraai.augmented_request_client import AugmentedTransport
 
@@ -12,7 +12,7 @@ class PullRequest:
     title: str
     state: str
     draft: bool
-    body: Optional[str]
+    body: str
     user_id: int
     user_login: str
 
@@ -63,7 +63,7 @@ def github_pulls(
             title=obj["title"],
             state=obj["state"],
             draft=obj["draft"],
-            body=obj.get("body"),
+            body=obj.get("body", ""),
             user_id=obj["user"]["id"],
             user_login=obj["user"]["login"],
         )
