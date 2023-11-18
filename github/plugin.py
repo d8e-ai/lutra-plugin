@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 import httpx
 from lutraai.augmented_request_client import AugmentedTransport
@@ -24,7 +24,7 @@ class PullRequest:
 def github_pulls(
     owner: str,
     repo: str,
-    state: str = "open",
+    state: Literal["open", "closed", "all"] = "open",
     sort: str = "created",
     sort_direction: str | None = None,
     page: int = 1,
