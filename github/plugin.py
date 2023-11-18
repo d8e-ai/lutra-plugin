@@ -1,5 +1,6 @@
 import httpx
 from dataclasses import dataclass
+from datetime import datetime
 
 from lutraai.augmented_request_client import AugmentedTransport
 
@@ -8,6 +9,9 @@ from lutraai.augmented_request_client import AugmentedTransport
 class PullRequest:
     id: int
     html_url: str
+    created_at: datetime
+    merged_at: datetime | None
+    closed_at: datetime | None
     title: str
     state: str
     draft: bool
@@ -59,6 +63,13 @@ def github_pulls(
         PullRequest(
             id=obj["id"],
             html_url=obj["html_url"],
+            created_at=datetime.fromisoformat(obj["created_at"]),
+            merged_at=(
+                datetime.fromisoformat(obj["merged_at"]) if "merged_at" in obj else None
+            ),
+            closed_at=(
+                datetime.fromisoformat(obj["closed_at"]) if "closed_at" in obj else None
+            ),
             title=obj["title"],
             state=obj["state"],
             draft=obj["draft"],
