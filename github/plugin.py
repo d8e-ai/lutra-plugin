@@ -66,10 +66,14 @@ def github_pulls(
             html_url=obj["html_url"],
             created_at=datetime.fromisoformat(obj["created_at"]),
             merged_at=(
-                datetime.fromisoformat(obj["merged_at"]) if "merged_at" in obj else None
+                datetime.fromisoformat(obj["merged_at"])
+                if obj.get("merged_at")
+                else None
             ),
             closed_at=(
-                datetime.fromisoformat(obj["closed_at"]) if "closed_at" in obj else None
+                datetime.fromisoformat(obj["closed_at"])
+                if obj.get("closed_at")
+                else None
             ),
             title=obj["title"],
             state=obj["state"],
