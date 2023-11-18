@@ -11,6 +11,7 @@ class PullRequest:
     id: int
     html_url: str
     created_at: datetime
+    updated_at: datetime
     merged_at: Optional[datetime]
     closed_at: Optional[datetime]
     title: str
@@ -65,6 +66,7 @@ def github_pulls(
             id=obj["id"],
             html_url=obj["html_url"],
             created_at=datetime.fromisoformat(obj["created_at"]),
+            updated_at=datetime.fromisoformat(obj["updated_at"]),
             merged_at=(
                 datetime.fromisoformat(obj["merged_at"])
                 if obj.get("merged_at")
