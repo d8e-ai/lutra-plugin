@@ -26,7 +26,7 @@ def github_pulls(
     owner: str,
     repo: str,
     state: Literal["open", "closed", "all"] = "open",
-    sort: str = "created",
+    sort: Literal["created", "updated", "popularity", "long-running"] = "created",
     sort_direction: str | None = None,
     page: int = 1,
 ) -> list[PullRequest]:
