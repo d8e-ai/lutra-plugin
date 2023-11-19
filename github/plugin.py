@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 import httpx
 from lutraai.augmented_request_client import AugmentedTransport
@@ -25,9 +25,9 @@ class PullRequest:
 def github_pulls(
     owner: str,
     repo: str,
-    state: str = "open",
-    sort: str = "created",
-    sort_direction: str | None = None,
+    state: Literal["open", "closed", "all"] = "open",
+    sort: Literal["created", "updated", "popularity", "long-running"] = "created",
+    sort_direction: Literal["asc", "desc"] | None = None,
     page: int = 1,
 ) -> list[PullRequest]:
     """
@@ -42,9 +42,8 @@ def github_pulls(
         repo: the repository name.
         state: may be one of {"open","closed","all"}.
         sort: by what to sort results.
-            One of {"created","updated","popularity","long-running"}.
-        sort_direction: the direction of the sort.  One of {"asc","desc"}.  If None,
-            "desc" for sort by "created", "asc" otherwise.
+        sort_direction: the direction of the sort.  If None, "desc" for sort by
+            "created", "asc" otherwise.
         page: the page of results to return. Each page has at most 30 results.
 
     """
