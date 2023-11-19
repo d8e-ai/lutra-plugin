@@ -40,7 +40,7 @@ def github_pulls(
     Parameters:
         owner: the owner of the repository.
         repo: the repository name.
-        state: may be one of {"open","closed","all"}.
+        state: the state of the pull requests to fetch from GitHub.
         sort: by what to sort results.
         sort_direction: the direction of the sort.
         page: the page of results to return. Each page has at most 30 results.
