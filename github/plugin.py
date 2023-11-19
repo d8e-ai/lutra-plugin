@@ -27,7 +27,7 @@ def github_pulls(
     repo: str,
     state: Literal["open", "closed", "all"] = "open",
     sort: Literal["created", "updated", "popularity", "long-running"] = "created",
-    sort_direction: str | None = None,
+    sort_direction: Literal["asc", "desc"] | None = None,
     page: int = 1,
 ) -> list[PullRequest]:
     """
@@ -42,9 +42,8 @@ def github_pulls(
         repo: the repository name.
         state: may be one of {"open","closed","all"}.
         sort: by what to sort results.
-            One of {"created","updated","popularity","long-running"}.
-        sort_direction: the direction of the sort.  One of {"asc","desc"}.  If None,
-            "desc" for sort by "created", "asc" otherwise.
+        sort_direction: the direction of the sort.  If None, "desc" for sort by
+            "created", "asc" otherwise.
         page: the page of results to return. Each page has at most 30 results.
 
     """
