@@ -7,6 +7,9 @@ _BOT_NAME = "Lutra Slack Bot"
 
 
 def slack_send_message_to_channel(channel: str, message: str) -> None:
+    """
+    Send a message to a channel in Slack by channel name or ID.
+    """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
@@ -31,6 +34,9 @@ def slack_send_message_to_channel(channel: str, message: str) -> None:
 
 
 def slack_send_message_to_user(user: str, message: str) -> None:
+    """
+    Send a message to a user in Slack by user name or ID.
+    """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
