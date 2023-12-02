@@ -69,3 +69,36 @@ def slack_send_message_to_user(user: str, message: str) -> None:
         )
         if not data.get("ok", False):
             raise RuntimeError(f"sending message: {data}")
+
+
+def _get_self_user_id() -> str:
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
+    ) as client:
+        data = client.get("https://slack.com/api/auth.test").raise_for_status().json()
+        if not data.get("ok", False):
+            raise RuntimeError(f"getting user ID: {data}")
+        return data["user_id"]
+
+
+def slack_send_message_to_self(message: str) -> None:
+    """
+    Send a message to my own user.
+    """
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_slack)
+    ) as client:
+        user_id = _get_self_user_id()
+        data = (
+            client.post(
+                "https://slack.com/api/chat.postMessage",
+                json={
+                    "channel": user_id,
+                    "text": message,
+                },
+            )
+            .raise_for_status()
+            .json()
+        )
+        if not data.get("ok", False):
+            raise RuntimeError(f"sending message: {data}")
