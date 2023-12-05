@@ -1,5 +1,6 @@
 name = "GitHub"
 description = "Use GitHub."
+logo_url = "file:/assets/logos/github-mark.svg"
 
 [[required_actions]]
 action_reference_type = "augmented_request"
