@@ -1,3 +1,7 @@
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
+
 import httpx
 
 from lutraai.augmented_request_client import AugmentedTransport
@@ -102,3 +106,54 @@ def slack_send_message_to_self(message: str) -> None:
         )
         if not data.get("ok", False):
             raise RuntimeError(f"sending message: {data}")
+
+
+@dataclass
+class SlackMessage:
+    type: str
+    user: str
+    text: str
+    ts: datetime
+
+
+def slack_conversations_history(
+    channel: str, cursor: Optional[str] = None, limit: int = 100
+) -> tuple[list[SlackMessage], str]:
+    """
+    Fetches a page of conversation history from a Slack channel.
+
+    :param channel: The name of the Slack channel.
+    :param cursor: Cursor for pagination.
+    :param limit: Number of messages to fetch. Default is 100.
+    :return: A tuple containing a list of SlackMessage dataclass instances and the next cursor.
+    """
+    params = {
+        "channel": channel,
+        "limit": limit,
+    }
+    if cursor:
+        params["cursor"] = cursor
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
+    ) as client:
+        data = (
+            client.get(
+                "https://slack.com/api/conversations.history",
+                params=params,
+            )
+            .raise_for_status()
+            .json()
+        )
+    if not data.get("ok", False):
+        raise RuntimeError(f"fetching history: {data}")
+    messages = [
+        SlackMessage(
+            type=msg["type"],
+            user=msg.get("user"),
+            text=msg.get("text"),
+            ts=datetime.fromtimestamp(float(msg["ts"])),
+        )
+        for msg in data.get("messages", [])
+    ]
+    next_cursor = data.get("response_metadata", {}).get("next_cursor")
+    return messages, next_cursor
