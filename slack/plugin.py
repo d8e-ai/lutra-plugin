@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from typing import Optional
+
 import httpx
 
 from lutraai.augmented_request_client import AugmentedTransport
@@ -102,3 +105,99 @@ def slack_send_message_to_self(message: str) -> None:
         )
         if not data.get("ok", False):
             raise RuntimeError(f"sending message: {data}")
+
+
+def _find_channel_by_name(client: httpx.Client, channel_name: str) -> str | None:
+    cursor = None
+    while True:
+        params = {}
+        if cursor is not None:
+            params["cursor"] = cursor
+        data = (
+            client.get(
+                "https://slack.com/api/conversations.list",
+                params=params,
+            )
+            .raise_for_status()
+            .json()
+        )
+        if not data.get("ok", False):
+            raise RuntimeError(f"listing channels: {data}")
+        for channel in data["channels"]:
+            if (candidate_name := channel.get("name")) is None:
+                continue
+            if channel_name in {candidate_name, f"#{candidate_name}"}:
+                return channel["id"]
+        cursor = data.get("response_metadata", {}).get("next_cursor")
+        if cursor in {None, ""}:
+            return None
+
+
+@dataclass
+class SlackMessage:
+    type: str
+    user: str
+    text: str
+    ts: str
+
+
+def slack_conversations_history(
+    channel: str,
+    oldest: Optional[str] = None,
+    latest: Optional[str] = None,
+    cursor: Optional[str] = None,
+    limit: int = 100,
+) -> tuple[list[SlackMessage], str]:
+    """
+    Fetches a page of conversation history from a Slack channel.
+
+    :param channel: The name of the Slack channel.
+    :param oldest: Only messages after this Unix timestamp will be included in results.
+        Default is None, which means the beginning of time.
+    :param latest: Only messages before this Unix timestamp will be included in results.
+        Default is the None, which means the current time.
+    :param cursor: Cursor for pagination.
+    :param limit: The maximum number of items to return. May return fewer than the
+        limit, even if there are more items.
+    :return: A tuple containing a list of SlackMessage dataclass instances and the next
+        cursor for pagination. If the next cursor is the empty string, all of the
+        requested items have been returned.
+    """
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
+    ) as client:
+        channel_id = _find_channel_by_name(client, channel)
+        if channel_id is None:
+            # `channel` does not match any name, so assume that it is an ID.
+            channel_id = channel
+        params = {
+            "channel": channel_id,
+            "limit": limit,
+        }
+        if oldest:
+            params["oldest"] = oldest
+        if latest:
+            params["latest"] = latest
+        if cursor:
+            params["cursor"] = cursor
+        data = (
+            client.get(
+                "https://slack.com/api/conversations.history",
+                params=params,
+            )
+            .raise_for_status()
+            .json()
+        )
+    if not data.get("ok", False):
+        raise RuntimeError(f"fetching history: {data}")
+    messages = [
+        SlackMessage(
+            type=msg["type"],
+            user=msg.get("user"),
+            text=msg.get("text"),
+            ts=msg["ts"],
+        )
+        for msg in data.get("messages", [])
+    ]
+    next_cursor = data.get("response_metadata", {}).get("next_cursor", "")
+    return messages, next_cursor
