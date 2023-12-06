@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Optional
 
 import httpx
@@ -108,12 +107,38 @@ def slack_send_message_to_self(message: str) -> None:
             raise RuntimeError(f"sending message: {data}")
 
 
+def _find_channel_by_name(client: httpx.Client, channel_name: str) -> str | None:
+    cursor = None
+    while True:
+        params = {}
+        if cursor is not None:
+            params["cursor"] = cursor
+        data = (
+            client.get(
+                "https://slack.com/api/conversations.list",
+                params=params,
+            )
+            .raise_for_status()
+            .json()
+        )
+        if not data.get("ok", False):
+            raise RuntimeError(f"listing channels: {data}")
+        for channel in data["channels"]:
+            if (candidate_name := channel.get("name")) is None:
+                continue
+            if channel_name in {candidate_name, f"#{candidate_name}"}:
+                return channel["id"]
+        cursor = data.get("response_metadata", {}).get("next_cursor")
+        if cursor in {None, ""}:
+            return None
+
+
 @dataclass
 class SlackMessage:
     type: str
     user: str
     text: str
-    ts: datetime
+    ts: str
 
 
 def slack_conversations_history(
@@ -124,18 +149,25 @@ def slack_conversations_history(
 
     :param channel: The name of the Slack channel.
     :param cursor: Cursor for pagination.
-    :param limit: Number of messages to fetch. Default is 100.
-    :return: A tuple containing a list of SlackMessage dataclass instances and the next cursor.
+    :param limit: The maximum number of items to return. May return fewer than the
+        limit, even if there are more items.
+    :return: A tuple containing a list of SlackMessage dataclass instances and the next
+        cursor for pagination. If the next cursor is the empty string, all of the
+        requested items have been returned.
     """
-    params = {
-        "channel": channel,
-        "limit": limit,
-    }
-    if cursor:
-        params["cursor"] = cursor
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
     ) as client:
+        channel_id = _find_channel_by_name(client, channel)
+        if channel_id is None:
+            # `channel` does not match any name, so assume that it is an ID.
+            channel_id = channel
+        params = {
+            "channel": channel_id,
+            "limit": limit,
+        }
+        if cursor:
+            params["cursor"] = cursor
         data = (
             client.get(
                 "https://slack.com/api/conversations.history",
@@ -151,9 +183,9 @@ def slack_conversations_history(
             type=msg["type"],
             user=msg.get("user"),
             text=msg.get("text"),
-            ts=datetime.fromtimestamp(float(msg["ts"])),
+            ts=msg["ts"],
         )
         for msg in data.get("messages", [])
     ]
-    next_cursor = data.get("response_metadata", {}).get("next_cursor")
+    next_cursor = data.get("response_metadata", {}).get("next_cursor", "")
     return messages, next_cursor
