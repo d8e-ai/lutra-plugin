@@ -142,12 +142,20 @@ class SlackMessage:
 
 
 def slack_conversations_history(
-    channel: str, cursor: Optional[str] = None, limit: int = 100
+    channel: str,
+    oldest: Optional[str] = None,
+    latest: Optional[str] = None,
+    cursor: Optional[str] = None,
+    limit: int = 100,
 ) -> tuple[list[SlackMessage], str]:
     """
     Fetches a page of conversation history from a Slack channel.
 
     :param channel: The name of the Slack channel.
+    :param oldest: Only messages after this Unix timestamp will be included in results.
+        Default is None, which means the beginning of time.
+    :param latest: Only messages before this Unix timestamp will be included in results.
+        Default is the None, which means the current time.
     :param cursor: Cursor for pagination.
     :param limit: The maximum number of items to return. May return fewer than the
         limit, even if there are more items.
@@ -166,6 +174,10 @@ def slack_conversations_history(
             "channel": channel_id,
             "limit": limit,
         }
+        if oldest:
+            params["oldest"] = oldest
+        if latest:
+            params["latest"] = latest
         if cursor:
             params["cursor"] = cursor
         data = (
