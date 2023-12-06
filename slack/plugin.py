@@ -151,7 +151,7 @@ def slack_conversations_history(
     """
     Fetches a page of conversation history from a Slack channel.
 
-    :param channel: The name of the Slack channel.
+    :param channel: The name or ID of the Slack channel.
     :param oldest: Only messages after this Unix timestamp will be included in results.
         Default is None, which means the beginning of time.
     :param latest: Only messages before this Unix timestamp will be included in results.
