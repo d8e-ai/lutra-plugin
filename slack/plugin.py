@@ -31,7 +31,8 @@ def slack_send_message_to_channel(channel: str, message: str) -> None:
             if data.get("error", "") == "not_in_channel":
                 raise RuntimeError(
                     f"bot is not in channel; please add `{_BOT_NAME}` "
-                    f"by running `/invite @{_BOT_NAME}` in {channel}"
+                    f"by running `/invite @{_BOT_NAME}` in {channel}; "
+                    "also double-check that you have authorized the correct workspace"
                 )
             raise RuntimeError(f"sending message: {data}")
 
