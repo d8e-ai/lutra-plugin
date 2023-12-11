@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
+import re
 
 import httpx
 
@@ -9,19 +10,52 @@ from lutraai.augmented_request_client import AugmentedTransport
 _BOT_NAME = "Lutra Slack Bot"
 
 
+@dataclass
+class _SlackUser:
+    id: str
+    display_name: str
+
+
+def _with_mentions(users: list[_SlackUser], message: str) -> str:
+    display_name_to_id = {}
+    for user in users:
+        if user.display_name not in display_name_to_id:
+            display_name_to_id[user.display_name] = []
+        display_name_to_id[user.display_name].append(user.id)
+
+    def replace_with_id(match):
+        display_name = match.group(1)
+        if display_name in display_name_to_id:
+            if len(display_name_to_id[display_name]) == 1:
+                return f"<@{display_name_to_id[display_name][0]}>"
+            else:
+                # If more than one user has the same display name
+                raise ValueError(
+                    f"Ambiguous display name in mention: '{display_name}' is shared by multiple users."
+                )
+        else:
+            return match.group(0)  # If no user found, return the original mention
+
+    return re.sub(r"<@([^>]+)>", replace_with_id, message)
+
+
 def slack_send_message_to_channel(channel: str, message: str) -> None:
     """
     Send a message to a channel by channel name or ID.
+
+    The message may mention users by their display name by wrapping it in "<@" and ">".
+    For example, to mention a user named "Alice", use "<@Alice>".
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
+        users = _list_users(client)
         data = (
             client.post(
                 "https://slack.com/api/chat.postMessage",
                 json={
                     "channel": channel,
-                    "text": message,
+                    "text": _with_mentions(users, message),
                 },
             )
             .raise_for_status()
@@ -37,35 +71,37 @@ def slack_send_message_to_channel(channel: str, message: str) -> None:
             raise RuntimeError(f"sending message: {data}")
 
 
-def slack_send_message_to_user(user: str, message: str) -> None:
+def slack_send_message_to_user(user_display_name: str, message: str) -> None:
     """
     Send a message to a user by user name or ID.
+
+    The message may mention users by their display name by wrapping it in "<@" and ">".
+    For example, to mention a user named "Alice", use "<@Alice>".
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
-        user_list = (
-            client.get(
-                "https://slack.com/api/users.list",
-            )
-            .raise_for_status()
-            .json()
-        )
-        channel_id = None
-        found_members = []
-        for member in user_list["members"]:
-            found_members += [member["name"]]
-            if member["name"] == user:
-                channel_id = member["id"]
-                break
-        if channel_id is None:
-            raise ValueError(f"could not find {user}, members: {found_members}")
+        users = [
+            user
+            for user in _list_users(client)
+            if user.display_name == user_display_name
+        ]
+        match len(users):
+            case 0:
+                raise ValueError(f"could not find {user_display_name}: {users}")
+            case 1:
+                channel_id = users[0].id
+            case _:
+                raise ValueError(
+                    f"found multiple users named {user_display_name}: "
+                    f"{[user.id for user in users]}"
+                )
         data = (
             client.post(
                 "https://slack.com/api/chat.postMessage",
                 json={
                     "channel": channel_id,
-                    "text": message,
+                    "text": _with_mentions(users, message),
                 },
             )
             .raise_for_status()
@@ -88,17 +124,21 @@ def _get_self_user_id() -> str:
 def slack_send_message_to_self(message: str) -> None:
     """
     Send a message to my own user.
+
+    The message may mention users by their display name by wrapping it in "<@" and ">".
+    For example, to mention a user named "Alice", use "<@Alice>".
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
         user_id = _get_self_user_id()
+        users = _list_users(client)
         data = (
             client.post(
                 "https://slack.com/api/chat.postMessage",
                 json={
                     "channel": user_id,
-                    "text": message,
+                    "text": _with_mentions(users, message),
                 },
             )
             .raise_for_status()
@@ -106,6 +146,35 @@ def slack_send_message_to_self(message: str) -> None:
         )
         if not data.get("ok", False):
             raise RuntimeError(f"sending message: {data}")
+
+
+def _list_users(client: httpx.Client) -> list[_SlackUser]:
+    users = []
+    cursor = None
+    while True:
+        params = {}
+        if cursor is not None:
+            params["cursor"] = cursor
+        data = (
+            client.get(
+                "https://slack.com/api/users.list",
+                params=params,
+            )
+            .raise_for_status()
+            .json()
+        )
+        if not data.get("ok", False):
+            raise RuntimeError(f"listing users: {data}")
+        for member in data["members"]:
+            users.append(
+                _SlackUser(
+                    id=member["id"],
+                    display_name=member["profile"]["display_name"],
+                )
+            )
+        cursor = data.get("response_metadata", {}).get("next_cursor")
+        if cursor in {None, ""}:
+            return users
 
 
 def _find_channel_by_name(client: httpx.Client, channel_name: str) -> str | None:
