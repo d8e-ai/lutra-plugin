@@ -81,11 +81,8 @@ def slack_send_message_to_user(user_display_name: str, message: str) -> None:
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
-        users = [
-            user
-            for user in _list_users(client)
-            if user.display_name == user_display_name
-        ]
+        all_users = _list_users(client)
+        users = [user for user in all_users if user.display_name == user_display_name]
         match len(users):
             case 0:
                 raise ValueError(f"could not find {user_display_name}: {users}")
@@ -101,7 +98,7 @@ def slack_send_message_to_user(user_display_name: str, message: str) -> None:
                 "https://slack.com/api/chat.postMessage",
                 json={
                     "channel": channel_id,
-                    "text": _with_mentions(users, message),
+                    "text": _with_mentions(all_users, message),
                 },
             )
             .raise_for_status()
