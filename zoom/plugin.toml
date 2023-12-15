@@ -1,0 +1,7 @@
+name = "Zoom"
+description = "Call Zoom API."
+logo_url = "/assets/logos/zoom.svg"
+
+[[required_actions]]
+action_reference_type = "augmented_request"
+augmented_request_configuration_id = "5874e9f1-e629-4844-96de-5f8ba2df0742"
