@@ -4,4 +4,6 @@ logo_url = "/assets/logos/airtable.svg"
 
 [[required_actions]]
 action_reference_type = "augmented_request"
-augmented_request_configuration_id = "25cd3564-d9c7-4828-a2cc-48320f0375ea"
+augmented_request_configuration_id = "b21a4545-20dc-4672-9418-8a5c220f13b9"
+# local environment
+# augmented_request_configuration_id = "25cd3564-d9c7-4828-a2cc-48320f0375ea"
