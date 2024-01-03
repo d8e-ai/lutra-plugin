@@ -1,0 +1,7 @@
+name = "Airtable"
+description = "Call Airtable API."
+logo_url = "/assets/logos/airtable.svg"
+
+[[required_actions]]
+action_reference_type = "augmented_request"
+augmented_request_configuration_id = "25cd3564-d9c7-4828-a2cc-48320f0375ea"
