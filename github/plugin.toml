@@ -1,5 +1,5 @@
 name = "GitHub"
-description = "Use GitHub."
+description = "Get information about GitHub pull requests."
 logo_url = "/assets/logos/github-mark.svg"
 
 [[required_actions]]
