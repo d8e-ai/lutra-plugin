@@ -36,16 +36,16 @@ def airtable_record_list(baseId: str, tableIdOrName: str) -> list[AirtableRecord
     ]
 
 
-def airtable_record_update_put(
+def airtable_record_update_patch(
     baseId: str, tableIdOrName: str, recordId: str, fields: dict[str, Any]
 ) -> None:
     """
-    Update a record using the Airtable `update record` API call with a PUT.
+    Update a record using the Airtable `update record` API call with a PATCH.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
-        client.put(
+        client.patch(
             f"https://api.airtable.com/v0/{baseId}/{tableIdOrName}/{recordId}",
             json={"fields": fields},
         ).raise_for_status()
