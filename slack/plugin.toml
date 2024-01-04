@@ -1,5 +1,8 @@
 name = "Slack"
-description = "Send messages to Slack."
+description = """
+Send messages in Slack to yourself, other users, or channels.  Get 
+conversation history.
+"""
 logo_url = "/assets/logos/slack.svg"
 
 [[required_actions]]
