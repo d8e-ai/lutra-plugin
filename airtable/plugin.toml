@@ -1,5 +1,5 @@
 name = "Airtable"
-description = "Call Airtable API."
+description = "List and update records in Airtable."
 logo_url = "/assets/logos/airtable.svg"
 
 [[required_actions]]
