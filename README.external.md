@@ -292,30 +292,28 @@ Action functions may be synchronous or asynchronous, i.e. both `def` and
 The plugin code will run in an environment with access to the following Python
 modules, in addition to the Python 3 standard library.
 
-```
-bs4
-chardet
-dateutil
-html2text
-httpx
-jdcal
-lxml
-magic
-numpy
-olefile
-openpyxl
-pandas
-pdf2image
-pdfminer
-pydantic
-pypandoc
-pytz
-rfc3986
-soupsieve
-sqlite3
-tabulate
-tenacity
-tzdata
-ulid
-zstandard
-```
+- `bs4`
+- `chardet`
+- `dateutil`
+- `html2text`
+- `httpx`
+- `jdcal`
+- `lxml`
+- `magic`
+- `numpy`
+- `olefile`
+- `openpyxl`
+- `pandas`
+- `pdf2image`
+- `pdfminer`
+- `pydantic`
+- `pypandoc`
+- `pytz`
+- `rfc3986`
+- `soupsieve`
+- `sqlite3`
+- `tabulate`
+- `tenacity`
+- `tzdata`
+- `ulid`
+- `zstandard`
