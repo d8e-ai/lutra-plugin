@@ -11,7 +11,7 @@ This document describes how to create plugins for Lutra.
 2. Edit the plugin name to be "Hello World".
 3. Enter the following in the `Code` editor:
 
-```
+```python
 def hello_world() -> str:
     return "Hello, world!"
 ```
@@ -65,7 +65,7 @@ Create a new plugin, and name it "Chronicling America".
 Create an action that returns the results of a title search. Enter the
 following into the `Code` editor:
 
-```
+```python
 from typing import Any
 
 import httpx
@@ -104,7 +104,7 @@ structure of the title search result. We can help Lutra understand.
 
 We use Python types and dataclasses to express this structure:
 
-```
+```python
 from dataclasses import dataclass
 from typing import Any
 
@@ -146,7 +146,7 @@ fields from the title search result.
 A plugin can define multiple actions. Let's add another action to our plugin by
 adding the following code which performs a newspaper page search:
 
-```
+```python
 @dataclass
 class Page:
     id: str
@@ -231,7 +231,7 @@ that are not exposed by action functions.
 
 If you use dataclasses, always import the `dataclass` decorator as:
 
-```
+```python
 from dataclasses import dataclass
 ```
 
@@ -239,7 +239,7 @@ In addition to the types described in the [Types](#types) section `dataclass`
 fields may also refer to previously defined dataclasses, e.g. the following is
 valid:
 
-```
+```python
 @dataclass
 class Foo:
     pass
@@ -255,7 +255,7 @@ about to make a PR that supports this feature.
 
 However, recursive dataclass definitions are disallowed, e.g.:
 
-```
+```python
 @dataclass
 class Cons:
     car: int
@@ -267,7 +267,7 @@ class Cons:
 Action function docstrings can be used to help guide Lutra to use your action
 as intended, e.g.:
 
-```
+```python
 def max_int(is: list[int]) -> int:
     """
     Return the maximum integer in the given list.
