@@ -17,6 +17,7 @@ class AirtableRecord:
 def airtable_record_list(baseId: str, tableIdOrName: str) -> list[AirtableRecord]:
     """
     Return results of an Airtable `list records` API call.
+    baseId must be an ID and not a name.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
@@ -41,6 +42,8 @@ def airtable_record_update_patch(
 ) -> None:
     """
     Update a record using the Airtable `update record` API call with a PATCH.
+    baseId must be an ID and not a name.
+    recordId must be an ID and not a name.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
