@@ -250,9 +250,6 @@ class Bar:
     foo: Foo
 ```
 
-TODO: Dataclasses can't actually refer to other dataclasses right now, but I am
-about to make a PR that supports this feature.
-
 However, recursive dataclass definitions are disallowed, e.g.:
 
 ```python
