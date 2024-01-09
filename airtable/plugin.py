@@ -37,6 +37,31 @@ def airtable_record_list(baseId: str, tableIdOrName: str) -> list[AirtableRecord
     ]
 
 
+def airtable_record_create(
+    baseId: str, tableIdOrName: str, fields: dict[str, Any]
+) -> AirtableRecord:
+    """
+    Create a record using the Airtable `create records` API call with a POST.
+    baseId must be an ID and not a name.
+    """
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
+    ) as client:
+        data = (
+            client.post(
+                f"https://api.airtable.com/v0/{baseId}/{tableIdOrName}",
+                json={"fields": fields},
+            )
+            .raise_for_status()
+            .json()
+        )
+    return AirtableRecord(
+        id=data["id"],
+        created_time=datetime.fromisoformat(data["createdTime"]),
+        fields=data["fields"],
+    )
+
+
 def airtable_record_update_patch(
     baseId: str, tableIdOrName: str, recordId: str, fields: dict[str, Any]
 ) -> None:
