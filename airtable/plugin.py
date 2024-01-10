@@ -19,7 +19,6 @@ def _resolve_error_message(status_code: int, text: str) -> str:
         data = json.loads(text)
     except json.JSONDecodeError:
         return text
-    error = data.get("error")
     match (error := data.get("error")):
         case str():
             return (
