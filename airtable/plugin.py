@@ -8,7 +8,7 @@ import httpx
 from lutraai.augmented_request_client import AugmentedTransport
 
 
-def _resolve_error_message(text: str) -> str:
+def _resolve_error_message(status_code: int, text: str) -> str:
     """
     Returns a more human-readable error message from semi-structured error responses.
 
@@ -19,13 +19,22 @@ def _resolve_error_message(text: str) -> str:
         data = json.loads(text)
     except json.JSONDecodeError:
         return text
-    if not isinstance(data.get("error"), dict):
-        return text
-    error_type = data["error"].get("type")
-    error_message = data["error"].get("message")
-    if not error_type or not error_message:
-        return text
-    return f"{error_type}: {error_message}"
+    match (error := data.get("error")):
+        case str():
+            return (
+                f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: {error}"
+            )
+        case dict():
+            error_type = error.get("type")
+            error_message = error.get("message")
+            if not isinstance(error_type, str) or not isinstance(error_message, str):
+                return text
+            return (
+                f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: "
+                f"{error_type}: {error_message}"
+            )
+        case _:
+            return text
 
 
 @dataclass
@@ -74,7 +83,7 @@ def airtable_record_create(
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
-                f"{response.status_code}: {_resolve_error_message(response.text)}"
+                _resolve_error_message(response.status_code, response.text)
             )
         data = response.json()
     return AirtableRecord(
@@ -101,5 +110,5 @@ def airtable_record_update_patch(
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
-                f"{response.status_code}: {_resolve_error_message(response.text)}"
+                _resolve_error_message(response.status_code, response.text)
             )
