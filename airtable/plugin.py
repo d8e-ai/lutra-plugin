@@ -15,26 +15,22 @@ def _resolve_error_message(status_code: int, text: str) -> str:
     See examples here:
     https://airtable.com/developers/web/api/errors#example-error-responses
     """
+    prefix = f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: "
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
-        return text
+        return f"{prefix}{text}"
     match (error := data.get("error")):
         case str():
-            return (
-                f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: {error}"
-            )
+            return f"{prefix}{error}"
         case dict():
             error_type = error.get("type")
             error_message = error.get("message")
             if not isinstance(error_type, str) or not isinstance(error_message, str):
-                return text
-            return (
-                f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: "
-                f"{error_type}: {error_message}"
-            )
+                return f"{prefix}{text}"
+            return f"{prefix}{error_type}: {error_message}"
         case _:
-            return text
+            return f"{prefix}{text}"
 
 
 @dataclass
