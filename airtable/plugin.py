@@ -15,31 +15,23 @@ def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, 
     See examples here:
     https://airtable.com/developers/web/api/errors#example-error-responses
     """
+    prefix = f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: "
     include_schema = status_code == httpx.codes.UNPROCESSABLE_ENTITY
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
-        return text, include_schema
+        return f"{prefix}{text}", include_schema
     match (error := data.get("error")):
         case str():
-            return (
-                f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: {error}",
-                include_schema,
-            )
+            return f"{prefix}{error}", include_schema
         case dict():
             error_type = error.get("type")
             error_message = error.get("message")
             if not isinstance(error_type, str) or not isinstance(error_message, str):
-                return text, include_schema
-            return (
-                (
-                    f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: "
-                    f"{error_type}: {error_message}"
-                ),
-                include_schema,
-            )
+                return f"{prefix}{text}", include_schema
+            return f"{prefix}{error_type}: {error_message}", include_schema
         case _:
-            return text, include_schema
+            return f"{prefix}{text}", include_schema
 
 
 def _resolve_error_message(
