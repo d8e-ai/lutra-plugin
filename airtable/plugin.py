@@ -14,6 +14,9 @@ def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, 
 
     See examples here:
     https://airtable.com/developers/web/api/errors#example-error-responses
+
+    The first element of the tuple is the error message.  The second element is a
+    bool judgement whether the error message would benefit from schema information.
     """
     prefix = f"{status_code} {httpx.codes.get_reason_phrase(status_code)}: "
     include_schema = status_code == httpx.codes.UNPROCESSABLE_ENTITY
