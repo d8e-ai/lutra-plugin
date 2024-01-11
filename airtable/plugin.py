@@ -41,6 +41,13 @@ def _resolve_error_message(
     status_code: int,
     text: str,
 ) -> str:
+    """
+    Returns a more human-readable error message from semi-structured error responses.
+    If the error is a 422, try to include the schema of the table in the error message.
+
+    See examples here:
+    https://airtable.com/developers/web/api/errors#example-error-responses
+    """
     msg, include_schema = _resolve_error_message_no_schema(status_code, text)
     if include_schema:
         try:
