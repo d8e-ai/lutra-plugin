@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 import re
 
@@ -210,8 +211,8 @@ class SlackMessage:
 
 def slack_conversations_history(
     channel: str,
-    oldest: Optional[str] = None,
-    latest: Optional[str] = None,
+    oldest: Optional[datetime] = None,
+    latest: Optional[datetime] = None,
     cursor: Optional[str] = None,
     limit: int = 100,
 ) -> tuple[list[SlackMessage], str]:
@@ -219,9 +220,9 @@ def slack_conversations_history(
     Fetches a page of conversation history from a Slack channel.
 
     :param channel: The name or ID of the Slack channel.
-    :param oldest: Only messages after this Unix timestamp will be included in results.
+    :param oldest: Only messages after this datetime will be included in results.
         Default is None, which means the beginning of time.
-    :param latest: Only messages before this Unix timestamp will be included in results.
+    :param latest: Only messages before this datetime will be included in results.
         Default is the None, which means the current time.
     :param cursor: Cursor for pagination.
     :param limit: The maximum number of items to return. May return fewer than the
@@ -242,9 +243,9 @@ def slack_conversations_history(
             "limit": limit,
         }
         if oldest:
-            params["oldest"] = oldest
+            params["oldest"] = str(oldest.timestamp())
         if latest:
-            params["latest"] = latest
+            params["latest"] = str(latest.timestamp())
         if cursor:
             params["cursor"] = cursor
         data = (
