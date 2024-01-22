@@ -2,11 +2,42 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+import re
 
 import httpx
 
 from lutraai.augmented_request_client import AugmentedTransport
 
+@dataclass
+class AirtablePath:
+    base_id: str
+    table_id_or_name: str
+
+def extract_airtable_path_info(url: str) -> AirtablePath:
+    """
+    Extracts the base ID and table ID from an Airtable URL.
+
+    :param url: The Airtable URL to extract information from.
+               It should follow the pattern 'airtable.com/{base_id}/{table_id}'.
+               The table ID part is optional.
+
+    :return: An AirtablePath object containing the base ID and optionally the table ID.
+             If the table ID is not present in the URL, it will be set to None.
+
+    :raises ValueError: If the URL does not match the expected Airtable URL pattern.
+    """
+    # Regular expression to extract base and table IDs
+    # This pattern is flexible to accommodate prefixes before 'airtable.com'
+    pattern = r"airtable\.com/([^/?]+)(?:/([^/?]+))?"
+    match = re.search(pattern, url)
+
+    if not match:
+        raise ValueError("Invalid Airtable URL")
+
+    base_id = match.group(1)
+    table_id = match.group(2) if match.group(2) else None
+
+    return AirtablePath(base_id, table_id)
 
 def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, bool]:
     """
@@ -88,11 +119,12 @@ class AirtableRecord:
     fields: dict[str, Any]
 
 
-def airtable_record_list(base_id: str, table_id_or_name: str) -> list[AirtableRecord]:
+def airtable_record_list(airtable_path: AirtablePath) -> list[AirtableRecord]:
     """
-    Return results of an Airtable `list records` API call.
-    base_id must be an ID and not a name.
+    Return results of an Airtable `list records` API call. A field will not be returned in the AirtableRecord if it is empty.
     """
+    base_id = airtable_path.base_id
+    table_id_or_name = airtable_path.table_id_or_name
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
@@ -115,12 +147,13 @@ def airtable_record_list(base_id: str, table_id_or_name: str) -> list[AirtableRe
 
 
 def airtable_record_create(
-    base_id: str, table_id_or_name: str, fields: dict[str, Any]
+    airtable_path: AirtablePath, fields: dict[str, Any]
 ) -> AirtableRecord:
     """
     Create a record using the Airtable `create records` API call with a POST.
-    base_id must be an ID and not a name.
     """
+    base_id = airtable_path.base_id
+    table_id_or_name = airtable_path.table_id_or_name
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
@@ -147,19 +180,22 @@ def airtable_record_create(
 
 
 def airtable_record_update_patch(
-    base_id: str, table_id_or_name: str, record_id: str, fields: dict[str, Any]
+    airtable_path: AirtablePath, record_id: str, fields: dict[str, Any], typecast: bool
 ) -> None:
     """
     Update a record using the Airtable `update record` API call with a PATCH.
-    base_id must be an ID and not a name.
     record_id must be an ID and not a name.
+
+    @param typecast: Enable automatic data conversion. If the field type is either Multiple Select or Single Select, setting this to True will create a new choice.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
+        base_id = airtable_path.base_id
+        table_id_or_name = airtable_path.table_id_or_name
         response = client.patch(
             f"https://api.airtable.com/v0/{base_id}/{table_id_or_name}/{record_id}",
-            json={"fields": fields},
+            json={"fields": fields, "typecast": typecast},
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
