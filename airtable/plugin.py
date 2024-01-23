@@ -1,12 +1,45 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Tuple
+import re
 
 import httpx
 
 from lutraai.augmented_request_client import AugmentedTransport
 
+@dataclass
+class AirtableBaseID:
+    id: str
+
+@dataclass
+class AirtableTableID:
+    """
+    id can either be the table name or the table ID.
+    """
+    id: str
+
+@dataclass
+class AirtableRecordID:
+    id: str
+
+
+def airtable_url_to_ids(url: str) -> Tuple[AirtableBaseID, AirtableTableID]:
+    """
+    Extracts the base ID and table ID from an Airtable URL.
+    """
+    # Regular expression to extract base and table IDs
+    # This pattern is flexible to accommodate prefixes before 'airtable.com'
+    pattern = r"airtable\.com/([^/?]+)(?:/([^/?]+))?"
+    match = re.search(pattern, url)
+
+    if not match:
+        raise ValueError("Invalid Airtable URL")
+
+    base_id = match.group(1)
+    table_id = match.group(2) if match.group(2) else None
+
+    return (AirtableBaseID(base_id), AirtableTableID(table_id))
 
 def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, bool]:
     """
@@ -83,21 +116,20 @@ def _resolve_error_message(
 
 @dataclass
 class AirtableRecord:
-    id: str
+    record_id: AirtableRecordID
     created_time: datetime
     fields: dict[str, Any]
 
 
-def airtable_record_list(base_id: str, table_id_or_name: str) -> list[AirtableRecord]:
+def airtable_record_list(base_id: AirtableBaseID, table_id: AirtableTableID) -> list[AirtableRecord]:
     """
     Return results of an Airtable `list records` API call.
-    base_id must be an ID and not a name.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
         response = client.get(
-            f"https://api.airtable.com/v0/{base_id}/{table_id_or_name}"
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}"
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
@@ -106,7 +138,7 @@ def airtable_record_list(base_id: str, table_id_or_name: str) -> list[AirtableRe
         data = response.json()
     return [
         AirtableRecord(
-            id=record["id"],
+            record_id=AirtableRecordID(record["id"]),
             created_time=datetime.fromisoformat(record["createdTime"]),
             fields=record["fields"],
         )
@@ -115,58 +147,59 @@ def airtable_record_list(base_id: str, table_id_or_name: str) -> list[AirtableRe
 
 
 def airtable_record_create(
-    base_id: str, table_id_or_name: str, fields: dict[str, Any]
+    base_id: AirtableBaseID, table_id: AirtableTableID, fields: dict[str, Any], typecast: bool = True,
 ) -> AirtableRecord:
     """
     Create a record using the Airtable `create records` API call with a POST.
-    base_id must be an ID and not a name.
+
+    If typecast is True, Airtable will try to convert the value to the appropriate cell value.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
         response = client.post(
-            f"https://api.airtable.com/v0/{base_id}/{table_id_or_name}",
-            json={"fields": fields},
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
+            json={"fields": fields, "typecast": typecast},
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
                 _resolve_error_message(
                     client,
-                    base_id,
-                    table_id_or_name,
+                    base_id.id,
+                    table_id.id,
                     response.status_code,
                     response.text,
                 )
             )
         data = response.json()
     return AirtableRecord(
-        id=data["id"],
+        record_id=AirtableRecordID(data["id"]),
         created_time=datetime.fromisoformat(data["createdTime"]),
         fields=data["fields"],
     )
 
 
 def airtable_record_update_patch(
-    base_id: str, table_id_or_name: str, record_id: str, fields: dict[str, Any]
+    base_id: AirtableBaseID, table_id: AirtableTableID, record_id: AirtableRecordID, fields: dict[str, Any], typecast: bool = True
 ) -> None:
     """
-    Update a record using the Airtable `update record` API call with a PATCH.
-    base_id must be an ID and not a name.
-    record_id must be an ID and not a name.
+    Update a record using the Airtable `update record` API call with a PATCH and override the fields it is patching.
+
+    If typecast is True, Airtable will try to convert the value to the appropriate cell value.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
         response = client.patch(
-            f"https://api.airtable.com/v0/{base_id}/{table_id_or_name}/{record_id}",
-            json={"fields": fields},
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/{record_id.id}",
+            json={"fields": fields, "typecast": typecast},
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
                 _resolve_error_message(
                     client,
-                    base_id,
-                    table_id_or_name,
+                    base_id.id,
+                    table_id.id,
                     response.status_code,
                     response.text,
                 )
