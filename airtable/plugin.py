@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Tuple
 import re
 
 import httpx
@@ -9,22 +9,21 @@ import httpx
 from lutraai.augmented_request_client import AugmentedTransport
 
 @dataclass
-class AirtablePath:
-    base_id: str
-    table_id_or_name: str
+class AirtableBaseID:
+    id: str
 
-def extract_airtable_path_info(url: str) -> AirtablePath:
+@dataclass
+class AirtableTableID:
+    id: str
+
+@dataclass
+class AirtableRecordID:
+    id: str
+
+
+def airtable_url_to_ids(url: str) -> Tuple[AirtableBaseID, AirtableTableID]:
     """
     Extracts the base ID and table ID from an Airtable URL.
-
-    :param url: The Airtable URL to extract information from.
-               It should follow the pattern 'airtable.com/{base_id}/{table_id}'.
-               The table ID part is optional.
-
-    :return: An AirtablePath object containing the base ID and optionally the table ID.
-             If the table ID is not present in the URL, it will be set to None.
-
-    :raises ValueError: If the URL does not match the expected Airtable URL pattern.
     """
     # Regular expression to extract base and table IDs
     # This pattern is flexible to accommodate prefixes before 'airtable.com'
@@ -37,7 +36,7 @@ def extract_airtable_path_info(url: str) -> AirtablePath:
     base_id = match.group(1)
     table_id = match.group(2) if match.group(2) else None
 
-    return AirtablePath(base_id, table_id)
+    return (AirtableBaseID(base_id), AirtableTableID(table_id))
 
 def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, bool]:
     """
@@ -114,22 +113,22 @@ def _resolve_error_message(
 
 @dataclass
 class AirtableRecord:
-    id: str
+    airtable_record_id: AirtableRecordID
     created_time: datetime
     fields: dict[str, Any]
 
 
-def airtable_record_list(airtable_path: AirtablePath) -> list[AirtableRecord]:
+def airtable_record_list(airtable_base_id: AirtableBaseID, airtable_table_id: AirtableTableID) -> list[AirtableRecord]:
     """
-    Return results of an Airtable `list records` API call. A field will not be returned in the AirtableRecord if it is empty.
+    Return results of an Airtable `list records` API call.
     """
-    base_id = airtable_path.base_id
-    table_id_or_name = airtable_path.table_id_or_name
+    base_id = airtable_base_id.id
+    table_id = airtable_table_id.id
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
         response = client.get(
-            f"https://api.airtable.com/v0/{base_id}/{table_id_or_name}"
+            f"https://api.airtable.com/v0/{base_id}/{table_id}"
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
@@ -138,7 +137,7 @@ def airtable_record_list(airtable_path: AirtablePath) -> list[AirtableRecord]:
         data = response.json()
     return [
         AirtableRecord(
-            id=record["id"],
+            airtable_record_id=AirtableRecordID(record["id"]),
             created_time=datetime.fromisoformat(record["createdTime"]),
             fields=record["fields"],
         )
@@ -147,18 +146,18 @@ def airtable_record_list(airtable_path: AirtablePath) -> list[AirtableRecord]:
 
 
 def airtable_record_create(
-    airtable_path: AirtablePath, fields: dict[str, Any]
+    airtable_base_id: AirtableBaseID, airtable_table_id: AirtableTableID, fields: dict[str, Any]
 ) -> AirtableRecord:
     """
     Create a record using the Airtable `create records` API call with a POST.
     """
-    base_id = airtable_path.base_id
-    table_id_or_name = airtable_path.table_id_or_name
+    base_id = airtable_base_id.id
+    table_id = airtable_table_id.id
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
         response = client.post(
-            f"https://api.airtable.com/v0/{base_id}/{table_id_or_name}",
+            f"https://api.airtable.com/v0/{base_id}/{table_id}",
             json={"fields": fields},
         )
         if response.status_code != httpx.codes.OK:
@@ -166,35 +165,32 @@ def airtable_record_create(
                 _resolve_error_message(
                     client,
                     base_id,
-                    table_id_or_name,
+                    table_id,
                     response.status_code,
                     response.text,
                 )
             )
         data = response.json()
     return AirtableRecord(
-        id=data["id"],
+        airtable_record_id=AirtableRecordID(data["id"]),
         created_time=datetime.fromisoformat(data["createdTime"]),
         fields=data["fields"],
     )
 
 
 def airtable_record_update_patch(
-    airtable_path: AirtablePath, record_id: str, fields: dict[str, Any], typecast: bool
+    airtable_base_id: AirtableBaseID, airtable_table_id: AirtableTableID, airtable_record_id: AirtableRecordID, fields: dict[str, Any], typecast: bool = True
 ) -> None:
     """
     Update a record using the Airtable `update record` API call with a PATCH.
-    record_id must be an ID and not a name.
-
-    @param typecast: Enable automatic data conversion. If the field type is either Multiple Select or Single Select, setting this to True will create a new choice.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
-        base_id = airtable_path.base_id
-        table_id_or_name = airtable_path.table_id_or_name
+        base_id = airtable_base_id.id
+        table_id = airtable_table_id.id
         response = client.patch(
-            f"https://api.airtable.com/v0/{base_id}/{table_id_or_name}/{record_id}",
+            f"https://api.airtable.com/v0/{base_id}/{table_id}/{airtable_record_id.id}",
             json={"fields": fields, "typecast": typecast},
         )
         if response.status_code != httpx.codes.OK:
@@ -202,7 +198,7 @@ def airtable_record_update_patch(
                 _resolve_error_message(
                     client,
                     base_id,
-                    table_id_or_name,
+                    table_id,
                     response.status_code,
                     response.text,
                 )
