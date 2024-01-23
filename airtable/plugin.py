@@ -14,6 +14,9 @@ class AirtableBaseID:
 
 @dataclass
 class AirtableTableID:
+    """
+    id can either be the table name or the table ID.
+    """
     id: str
 
 @dataclass
@@ -113,22 +116,20 @@ def _resolve_error_message(
 
 @dataclass
 class AirtableRecord:
-    airtable_record_id: AirtableRecordID
+    record_id: AirtableRecordID
     created_time: datetime
     fields: dict[str, Any]
 
 
-def airtable_record_list(airtable_base_id: AirtableBaseID, airtable_table_id: AirtableTableID) -> list[AirtableRecord]:
+def airtable_record_list(base_id: AirtableBaseID, table_id: AirtableTableID) -> list[AirtableRecord]:
     """
     Return results of an Airtable `list records` API call.
     """
-    base_id = airtable_base_id.id
-    table_id = airtable_table_id.id
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
         response = client.get(
-            f"https://api.airtable.com/v0/{base_id}/{table_id}"
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}"
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
@@ -137,7 +138,7 @@ def airtable_record_list(airtable_base_id: AirtableBaseID, airtable_table_id: Ai
         data = response.json()
     return [
         AirtableRecord(
-            airtable_record_id=AirtableRecordID(record["id"]),
+            record_id=AirtableRecordID(record["id"]),
             created_time=datetime.fromisoformat(record["createdTime"]),
             fields=record["fields"],
         )
@@ -146,59 +147,59 @@ def airtable_record_list(airtable_base_id: AirtableBaseID, airtable_table_id: Ai
 
 
 def airtable_record_create(
-    airtable_base_id: AirtableBaseID, airtable_table_id: AirtableTableID, fields: dict[str, Any]
+    base_id: AirtableBaseID, table_id: AirtableTableID, fields: dict[str, Any], typecast: bool = True,
 ) -> AirtableRecord:
     """
     Create a record using the Airtable `create records` API call with a POST.
+
+    If typecast is True, Airtable will try to convert the value to the appropriate cell value.
     """
-    base_id = airtable_base_id.id
-    table_id = airtable_table_id.id
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
         response = client.post(
-            f"https://api.airtable.com/v0/{base_id}/{table_id}",
-            json={"fields": fields},
-        )
-        if response.status_code != httpx.codes.OK:
-            raise RuntimeError(
-                _resolve_error_message(
-                    client,
-                    base_id,
-                    table_id,
-                    response.status_code,
-                    response.text,
-                )
-            )
-        data = response.json()
-    return AirtableRecord(
-        airtable_record_id=AirtableRecordID(data["id"]),
-        created_time=datetime.fromisoformat(data["createdTime"]),
-        fields=data["fields"],
-    )
-
-
-def airtable_record_update_patch(
-    airtable_base_id: AirtableBaseID, airtable_table_id: AirtableTableID, airtable_record_id: AirtableRecordID, fields: dict[str, Any], typecast: bool = True
-) -> None:
-    """
-    Update a record using the Airtable `update record` API call with a PATCH.
-    """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
-    ) as client:
-        base_id = airtable_base_id.id
-        table_id = airtable_table_id.id
-        response = client.patch(
-            f"https://api.airtable.com/v0/{base_id}/{table_id}/{airtable_record_id.id}",
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
             json={"fields": fields, "typecast": typecast},
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
                 _resolve_error_message(
                     client,
-                    base_id,
-                    table_id,
+                    base_id.id,
+                    table_id.id,
+                    response.status_code,
+                    response.text,
+                )
+            )
+        data = response.json()
+    return AirtableRecord(
+        record_id=AirtableRecordID(data["id"]),
+        created_time=datetime.fromisoformat(data["createdTime"]),
+        fields=data["fields"],
+    )
+
+
+def airtable_record_update_patch(
+    base_id: AirtableBaseID, table_id: AirtableTableID, record_id: AirtableRecordID, fields: dict[str, Any], typecast: bool = True
+) -> None:
+    """
+    Update a record using the Airtable `update record` API call with a PATCH and override the fields it is patching.
+
+    If typecast is True, Airtable will try to convert the value to the appropriate cell value.
+    """
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
+    ) as client:
+        response = client.patch(
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/{record_id.id}",
+            json={"fields": fields, "typecast": typecast},
+        )
+        if response.status_code != httpx.codes.OK:
+            raise RuntimeError(
+                _resolve_error_message(
+                    client,
+                    base_id.id,
+                    table_id.id,
                     response.status_code,
                     response.text,
                 )
