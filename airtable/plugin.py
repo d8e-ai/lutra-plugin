@@ -40,7 +40,10 @@ def airtable_url_to_ids(url: str) -> Tuple[AirtableBaseID, AirtableTableID]:
     # When loading the Airtable using the URL that only has the base id (e.g. https://airtable.com/apptpbyiHjjfPecFw)
     # Airtable automatically drops you into the first table of the base and we don't expect the table_id to be an empty string
     # if the user copies the URL from the browser.
-    table_id = match.group(2) if match.group(2) else ""
+    if not match.group(2):
+        raise ValueError("Invalid Airtable table ID")
+
+    table_id = match.group(2)
 
     return (AirtableBaseID(base_id), AirtableTableID(table_id))
 
