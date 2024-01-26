@@ -40,24 +40,31 @@ def _with_mentions(users: list[_SlackUser], message: str) -> str:
     return re.sub(r"<@([^>]+)>", replace_with_id, message)
 
 
-def slack_send_message_to_channel(channel: str, message: str) -> None:
+def slack_send_message_to_channel(
+    channel: str, message: str, thread_ts: Optional[str]
+) -> None:
     """
     Send a message to a channel by channel name or ID.
 
     The message may mention users by their display name by wrapping it in "<@" and ">".
     For example, to mention a user named "Alice", use "<@Alice>".
+
+    Set thread_ts to the timestamp of a message to reply to that message's thread.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
         users = _list_users(client)
+        body = {
+            "channel": channel,
+            "text": _with_mentions(users, message),
+        }
+        if thread_ts is not None:
+            body["thread_ts"] = thread_ts
         data = (
             client.post(
                 "https://slack.com/api/chat.postMessage",
-                json={
-                    "channel": channel,
-                    "text": _with_mentions(users, message),
-                },
+                json=body,
             )
             .raise_for_status()
             .json()
