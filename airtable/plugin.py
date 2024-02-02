@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import httpx
 from lutraai.augmented_request_client import AugmentedTransport
@@ -44,8 +44,10 @@ def airtable_parse_ids_from_url(
     parsed_url = urlparse(url)
     if parsed_url.netloc != "airtable.com":
         raise ValueError(f"host must be airtable.com: {url}")
-    pattern = r"/(?P<base_id>app[\w\d]+)(?:/(?P<table_id>tbl[\w\d]+))?(?:/(?P<view_id>viw[\w\d]+))?(?:/(?P<record_id>rec[\w\d]+))?(?:/.*)?"
-    match = re.search(pattern, parsed_url.path)
+    match = re.search(
+        r"/(?P<base_id>app[\w\d]+)(?:/(?P<table_id>tbl[\w\d]+))?(?:/(?P<view_id>viw[\w\d]+))?(?:/(?P<record_id>rec[\w\d]+))?(?:/.*)?",
+        unquote(parsed_url.path),
+    )
     if match:
         base_id = match.group("base_id")
         table_id = match.group("table_id")
