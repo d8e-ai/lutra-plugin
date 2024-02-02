@@ -42,10 +42,8 @@ def airtable_parse_ids_from_url(
     You must check that these ID values are not None before using them.
     """
     parsed_url = urlparse(url)
-
     if parsed_url.netloc != "airtable.com":
         raise ValueError(f"host must be airtable.com: {url}")
-
     pattern = r"/(?P<base_id>app[\w\d]+)(?:/(?P<table_id>tbl[\w\d]+))?(?:/(?P<view_id>viw[\w\d]+))?(?:/(?P<record_id>rec[\w\d]+))?(?:/.*)?"
     match = re.search(pattern, parsed_url.path)
     if match:
