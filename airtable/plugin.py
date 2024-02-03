@@ -58,7 +58,11 @@ def airtable_parse_ids_from_url(
             AirtableRecordID(record_id) if record_id else None,
         )
     else:
-        raise ValueError(f"does not match the expected Airtable URL format: {url}")
+        raise ValueError(
+            "does not match the expected Airtable URL format, "
+            "https://airtable.com/{{base_id}}/{{table_id}}/{{view_id}}/{{record_id}}: "
+            f"{url}"
+        )
 
 
 def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, bool]:
