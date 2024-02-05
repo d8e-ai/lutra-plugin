@@ -11,4 +11,4 @@ async def webhook_request(url: str, body: Any) -> Any:
     Python values using the json module.
     """
     async with httpx.AsyncClient() as client:
-        return await client.post(url, json=body).raise_for_status().json()
+        return (await client.post(url, json=body)).raise_for_status().json()
