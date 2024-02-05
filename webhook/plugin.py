@@ -5,7 +5,7 @@ import httpx
 
 async def webhook_request(url: str, body: Any) -> Any:
     """
-    Makes a POST request to the given URL with the given body and returns the response.
+    Make a POST request to the given URL with the given body and returns the response.
 
     Both the request and response bodies are expected to be JSON and are converted to
     Python values using the json module.
