@@ -33,9 +33,9 @@ def airtable_parse_ids_from_url(
 ) -> Tuple[AirtableBaseID, Optional[AirtableTableID], Optional[AirtableRecordID]]:
     """
     Parse Airtable IDs from an Airtable web UI URL.  url must be in the format
-    "https://airtable.com/{base_id}/{table_id}/{view_id}/{record_id}" and may include
-    additional path segments or query arguments after the record ID which will be
-    ignored.
+    "https://airtable.com/{base_id}/{table_id}/{view_id}/{record_id}".  Only base_id is
+    required.  Everything else is optional.  The URL may also include additional path
+    segments or query arguments after the record ID which will be ignored.
 
     Only the base_id is required and guaranteed to be non-None.  For each other ID, if
     it is not present in the URL, the corresponding value in the tuple will be None.
