@@ -152,7 +152,7 @@ class AirtableRecord:
 def airtable_record_list(
     base_id: AirtableBaseID,
     table_id: AirtableTableID,
-    include_fields: Optional[set[str]],
+    include_fields: Optional[set[str]] = None,
 ) -> list[AirtableRecord]:
     """
     Return results of an Airtable `list records` API call with the option of choosing
