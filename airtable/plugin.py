@@ -157,11 +157,11 @@ def airtable_record_list(
     """
     Return results of an Airtable `list records` API call with the option of choosing
     which fields to include in the returned records.  The include_fields fields are
-    required, so populate it ensure that the returned records have the fields you will
-    access by name.
+    required, so populate it to ensure that the returned records have the fields you
+    will access by name.
 
-    If fields is not `None`, the fields specified in `include_fields` are required, an
-    other fields are omitted.  If `include_fields` is `None`, all fields are included.
+    If `include_fields` is not `None`, only the fields specified in `include_fields`
+    will be included.  If `include_fields` is `None`, all fields are included.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
