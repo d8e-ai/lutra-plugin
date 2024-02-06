@@ -38,9 +38,9 @@ def airtable_parse_ids_from_url(
     but these are not required.  Any segments or query parameters beyond the specified
     record_id are ignored.
 
-    Returns a tuple in the order of (base_id, table_id, view_id, record_id).  base_id is
-    always returned.  table_id, view_id, and record_id are returned only if present in
-    the URL; otherwise, None is returned for each missing ID.
+    Returns a tuple in the order of (base_id, table_id, record_id).  base_id is always
+    returned.  table_id and record_id are returned only if present in the URL;
+    otherwise, None is returned for each missing ID.
 
     Important: The presence of table_id, view_id, or record_id is not guaranteed. They
     will only be included in the output if explicitly present in the URL. Users should
