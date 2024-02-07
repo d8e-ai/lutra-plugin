@@ -100,6 +100,30 @@ def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, 
             return f"{prefix}{text}", include_schema
 
 
+def _fetch_schema(client: httpx.Client, base_id: str, table_id_or_name: str) -> Any:
+    data = (
+        client.get(f"https://api.airtable.com/v0/meta/bases/{base_id}/tables")
+        .raise_for_status()
+        .json()
+    )
+    table_id_names = []
+    for table in data["tables"]:
+        table_id_names.append(f"{table['id']}({table['name']})")
+    schema = None
+    for table in data["tables"]:
+        if table["id"] == table_id_or_name:
+            schema = table["fields"]
+    if not schema:
+        for table in data["tables"]:
+            if table["name"] == table_id_or_name:
+                schema = table["fields"]
+    if not schema:
+        raise ValueError(
+            f"{table_id_or_name} not found in tables: {sorted(table_id_names)}"
+        )
+    return schema
+
+
 def _resolve_error_message(
     client: httpx.Client,
     base_id: str,
@@ -117,27 +141,7 @@ def _resolve_error_message(
     msg, include_schema = _resolve_error_message_no_schema(status_code, text)
     if include_schema:
         try:
-            data = (
-                client.get(f"https://api.airtable.com/v0/meta/bases/{base_id}/tables")
-                .raise_for_status()
-                .json()
-            )
-            table_id_names = []
-            for table in data["tables"]:
-                table_id_names.append(f"{table['id']}({table['name']})")
-            schema = None
-            for table in data["tables"]:
-                if table["id"] == table_id_or_name:
-                    schema = table["fields"]
-            if not schema:
-                for table in data["tables"]:
-                    if table["name"] == table_id_or_name:
-                        schema = table["fields"]
-            if not schema:
-                return (
-                    f"{msg}; {table_id_or_name} not found in "
-                    f"tables: {sorted(table_id_names)}"
-                )
+            schema = _fetch_schema(client, base_id, table_id_or_name)
             return f"{msg}; schema of table `{table_id_or_name}`: {json.dumps(schema)}"
         except Exception as e:
             return f"{msg}; (error fetching schema of {table_id_or_name}: {e})"
@@ -152,10 +156,18 @@ class AirtableRecord:
 
 
 def airtable_record_list(
-    base_id: AirtableBaseID, table_id: AirtableTableID
+    base_id: AirtableBaseID,
+    table_id: AirtableTableID,
+    include_fields: Optional[set[str]] = None,
 ) -> list[AirtableRecord]:
     """
-    Return results of an Airtable `list records` API call.
+    Return results of an Airtable `list records` API call with the option of choosing
+    which fields to include in the returned records.  The include_fields fields are
+    required, so populate it to ensure that the returned records have the fields you
+    will access by name.
+
+    If `include_fields` is not `None`, only the fields specified in `include_fields`
+    will be included.  If `include_fields` is `None`, all fields are included.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
@@ -163,17 +175,46 @@ def airtable_record_list(
         response = client.get(f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}")
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
-                _resolve_error_message_no_schema(response.status_code, response.text)
+                _resolve_error_message(
+                    client,
+                    base_id.id,
+                    table_id.id,
+                    response.status_code,
+                    response.text,
+                )
             )
         data = response.json()
-    return [
-        AirtableRecord(
-            record_id=AirtableRecordID(record["id"]),
-            created_time=datetime.fromisoformat(record["createdTime"]),
-            fields=record["fields"],
-        )
-        for record in data["records"]
-    ]
+        records = []
+        for record in data["records"]:
+            if include_fields and not all(
+                field in record["fields"] for field in include_fields
+            ):
+                missing_fields = [
+                    field for field in include_fields if field not in record["fields"]
+                ]
+                msg = f"Record {record['id']} is missing fields: {missing_fields}"
+                try:
+                    schema = _fetch_schema(client, base_id.id, table_id.id)
+                    raise ValueError(
+                        f"{msg}; schema of table `{table_id.id}`: {json.dumps(schema)}"
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f"{msg}; (error fetching schema of {table_id.id}: {e})"
+                    )
+            filtered_fields = {
+                key: value
+                for key, value in record["fields"].items()
+                if not include_fields or key in include_fields
+            }
+            records.append(
+                AirtableRecord(
+                    record_id=AirtableRecordID(record["id"]),
+                    created_time=datetime.fromisoformat(record["createdTime"]),
+                    fields=filtered_fields,
+                )
+            )
+    return records
 
 
 def airtable_record_create(
