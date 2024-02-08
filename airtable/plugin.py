@@ -169,10 +169,16 @@ def airtable_record_list(
     If `include_fields` is not `None`, only the fields specified in `include_fields`
     will be included.  If `include_fields` is `None`, all fields are included.
     """
+    post_body = {}
+    if include_fields is not None:
+        post_body["fields"] = list(include_fields)
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
-        response = client.get(f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}")
+        response = client.post(
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/listRecords",
+            json=post_body,
+        )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
                 _resolve_error_message(
@@ -184,37 +190,14 @@ def airtable_record_list(
                 )
             )
         data = response.json()
-        records = []
-        for record in data["records"]:
-            if include_fields and not all(
-                field in record["fields"] for field in include_fields
-            ):
-                missing_fields = [
-                    field for field in include_fields if field not in record["fields"]
-                ]
-                msg = f"Record {record['id']} is missing fields: {missing_fields}"
-                try:
-                    schema = _fetch_schema(client, base_id.id, table_id.id)
-                    raise ValueError(
-                        f"{msg}; schema of table `{table_id.id}`: {json.dumps(schema)}"
-                    )
-                except Exception as e:
-                    raise ValueError(
-                        f"{msg}; (error fetching schema of {table_id.id}: {e})"
-                    )
-            filtered_fields = {
-                key: value
-                for key, value in record["fields"].items()
-                if not include_fields or key in include_fields
-            }
-            records.append(
-                AirtableRecord(
-                    record_id=AirtableRecordID(record["id"]),
-                    created_time=datetime.fromisoformat(record["createdTime"]),
-                    fields=filtered_fields,
-                )
-            )
-    return records
+    return [
+        AirtableRecord(
+            record_id=AirtableRecordID(record["id"]),
+            created_time=datetime.fromisoformat(record["createdTime"]),
+            fields=record["fields"],
+        )
+        for record in data["records"]
+    ]
 
 
 def airtable_record_create(
