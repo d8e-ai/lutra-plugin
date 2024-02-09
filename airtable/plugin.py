@@ -19,7 +19,15 @@ class AirtableTableID:
     """
     id can either be the table name or the table ID.
     """
+    id: str
 
+
+@dataclass
+class AirtableViewID:
+    '''
+    Pass view id to other functions if it was successfully
+    extracted from the Airtable web UI URL.
+    '''
     id: str
 
 
@@ -30,16 +38,15 @@ class AirtableRecordID:
 
 def airtable_parse_ids_from_url(
     url: str,
-) -> Tuple[AirtableBaseID, Optional[AirtableTableID], Optional[AirtableRecordID]]:
+) -> Tuple[AirtableBaseID, Optional[AirtableTableID], Optional[AirtableRecordID], Optional[AirtableViewID]]:
     """
     Parses Airtable IDs from an Airtable web UI URL.  The minimum required URL format is
     https://airtable.com/{base_id}, with {base_id} being mandatory.  The URL may
     optionally include {table_id}, {view_id}, and {record_id} segments in this sequence,
-    but these are not required.  Any segments or query parameters beyond the specified
+    but these are not required. Any segments or query parameters beyond the specified
     record_id are ignored.
 
-    Returns a tuple in the order of (base_id, table_id, record_id).  base_id is always
-    returned.  table_id and record_id are returned only if present in the URL;
+    table_id, view_id, and record_id are returned only if present in the URL;
     otherwise, None is returned for each missing ID.
 
     Important: The presence of table_id, view_id, or record_id is not guaranteed. They
@@ -58,10 +65,12 @@ def airtable_parse_ids_from_url(
         base_id = match.group("base_id")
         table_id = match.group("table_id")
         record_id = match.group("record_id")
+        view_id = match.group("view_id")
         return (
             AirtableBaseID(base_id),
             AirtableTableID(table_id) if table_id else None,
             AirtableRecordID(record_id) if record_id else None,
+            AirtableViewID(view_id) if view_id else None,
         )
     else:
         raise ValueError(
@@ -156,22 +165,29 @@ class AirtableRecord:
 
 
 def airtable_record_list(
-    base_id: AirtableBaseID,
     table_id: AirtableTableID,
+    base_id: AirtableBaseID,
     include_fields: Optional[set[str]] = None,
+    view_id: Optional[AirtableViewID] = None,
 ) -> list[AirtableRecord]:
     """
-    Return results of an Airtable `list records` API call with the option of choosing
-    which fields to include in the returned records.  The include_fields fields are
-    required, so populate it to ensure that the returned records have the fields you
-    will access by name.
+    Returns the results of an Airtable `list records` API call, allowing selection of
+    specific fields to include in the returned records. Fields present in the schema
+    but not assigned a value will not be returned.
 
-    If `include_fields` is not `None`, only the fields specified in `include_fields`
-    will be included.  If `include_fields` is `None`, all fields are included.
+    Important:
+    - If `include_fields` is specified (not `None`), only the fields listed in `include_fields`
+    will be included in the results.
+    - If `include_fields` is `None`, all fields that have assigned values will be included,
+    excluding any fields that are defined in the schema but are empty.
     """
     post_body = {}
     if include_fields is not None:
         post_body["fields"] = list(include_fields)
+
+    if view_id is not None:
+        post_body["view"] = view_id.id
+
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
