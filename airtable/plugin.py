@@ -43,7 +43,7 @@ def airtable_parse_ids_from_url(
     Parses Airtable IDs from an Airtable web UI URL.  The minimum required URL format is
     https://airtable.com/{base_id}, with {base_id} being mandatory.  The URL may
     optionally include {table_id}, {view_id}, and {record_id} segments in this sequence,
-    but these are not required. Any segments or query parameters beyond the specified
+    but these are not required.  Any segments or query parameters beyond the specified
     record_id are ignored.
 
     table_id, view_id, and record_id are returned only if present in the URL;
