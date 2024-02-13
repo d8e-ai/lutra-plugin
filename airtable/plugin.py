@@ -167,8 +167,8 @@ class AirtableRecord:
 def airtable_record_list(
     base_id: AirtableBaseID,
     table_id: AirtableTableID,
-    include_fields: Optional[set[str]] = None,
     view_id: Optional[AirtableViewID] = None,
+    include_fields: Optional[set[str]] = None,
 ) -> list[AirtableRecord]:
     """
     Returns the results of an Airtable `list records` API call, allowing selection of
