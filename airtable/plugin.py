@@ -165,8 +165,8 @@ class AirtableRecord:
 
 
 def airtable_record_list(
-    table_id: AirtableTableID,
     base_id: AirtableBaseID,
+    table_id: AirtableTableID,
     include_fields: Optional[set[str]] = None,
     view_id: Optional[AirtableViewID] = None,
 ) -> list[AirtableRecord]:
