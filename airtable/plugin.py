@@ -24,10 +24,10 @@ class AirtableTableID:
 
 @dataclass
 class AirtableViewID:
-    '''
-    Pass view id to other functions if it was successfully
+    """
+    You must pass view id to other functions if it was successfully
     extracted from the Airtable web UI URL.
-    '''
+    """
     id: str
 
 
@@ -38,7 +38,7 @@ class AirtableRecordID:
 
 def airtable_parse_ids_from_url(
     url: str,
-) -> Tuple[AirtableBaseID, Optional[AirtableTableID], Optional[AirtableRecordID], Optional[AirtableViewID]]:
+) -> Tuple[AirtableBaseID, Optional[AirtableTableID], Optional[AirtableViewID], Optional[AirtableRecordID]]:
     """
     Parses Airtable IDs from an Airtable web UI URL.  The minimum required URL format is
     https://airtable.com/{base_id}, with {base_id} being mandatory.  The URL may
@@ -64,13 +64,13 @@ def airtable_parse_ids_from_url(
     if match:
         base_id = match.group("base_id")
         table_id = match.group("table_id")
-        record_id = match.group("record_id")
         view_id = match.group("view_id")
+        record_id = match.group("record_id")
         return (
             AirtableBaseID(base_id),
             AirtableTableID(table_id) if table_id else None,
-            AirtableRecordID(record_id) if record_id else None,
             AirtableViewID(view_id) if view_id else None,
+            AirtableRecordID(record_id) if record_id else None,
         )
     else:
         raise ValueError(
@@ -172,14 +172,12 @@ def airtable_record_list(
 ) -> list[AirtableRecord]:
     """
     Returns the results of an Airtable `list records` API call, allowing selection of
-    specific fields to include in the returned records. Fields present in the schema
-    but not assigned a value will not be returned.
+    specific fields to include in the returned records.
 
     Important:
-    - If `include_fields` is specified (not `None`), only the fields listed in `include_fields`
-    will be included in the results.
-    - If `include_fields` is `None`, all fields that have assigned values will be included,
-    excluding any fields that are defined in the schema but are empty.
+    - If `include_fields` is not `None`, only the fields that are listed in `include_fields`
+    and have assigned values will be included in the results.
+    - If `include_fields` is `None`, all fields that have assigned values will be included.
     """
     post_body = {}
     if include_fields is not None:
