@@ -176,7 +176,7 @@ def airtable_record_list(
 
     Important:
     - If `include_fields` is not `None`, only the fields that are listed in `include_fields`
-    and have assigned values will be included in the results.
+    and have assigned values will be included.
     - If `include_fields` is `None`, all fields that have assigned values will be included.
     """
     post_body = {}
