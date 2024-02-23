@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 import httpx
 
@@ -186,16 +186,39 @@ class GitHubComment:
     updated_at: datetime
 
 
-def github_comments(owner: str, repo: str, issue_number: int) -> List[GitHubComment]:
+def github_comments(
+    owner: str,
+    repo: str,
+    issue_number: int,
+    sort: Literal["created", "updated", "comments"] = "created",
+    sort_direction: Literal["asc", "desc"] = "desc",
+    page: int = 1,
+) -> list[GitHubComment]:
     """
     Fetches comments for a specific issue by its number.
+
+    Returns a paginated listing of comments in the given `repo` owned by `owner`
+    for the issue with the given `issue_number`. Each page has at most 30 results.
+    To get more results, increment the `page` and call this function again.
+
+    Parameters:
+        owner: the owner of the repository.
+        repo: the repository name.
+        sort: by what to sort results.
+        sort_direction: the direction of the sort.
+        page: the page of results to return. Each page has at most 30 results.
     """
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_github)
     ) as client:
         response_json = (
             client.get(
-                f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments"
+                f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments",
+                params={
+                    "page": page,
+                    "sort": sort,
+                    "direction": sort_direction,
+                },
             )
             .raise_for_status()
             .json()
