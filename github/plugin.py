@@ -8,7 +8,7 @@ from lutraai.augmented_request_client import AugmentedTransport
 
 
 @dataclass
-class PullRequest:
+class GitHubPullRequest:
     id: int
     html_url: str
     created_at: datetime
@@ -30,7 +30,7 @@ def github_pulls(
     sort: Literal["created", "updated", "popularity", "long-running"] = "created",
     sort_direction: Literal["asc", "desc"] = "desc",
     page: int = 1,
-) -> list[PullRequest]:
+) -> list[GitHubPullRequest]:
     """
     Returns results of a GitHub `pulls` API call.
 
@@ -64,7 +64,7 @@ def github_pulls(
             .json()
         )
     pull_requests = [
-        PullRequest(
+        GitHubPullRequest(
             id=obj["id"],
             html_url=obj["html_url"],
             created_at=datetime.fromisoformat(obj["created_at"]),
