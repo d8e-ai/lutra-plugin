@@ -167,17 +167,14 @@ class AirtableRecord:
 def airtable_record_list(
     base_id: AirtableBaseID,
     table_id: AirtableTableID,
+    include_fields: set[str],
     view_id: Optional[AirtableViewID] = None,
-    include_fields: Optional[set[str]] = None,
 ) -> list[AirtableRecord]:
     """
     Returns the results of an Airtable `list records` API call, allowing selection of
-    specific fields to include in the returned records.
-
-    Important:
-    - If `include_fields` is not `None`, only the fields that are listed in `include_fields`
-    and have assigned values will be included.
-    - If `include_fields` is `None`, all fields that have assigned values will be included.
+    specific fields to include in the returned records. You must populate
+    include_fields with necessary fields to access data by name in returned records.
+    Unset fields in Airtable are are excluded from the records, but can be set during a patch call.
     """
     post_body = {}
     if include_fields is not None:
