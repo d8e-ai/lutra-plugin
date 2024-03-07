@@ -39,12 +39,12 @@ def list_contacts(
     specific contacts with additional properties.
 
     Args:
-        limit: The maximum number of results to display per page.
-        after: Cursor for pagination.
+        limit: The maximum number of results to display per page. after: Cursor for
+            pagination.
 
     Returns:
-        A tuple of a list of HubSpotContact objects and the next 'after' cursor, if available.
-        If the next 'after' cursor is None, there is no more data to get.
+        A tuple of a list of HubSpotContact objects and the next 'after' cursor, if
+            available. If the next 'after' cursor is None, there is no more data to get.
     """
     url = "https://api.hubapi.com/crm/v3/objects/contacts"
     params = {}
@@ -93,6 +93,9 @@ def create_contacts(contacts: List[HubSpotContact]) -> List[str]:
     """
     Creates multiple contacts in HubSpot using the batch API.
 
+    Contacts are created with just the first name, last name, and email properties.
+    Further properties can be updated using the update_contacts function.
+
     Args:
         contacts: A list of HubSpotContact objects to be created.
 
@@ -137,13 +140,13 @@ class HubSpotContactUpdate:
 
 def update_contacts(contacts: List[HubSpotContactUpdate]) -> List[str]:
     """
-    Updates multiple contacts in HubSpot using the batch API.
+    Updates multiple contacts in HubSpot.
 
     Args:
         contacts: A list of HubSpotContactUpdate objects to be updated.
 
     Returns:
-        A list of strings, where each string is the ID of an updated contact.
+        A list of strings, where each string is the HubSpot ID of an updated contact.
     """
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
@@ -177,15 +180,17 @@ def search_contacts(
     Searches for HubSpot contacts based on various criteria.
 
     Parameters:
-        search_criteria: A dictionary where keys are the property names (e.g., "firstname", "email")
-            and values are the search values for those properties.
-        additional_properties: A sequence of property names to fetch from found contacts.
-            If present, the corresponding values will be provided in the HubSpotContactProperties
-            additional_properties field. Standard hubspot properties are available, but users
-            must know the names of custom properties if they are to be found.
+        search_criteria: A dictionary where keys are the property names (e.g.,
+          "firstname", "email") and values are the search values for those properties.
+        additional_properties: A sequence of property names to fetch from found
+            contacts. If present, the corresponding values will be provided in the
+            HubSpotContactProperties additional_properties field. Standard hubspot
+            properties are available, but users must know the names of custom properties
+            if they are to be found.
 
     Returns:
-        List[HubSpotContact]: A list of HubSpotContact objects matching the search criteria.
+        List[HubSpotContact]: A list of HubSpotContact objects matching the search
+            criteria.
     """
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
 
