@@ -9,14 +9,19 @@ from lutraai.augmented_request_client import AugmentedTransport
 
 @dataclass
 class HubSpotContactProperties:
+    """Represents the properties of a HubSpot contact.
+
+    The `additional_properties` field stores any additional properties that are
+    available in the HubSpot contact system that callers can ask for. If found, they
+    will be found here.
+    """
+
     first_name: str
     last_name: str
     email: str
     hs_object_id: str
     last_modified_date: datetime
 
-    # These are additional properties that are available in the HubSpot contact system
-    # that callers can ask for. If found, they will be found here.
     additional_properties: Dict[str, str]
 
 
@@ -132,9 +137,16 @@ def create_contacts(contacts: List[HubSpotContact]) -> List[str]:
 
 @dataclass
 class HubSpotContactUpdate:
-    id: str
+    """The data required to update a HubSpot contact.
 
-    # Stores the property names and values to update for the corresponding ID.
+    Attributes:
+        id: The HubSpot ID of the contact to update.
+        updated_properties: A dictionary of property names and values to update for the
+            contact. Only properties that are to be updated need to be included.
+
+    """
+
+    id: str
     updated_properties: Dict[str, str]
 
 
