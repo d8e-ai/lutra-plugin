@@ -1,0 +1,7 @@
+name = "HubSpot Contacts"
+description = "Manage your HubSpot Contacts."
+logo_url = "/assets/logos/hubspot.svg"
+
+[[required_actions]]
+action_reference_type = "augmented_request"
+augmented_request_configuration_id = "aa74e3ef-c3c4-4fa0-b407-343608c431aa"
