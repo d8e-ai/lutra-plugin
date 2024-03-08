@@ -214,7 +214,7 @@ def search_contacts(
 
     properties = ["firstname", "lastname", "email", "lastmodifieddate"]
     if additional_properties:
-        properties = list(set(properties + list(additional_properties)))
+        properties = list({*properties, *additional_properties})
     # Prepare the request body with the filters
     payload = {"filterGroups": [{"filters": filters}], "properties": properties}
 
