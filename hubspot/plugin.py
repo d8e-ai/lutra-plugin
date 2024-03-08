@@ -177,7 +177,7 @@ def update_contacts(contacts: List[HubSpotContactUpdate]) -> List[str]:
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
         response = client.post(url, json=payload)
-        response.raise_for_status()  # Make sure to handle potential errors here
+        response.raise_for_status()
         data = response.json()
 
     # Extract and return the IDs of the updated contacts
@@ -225,7 +225,7 @@ def search_contacts(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
         response = client.post(url, json=payload)
-        response.raise_for_status()  # Ensure to handle possible errors appropriately
+        response.raise_for_status()
         data = response.json()
 
     for item in data.get("results", []):
