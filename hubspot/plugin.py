@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import httpx
 
@@ -35,17 +35,17 @@ class HubSpotContact:
 
 
 def list_contacts(
-    limit: int = 100, after: str | None = None
-) -> Tuple[List[HubSpotContact], str | None]:
+    limit: int = 100, after: Optional[str] = None
+) -> Tuple[List[HubSpotContact], Optional[str]]:
     """
-    Fetches the list of contacts from HubSpot.
+    Fetch the list of contacts from HubSpot.
 
     No additional properties are returned from this API. Use search_contacts to retrieve
     specific contacts with additional properties.
 
     Args:
-        limit: The maximum number of results to display per page. after: Cursor for
-            pagination.
+        limit: The maximum number of results to display per page.
+        after: Cursor for pagination.
 
     Returns:
         A tuple of a list of HubSpotContact objects and the next 'after' cursor, if
@@ -96,7 +96,7 @@ def list_contacts(
 
 def create_contacts(contacts: List[HubSpotContact]) -> List[str]:
     """
-    Creates multiple contacts in HubSpot using the batch API.
+    Create multiple contacts in HubSpot using the batch API.
 
     Contacts are created with just the first name, last name, and email properties.
     Further properties can be updated using the update_contacts function.
@@ -131,8 +131,7 @@ def create_contacts(contacts: List[HubSpotContact]) -> List[str]:
         data = response.json()
 
     # Extract and return the IDs of the created contacts
-    created_contact_ids = [result["id"] for result in data["results"]]
-    return created_contact_ids
+    return [result["id"] for result in data["results"]]
 
 
 @dataclass
@@ -152,7 +151,7 @@ class HubSpotContactUpdate:
 
 def update_contacts(contacts: List[HubSpotContactUpdate]) -> List[str]:
     """
-    Updates multiple contacts in HubSpot.
+    Update multiple contacts in HubSpot.
 
     Args:
         contacts: A list of HubSpotContactUpdate objects to be updated.
@@ -181,17 +180,17 @@ def update_contacts(contacts: List[HubSpotContactUpdate]) -> List[str]:
         data = response.json()
 
     # Extract and return the IDs of the updated contacts
-    updated_contact_ids = [result["id"] for result in data["results"]]
-    return updated_contact_ids
+    return [result["id"] for result in data["results"]]
 
 
 def search_contacts(
-    search_criteria: Dict[str, str], additional_properties: Sequence[str] | None = None
+    search_criteria: Dict[str, str],
+    additional_properties: Optional[Sequence[str]] = None,
 ) -> List[HubSpotContact]:
     """
-    Searches for HubSpot contacts based on various criteria.
+    Search for HubSpot contacts based on various criteria.
 
-    Parameters:
+    Args:
         search_criteria: A dictionary where keys are the property names (e.g.,
           "firstname", "email") and values are the search values for those properties.
         additional_properties: A sequence of property names to fetch from found
@@ -215,7 +214,7 @@ def search_contacts(
 
     properties = ["firstname", "lastname", "email", "lastmodifieddate"]
     if additional_properties:
-        properties = list(set(properties + list(additional_properties)))
+        properties = list(set(*properties, *additional_properties))
 
     # Prepare the request body with the filters
     payload = {"filterGroups": [{"filters": filters}], "properties": properties}
@@ -229,23 +228,23 @@ def search_contacts(
         data = response.json()
 
     for item in data.get("results", []):
-        properties = item.get("properties", {})
-        addl_props = {}
+        property_values = item.get("properties", {})
+        additional_property_values = {}
         if additional_properties:
             for addl in additional_properties:
-                val = properties.get(addl, None)
+                val = property_values.get(addl, None)
                 if val:
-                    addl_props[addl] = val
+                    additional_property_values[addl] = val
 
         contact_properties = HubSpotContactProperties(
-            first_name=properties.get("firstname", ""),
-            last_name=properties.get("lastname", ""),
-            email=properties.get("email", ""),
+            first_name=property_values.get("firstname", ""),
+            last_name=property_values.get("lastname", ""),
+            email=property_values.get("email", ""),
             hs_object_id=item["id"],
             last_modified_date=datetime.fromisoformat(
-                properties.get("lastmodifieddate", "1970-01-01T00:00:00Z")
+                property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
             ),
-            additional_properties=addl_props,
+            additional_properties=additional_property_values,
         )
 
         contact = HubSpotContact(
