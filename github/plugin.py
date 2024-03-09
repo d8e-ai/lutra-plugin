@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 import httpx
 
@@ -237,3 +237,122 @@ def github_comments(
     ]
 
     return comments
+
+
+@dataclass
+class GitHubRequestedReviewer:
+    """
+    Represents a GitHub user or team requested to review a pull request.
+
+    Attributes:
+        login: The username of the user or the slug of the team.
+        id: The unique identifier of the user or team.
+        type: Distinguishes between a user or a team.
+    """
+
+    login: str
+    id: int
+    type: Literal["User", "Team"]
+
+
+def get_pull_request_review_requests(
+    owner: str,
+    repo: str,
+    pull_number: int,
+) -> List[GitHubRequestedReviewer]:
+    """
+    Fetches the users and teams requested to review a specific pull request.
+
+    Parameters:
+        owner: The owner of the repository.
+        repo: The repository name.
+        pull_number: The number that identifies the pull request.
+
+    Returns:
+        A list of GitHubRequestedReviewer instances representing the users and teams requested to review the pull request.
+    """
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_github),
+    ) as client:
+        response_json = (
+            client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
+                headers={"Accept": "application/vnd.github+json"},
+            )
+            .raise_for_status()
+            .json()
+        )
+
+    requested_reviewers = [
+        GitHubRequestedReviewer(
+            login=user["login"],
+            id=user["id"],
+            type="User",
+        )
+        for user in response_json.get("users", [])
+    ] + [
+        GitHubRequestedReviewer(
+            login=team["slug"],
+            id=team["id"],
+            type="Team",
+        )
+        for team in response_json.get("teams", [])
+    ]
+
+    return requested_reviewers
+
+
+@dataclass
+class GitHubReview:
+    id: int
+    user_login: str
+    state: str
+    body: Optional[str]
+    submitted_at: datetime
+
+
+def list_pull_request_reviews(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    page: int = 1,
+    per_page: int = 30,
+) -> list[GitHubReview]:
+    """
+    Lists all reviews for a specified pull request in chronological order.
+
+    Parameters:
+        owner: The owner of the repository.
+        repo: The repository name.
+        pull_number: The number that identifies the pull request.
+        page: The page number of the results to fetch.
+        per_page: The number of results per page (max 100).
+
+    Returns:
+        A list of GitHubReview instances.
+    """
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_github),
+    ) as client:
+        response_json = (
+            client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}/reviews",
+                params={
+                    "page": page,
+                    "per_page": per_page,
+                },
+            )
+            .raise_for_status()
+            .json()
+        )
+    reviews = [
+        GitHubReview(
+            id=review["id"],
+            user_login=review["user"]["login"],
+            state=review["state"],
+            body=review.get("body"),
+            submitted_at=datetime.fromisoformat(review["submitted_at"]),
+        )
+        for review in response_json
+    ]
+    return reviews
