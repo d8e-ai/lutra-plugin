@@ -260,3 +260,192 @@ def search_contacts(
         contacts.append(contact)
 
     return contacts
+
+
+@dataclass
+class HubSpotCompanyProperties:
+    """Represents the properties of a HubSpot company.
+
+    The `additional_properties` field stores any additional properties that are
+    available in the HubSpot company system that callers can ask for. If found, they
+    will be found here.
+    """
+
+    name: str
+    domain: str
+    hs_object_id: str
+    last_modified_date: datetime
+
+    additional_properties: Dict[str, str]
+
+
+@dataclass
+class HubSpotCompany:
+    id: str
+    properties: HubSpotCompanyProperties
+    createdAt: datetime
+    updatedAt: datetime
+    archived: bool
+
+
+def list_companies(
+    limit: int = 100,
+    after: Optional[str] = None,
+    additional_properties: Optional[Sequence[str]] = None,
+) -> Tuple[List[HubSpotCompany], Optional[str]]:
+    """
+    Fetch the list of companies from HubSpot.
+
+    Args:
+        limit: The maximum number of results to display per page.
+        after: Cursor for pagination.
+        additional_properties: A sequence of property names to fetch from found
+            companies. If present, the corresponding values will be provided in the
+            HubSpotCompanyProperties additional_properties field.
+
+    Returns:
+        A tuple of a list of HubSpotCompany objects and the next 'after' cursor, if
+            available. If the next 'after' cursor is None, there is no more data to get.
+    """
+    url = "https://api.hubapi.com/crm/v3/objects/companies"
+    params = {
+        "limit": limit,
+        "properties": [
+            "name",
+            "domain",
+            "city",
+            "state",
+            "phone",
+            "industry",
+            "hs_object_id",
+            "lastmodifieddate",
+        ],
+    }
+    if after:
+        params["after"] = after
+    if additional_properties:
+        params["properties"].extend(additional_properties)
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+    companies = []
+    for item in data["results"]:
+        property_values = item.get("properties", {})
+        additional_property_values = {}
+        if additional_properties:
+            for addl in additional_properties:
+                val = property_values.get(addl, None)
+                if val:
+                    additional_property_values[addl] = val
+
+        company_properties = HubSpotCompanyProperties(
+            name=property_values["name"],
+            domain=property_values["domain"],
+            hs_object_id=item["id"],
+            last_modified_date=datetime.fromisoformat(
+                property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
+            ),
+            additional_properties=additional_property_values,
+        )
+        company = HubSpotCompany(
+            id=item["id"],
+            properties=company_properties,
+            createdAt=datetime.fromisoformat(item["createdAt"]),
+            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            archived=item["archived"],
+        )
+        companies.append(company)
+
+    next_after = (
+        data["paging"]["next"]["after"]
+        if "paging" in data and "next" in data["paging"]
+        else None
+    )
+
+    return companies, next_after
+
+
+def search_companies(
+    search_criteria: Dict[str, str],
+    additional_properties: Optional[Sequence[str]] = None,
+) -> List[HubSpotCompany]:
+    """
+    Search for companies in HubSpot CRM based on various criteria.
+
+    Args:
+        search_criteria: A dictionary where keys are the property names (e.g.,
+          "name", "domain") and values are the search values for those properties.
+        additional_properties: A sequence of property names to fetch from found
+            companies. If present, the corresponding values will be provided in the
+            HubSpotCompanyProperties additional_properties field. Standard HubSpot
+            properties are available, but users must know the names of custom properties
+            if they are to be found.
+
+    Returns:
+        List[HubSpotCompany]: A list of HubSpotCompany objects matching the search
+            criteria.
+    """
+    url = "https://api.hubapi.com/crm/v3/objects/companies/search"
+
+    # Construct the filters based on the search criteria
+    filters = []
+    for property_name, value in search_criteria.items():
+        filters.append(
+            {"propertyName": property_name, "operator": "EQ", "value": value}
+        )
+
+    properties = [
+        "name",
+        "domain",
+    ]
+    if additional_properties:
+        properties = list({*properties, *additional_properties})
+
+    payload = {"filterGroups": [{"filters": filters}], "properties": properties}
+
+    companies = []
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.post(url, json=payload)
+        response.raise_for_status()
+        data = response.json()
+
+    for item in data.get("results", []):
+        property_values = item.get("properties", {})
+        additional_property_values = {}
+        if additional_properties:
+            for addl in additional_properties:
+                val = property_values.get(addl, None)
+                if val:
+                    additional_property_values[addl] = val
+
+        company_properties = HubSpotCompanyProperties(
+            name=property_values.get("name", ""),
+            domain=property_values.get("domain", ""),
+            hs_object_id=item["id"],
+            last_modified_date=datetime.fromisoformat(
+                property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
+            ),
+            additional_properties=additional_property_values,
+        )
+
+        company = HubSpotCompany(
+            id=item["id"],
+            properties=company_properties,
+            createdAt=datetime.fromisoformat(
+                item.get("createdAt", "1970-01-01T00:00:00Z")
+            ),
+            updatedAt=datetime.fromisoformat(
+                item.get("updatedAt", "1970-01-01T00:00:00Z")
+            ),
+            archived=item.get("archived", False),
+        )
+        companies.append(company)
+
+    return companies
