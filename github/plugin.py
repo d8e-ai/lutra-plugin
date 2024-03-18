@@ -105,6 +105,8 @@ class GitHubIssue:
     body: str
     user_id: int
     user_login: str
+    assignee_id: Optional[int]
+    assignee_login: Optional[str]
     labels: list[str]
 
 
@@ -164,9 +166,11 @@ def github_issues(
             ),
             title=obj["title"],
             state=obj["state"],
-            body=obj.get("body", ""),
+            body=obj.get("body") or "",
             user_id=obj["user"]["id"],
             user_login=obj["user"]["login"],
+            assignee_id=obj["assignee"]["id"] if obj.get("assignee") is not None else None,
+            assignee_login=obj["assignee"]["login"] if obj.get("assignee") is not None else None,
             labels=[
                 label["name"] for label in obj.get("labels", [])
             ],  # Extracting label names
