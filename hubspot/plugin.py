@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, Union, Literal
 
 import httpx
 
@@ -44,7 +44,7 @@ def list_contacts(
     specific contacts with additional properties.
 
     Args:
-        limit: The maximum number of results to display per page.
+        limit: The maximum number of results to display per page. The maximum value for this is 100.
         after: Cursor for pagination.
 
     Returns:
@@ -449,3 +449,209 @@ def search_companies(
         companies.append(company)
 
     return companies
+
+
+@dataclass
+class HubSpotDealProperties:
+    """Represents the properties of a HubSpot deal."""
+
+    amount: int
+    close_date: Optional[datetime]
+    create_date: datetime
+    deal_name: str
+    deal_stage: str
+    pipeline: str
+    additional_properties: Dict[str, str]
+
+
+@dataclass
+class HubSpotDeal:
+    """Represents a deal in HubSpot."""
+
+    id: str
+    properties: HubSpotDealProperties
+    createdAt: datetime
+    updatedAt: datetime
+    archived: bool
+
+
+def _parse_deal(data: dict) -> HubSpotDeal:
+    properties = data["properties"]
+
+    deal_properties = HubSpotDealProperties(
+        amount=int(properties["amount"]),
+        close_date=(
+            datetime.fromisoformat(properties["closedate"])
+            if properties["closedate"]
+            else None
+        ),
+        create_date=datetime.fromisoformat(properties["createdate"]),
+        deal_name=properties["dealname"],
+        deal_stage=properties["dealstage"],
+        pipeline=properties["pipeline"],
+        additional_properties={
+            k: v
+            for k, v in properties.items()
+            if k
+            not in [
+                "amount",
+                "closedate",
+                "createdate",
+                "dealname",
+                "dealstage",
+                "pipeline",
+            ]
+            and v is not None
+        },
+    )
+
+    return HubSpotDeal(
+        id=data["id"],
+        properties=deal_properties,
+        createdAt=datetime.fromisoformat(data["createdAt"]),
+        updatedAt=datetime.fromisoformat(data["updatedAt"]),
+        archived=data["archived"],
+    )
+
+
+def fetch_deal_by_id(deal_id: str) -> HubSpotDeal:
+    """Fetch a deal by its ID from HubSpot."""
+    url = f"https://api.hubapi.com/crm/v3/objects/deals/{deal_id}"
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+    deal_properties = data.get("properties", {})
+    if not deal_properties:
+        raise ValueError(f"Deal with ID {deal_id} not found")
+
+    return _parse_deal(data)
+
+
+def _parse_company(data: dict) -> HubSpotDeal:
+    properties = data["properties"]
+
+    deal_properties = HubSpotCompanyProperties(
+        name=properties["name"],
+        domain=properties["domain"],
+        hs_object_id=properties["hs_object_id"],
+        last_modified_date=datetime.fromisoformat(properties["hs_lastmodifieddate"]),
+        additional_properties={
+            key: value
+            for key, value in data["properties"].items()
+            if key not in ["name", "domain", "hs_object_id", "lastmodifieddate"]
+        },
+    )
+
+    return HubSpotCompany(
+        id=data["id"],
+        properties=deal_properties,
+        createdAt=datetime.fromisoformat(data["createdAt"]),
+        updatedAt=datetime.fromisoformat(data["updatedAt"]),
+        archived=data["archived"],
+    )
+
+
+def fetch_company_by_id(company_id: str) -> HubSpotCompany:
+    """
+    Fetch a company from HubSpot CRM based on a company ID.
+    """
+    url = f"https://api.hubapi.com/crm/v3/objects/companies/{company_id}"
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        data = response.json()
+        return _parse_company(data)
+
+
+_HUBSPOT_OBJECT_TYPE_IDS = dict(
+    CONTACTS="0-1",
+    COMPANIES="0-2",
+    DEALS="0-3",
+    TICKETS="0-5",
+    CALLS="0-48",
+    EMAILS="0-49",
+    MEETINGS="0-47",
+    NOTES="0-4",
+    TASKS="0-27",
+    PRODUCTS="0-7",
+    INVOICES="0-52",
+    LINE_ITEMS="0-8",
+    PAYMENTS="0-101",
+    QUOTES="0-14",
+    SUBSCRIPTIONS="0-69",
+    COMMUNICATIONS="0-18",
+    POSTAL_MAIL="0-116",
+    MARKETING_EVENTS="0-54",
+    FEEDBACK_SUBMISSIONS="0-19",
+)
+
+
+@dataclass
+class HubSpotObjectType:
+    id: Literal[
+        "CONTACTS",
+        "COMPANIES",
+        "DEALS",
+        "TICKETS",
+        "CALLS",
+        "EMAILS",
+        "MEETINGS",
+        "NOTES",
+        "TASKS",
+        "PRODUCTS",
+        "INVOICES",
+        "LINE_ITEMS",
+        "PAYMENTS",
+        "QUOTES",
+        "SUBSCRIPTIONS",
+        "COMMUNICATIONS",
+        "POSTAL_MAIL",
+        "MARKETING_EVENTS",
+        "FEEDBACK_SUBMISSIONS",
+    ]
+
+
+@dataclass
+class HubSpotCustomObjectType:
+    id: str
+
+
+def fetch_associated_object_ids(
+    source_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
+    target_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
+    source_object_id: str,
+) -> List[str]:
+    """
+    Fetches the IDs of objects associated with a specified source object ID.
+    """
+    source_type_id = _HUBSPOT_OBJECT_TYPE_IDS.get(
+        source_object_type.id, source_object_type.id
+    )
+    target_type_id = _HUBSPOT_OBJECT_TYPE_IDS.get(
+        target_object_type.id, target_object_type.id
+    )
+    url = f"https://api.hubapi.com/crm/v4/associations/{source_type_id}/{target_type_id}/batch/read"
+    params = {"inputs": [{"id": source_object_id}]}
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    ) as client:
+        response = client.post(url, json=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if results := data.get("results", []):
+            return [
+                associated_object["toObjectId"]
+                for associated_object in results[0].get("to", [])
+            ]
+
+    return []
