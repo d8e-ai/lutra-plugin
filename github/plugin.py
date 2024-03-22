@@ -82,7 +82,7 @@ def github_pulls(
             title=obj["title"],
             state=obj["state"],
             draft=obj["draft"],
-            body=obj.get("body", ""),
+            body=obj.get("body") or "",
             user_id=obj["user"]["id"],
             user_login=obj["user"]["login"],
         )
