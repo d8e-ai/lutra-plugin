@@ -256,7 +256,7 @@ def airtable_record_update_patch(
 ) -> None:
     """
     Update a record using the Airtable `update record` API call with a PATCH and override the fields it is patching.
-    You do not need to check for the existence of the field before setting it.
+    You are able to update fields which may not be present.
 
     If typecast is True, Airtable will try to convert the value to the appropriate cell value.
     """
