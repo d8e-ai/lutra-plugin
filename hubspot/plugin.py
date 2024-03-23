@@ -34,6 +34,7 @@ class HubSpotContact:
     archived: bool
 
 
+@dataclass
 class HubSpotContactDefaultPropertyName:
     name: Literal[
         "adopter_category"
@@ -1057,13 +1058,16 @@ def update_company(
     company_id: str,
     updated_properties: List[
         Tuple[
-            HubSpotCompanyDefaultPropertyName | HubSpotCompanyCustomPropertyName,
+            Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName],
             str,
         ]
     ],
-) -> List[str]:
+) -> str:
     """
     Update multiple companies in HubSpot CRM.
+
+    Returns:
+        The ID of the updated company.
     """
     url = f"https://api.hubapi.com/crm/v3/objects/companies/{company_id}"
 
@@ -1075,8 +1079,7 @@ def update_company(
         response = client.patch(url, json={"properties": properties})
         response.raise_for_status()
         data = response.json()
-
-    return [result["id"] for result in data["results"]]
+        return data["id"]
 
 
 _HUBSPOT_OBJECT_TYPE_IDS = dict(
@@ -1104,7 +1107,9 @@ _HUBSPOT_OBJECT_TYPE_IDS = dict(
 
 @dataclass
 class HubSpotObjectType:
-    id: Literal[
+    """name represents the name of object in HubSpot CRM."""
+
+    name: Literal[
         "CONTACTS",
         "COMPANIES",
         "DEALS",
@@ -1129,7 +1134,7 @@ class HubSpotObjectType:
 
 @dataclass
 class HubSpotCustomObjectType:
-    id: str
+    name: str
 
 
 def fetch_associated_object_ids(
@@ -1138,15 +1143,15 @@ def fetch_associated_object_ids(
     source_object_id: str,
 ) -> List[str]:
     """
-    Fetches the IDs of objects associated with a specified source object ID.
+    Fetches the IDs of target objects associated with the source object.
     """
-    source_type_id = _HUBSPOT_OBJECT_TYPE_IDS.get(
-        source_object_type.id, source_object_type.id
+    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
+        source_object_type.name, source_object_type.name
     )
-    target_type_id = _HUBSPOT_OBJECT_TYPE_IDS.get(
-        target_object_type.id, target_object_type.id
+    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
+        target_object_type.name, target_object_type.name
     )
-    url = f"https://api.hubapi.com/crm/v4/associations/{source_type_id}/{target_type_id}/batch/read"
+    url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/read"
     params = {"inputs": [{"id": source_object_id}]}
 
     with httpx.Client(
