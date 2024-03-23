@@ -174,7 +174,7 @@ def airtable_record_list(
     Returns the results of an Airtable `list records` API call, allowing selection of
     specific fields to include in the returned records. You must populate
     include_fields with necessary fields to access data by name in returned records.
-    Unset fields in Airtable are are excluded from the records, but can be set during a patch call.
+    Before accessing a field's value in the returned record, you MUST check for the existence of the field.
     """
     post_body = {}
     if include_fields is not None:
@@ -256,6 +256,7 @@ def airtable_record_update_patch(
 ) -> None:
     """
     Update a record using the Airtable `update record` API call with a PATCH and override the fields it is patching.
+    You are able to update fields which may not be present.
 
     If typecast is True, Airtable will try to convert the value to the appropriate cell value.
     """
