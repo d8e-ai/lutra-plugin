@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Sequence, Tuple, Union, Literal
@@ -477,42 +478,44 @@ def create_contacts(contacts: List[HubSpotContact]) -> List[str]:
 
 
 @dataclass
-class HubSpotContactUpdate:
-    """The data required to update a HubSpot contact.
+class ContactDefaultPropertyUpdate:
+    """The data required to update a contact's default properties."""
 
-    Attributes:
-        id: The HubSpot ID of the contact to update.
-        updated_properties: A dictionary of property names and values to update for the
-            contact. Only properties that are to be updated need to be included.
-
-    """
-
-    id: str
-    updated_properties: Dict[str, str]
+    contact_id: str
+    updated_properties: List[Tuple[HubSpotContactDefaultPropertyName, str]]
 
 
-def update_contacts(contacts: List[HubSpotContactUpdate]) -> List[str]:
+@dataclass
+class ContactCustomPropertyUpdate:
+    """The data required to update a contact's custom properties."""
+
+    contact_id: str
+    updated_properties: List[Tuple[HubSpotContactCustomPropertyName, str]]
+
+
+def update_contacts(
+    default_properties: List[ContactDefaultPropertyUpdate],
+    custom_properties: List[ContactCustomPropertyUpdate],
+) -> List[str]:
     """
     Update multiple contacts in HubSpot.
 
-    Args:
-        contacts: A list of HubSpotContactUpdate objects to be updated.
-
     Returns:
-        A list of strings, where each string is the HubSpot ID of an updated contact.
+        Contact IDs that have been updated.
     """
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
-    # Prepare the payload from the contacts list
-    contacts_payload = []
-    for contact in contacts:
-        contact_data = {
-            "id": contact.id,  # Contact ID is required for updating
-            "properties": contact.updated_properties,
-        }
-        contacts_payload.append(contact_data)
+    merged_properties = defaultdict(dict)
 
-    payload = {"inputs": contacts_payload}
+    for property_update in default_properties + custom_properties:
+        merged_properties[property_update.id].update(
+            {prop.name: value for prop, value in property_update.updated_properties}
+        )
+
+    payload = [
+        {"id": contact_id, "properties": properties}
+        for contact_id, properties in merged_properties.items()
+    ]
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
@@ -1054,32 +1057,53 @@ def fetch_company_by_id(
         return _parse_company(data)
 
 
-def update_company(
-    company_id: str,
-    updated_properties: List[
-        Tuple[
-            Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName],
-            str,
-        ]
-    ],
-) -> str:
+@dataclass
+class CompanyDefaultPropertyUpdate:
+    """The data required to update a company's default properties."""
+
+    company_id: str
+    updated_properties: List[Tuple[HubSpotCompanyDefaultPropertyName, str]]
+
+
+@dataclass
+class CompanyCustomPropertyUpdate:
+    """The data required to update a company's custom properties."""
+
+    company_id: str
+    updated_properties: List[Tuple[HubSpotCompanyCustomPropertyName, str]]
+
+
+def update_companies(
+    default_properties: List[CompanyDefaultPropertyUpdate],
+    custom_properties: List[CompanyCustomPropertyUpdate],
+) -> List[str]:
     """
-    Update multiple companies in HubSpot CRM.
+    Update multiple companies in HubSpot.
 
     Returns:
-        The ID of the updated company.
+        Company IDs that has been updated.
     """
-    url = f"https://api.hubapi.com/crm/v3/objects/companies/{company_id}"
+    url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
 
-    properties = {prop.name: value for prop, value in updated_properties}
+    merged_properties = defaultdict(dict)
+
+    for property_update in default_properties + custom_properties:
+        merged_properties[property_update.company_id].update(
+            {prop.name: value for prop, value in property_update.updated_properties}
+        )
+
+    payload = [
+        {"id": company_id, "properties": properties}
+        for company_id, properties in merged_properties.items()
+    ]
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
     ) as client:
-        response = client.patch(url, json={"properties": properties})
+        response = client.post(url, json={"inputs": payload})
         response.raise_for_status()
         data = response.json()
-        return data["id"]
+        return [result["id"] for result in data["results"]]
 
 
 _HUBSPOT_OBJECT_TYPE_IDS = dict(
