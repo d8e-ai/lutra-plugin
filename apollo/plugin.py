@@ -7,7 +7,7 @@ from lutraai.augmented_request_client import AugmentedTransport
 
 
 @dataclass
-class EmploymentHistory:
+class ApolloEmploymentHistory:
     organization_name: Optional[str]
     start_date: Optional[datetime]
     end_date: Optional[datetime]
@@ -15,7 +15,7 @@ class EmploymentHistory:
 
 
 @dataclass
-class FundingEvent:
+class ApolloFundingEvent:
     date: datetime
     news_url: Optional[str]
     type: str
@@ -25,7 +25,7 @@ class FundingEvent:
 
 
 @dataclass
-class Organization:
+class ApolloOrganization:
     name: str
     website_url: Optional[str]
     blog_url: Optional[str]
@@ -43,11 +43,11 @@ class Organization:
     country: Optional[str]
     seo_description: Optional[str]
     annual_revenue: Optional[float]
-    funding_events: List[FundingEvent]
+    funding_events: List[ApolloFundingEvent]
 
 
 @dataclass
-class PeopleEnrichmentData:
+class ApolloPersonProfile:
     first_name: str
     last_name: str
     full_name: str
@@ -60,8 +60,8 @@ class PeopleEnrichmentData:
     state: Optional[str]
     city: Optional[str]
     country: Optional[str]
-    employment_history: List[EmploymentHistory]
-    organization: Organization
+    employment_history: List[ApolloEmploymentHistory]
+    organization: ApolloOrganization
     departments: List[str]
     subdepartments: List[str]
     seniority: Optional[str]
@@ -73,8 +73,8 @@ def _parse_apollo_date(date_str: Optional[str]) -> Optional[datetime]:
     return None
 
 
-def _parse_apollo_funding_event(event: dict) -> FundingEvent:
-    return FundingEvent(
+def _parse_apollo_funding_event(event: dict) -> ApolloFundingEvent:
+    return ApolloFundingEvent(
         date=datetime.fromisoformat(event["date"]),
         news_url=event.get("news_url"),
         type=event["type"],
@@ -84,8 +84,8 @@ def _parse_apollo_funding_event(event: dict) -> FundingEvent:
     )
 
 
-def _parse_organization_data(org_data: dict) -> Organization:
-    return Organization(
+def _parse_organization_data(org_data: dict) -> ApolloOrganization:
+    return ApolloOrganization(
         name=org_data["name"],
         website_url=org_data.get("website_url"),
         blog_url=org_data.get("blog_url"),
@@ -112,8 +112,8 @@ def _parse_organization_data(org_data: dict) -> Organization:
     )
 
 
-def _parse_emploment(employment: dict) -> EmploymentHistory:
-    return EmploymentHistory(
+def _parse_emploment(employment: dict) -> ApolloEmploymentHistory:
+    return ApolloEmploymentHistory(
         organization_name=employment.get("organization_name"),
         start_date=_parse_apollo_date(employment.get("start_date")),
         end_date=_parse_apollo_date(employment.get("end_date")),
@@ -121,14 +121,14 @@ def _parse_emploment(employment: dict) -> EmploymentHistory:
     )
 
 
-def _parse_people_enrichment_data(enrichment_data: dict) -> PeopleEnrichmentData:
+def _parse_people_enrichment_data(enrichment_data: dict) -> ApolloPersonProfile:
     employment_history = [
         _parse_emploment(employment)
         for employment in enrichment_data.get("employment_history", [])
     ]
     organization = _parse_organization_data(enrichment_data.get("organization", {}))
 
-    return PeopleEnrichmentData(
+    return ApolloPersonProfile(
         first_name=enrichment_data["first_name"],
         last_name=enrichment_data["last_name"],
         full_name=enrichment_data["name"],
@@ -149,10 +149,11 @@ def _parse_people_enrichment_data(enrichment_data: dict) -> PeopleEnrichmentData
     )
 
 
-def fetch_people_enrichment_data(
+def apollo_people_enrichment(
     first_name: str, last_name: str, email: str
-) -> PeopleEnrichmentData:
-    """Fetch people enrichment data using Apollo's API."""
+) -> ApolloPersonProfile:
+    """Retrieves a person's profile through Apollo's People Enrichment API,
+    including details such as employment, social media urls, and other personal data."""
     url = "https://api.apollo.io/v1/people/match"
     headers = {
         "Content-Type": "application/json",
