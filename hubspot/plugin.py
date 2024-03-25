@@ -576,10 +576,10 @@ def hubspot_search_contacts(
         property_values = item.get("properties", {})
         additional_property_values = {}
         if return_with_additional_properties:
-            for addl in return_with_additional_properties:
-                val = property_values.get(addl, None)
+            for property in return_with_additional_properties:
+                val = property_values.get(property.name, None)
                 if val:
-                    additional_property_values[addl] = val
+                    additional_property_values[property.name] = val
 
         contact_properties = HubSpotContactProperties(
             first_name=property_values.get("firstname", ""),
