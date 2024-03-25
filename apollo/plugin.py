@@ -159,13 +159,14 @@ def fetch_people_enrichment_data(
         "Cache-Control": "no-cache",
     }
     data = {
-        "api_key": "Add API KEY here",
         "first_name": first_name,
         "last_name": last_name,
         "email": email,
     }
     with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_apollo),
+        transport=AugmentedTransport(
+            actions_v0.authenticated_request_apollo_request_body_auth
+        ),
     ) as client:
         response = client.post(url, json=data, headers=headers)
         response.raise_for_status()
