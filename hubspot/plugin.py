@@ -1,7 +1,6 @@
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Sequence, Tuple, Union, Literal
+from typing import Dict, Optional, Sequence, Tuple, Union, Literal, List
 
 import httpx
 
@@ -247,7 +246,6 @@ class HubSpotContactDefaultPropertyName:
         "lastmodifieddate",
         "marital_status",
         "military_status",
-        "num_associated_deals",
         "num_conversion_events",
         "num_unique_conversion_events",
         "recent_conversion_date",
@@ -365,10 +363,8 @@ class HubSpotContactDefaultPropertyName:
         "numemployees",
         "annualrevenue",
         "industry",
-        "associatedcompanyid",
-        "associatedcompanylastupdated",
         "hs_predictivecontactscorebucket",
-        "hs_predictivecontactscore"
+        "hs_predictivecontactscore",
     ]
 
 
@@ -377,9 +373,9 @@ class HubSpotContactCustomPropertyName:
     name: str
 
 
-def list_contacts(
-    limit: int = 100, after: Optional[str] = None
-) -> Tuple[List[HubSpotContact], Optional[str]]:
+def hubspot_list_contacts(
+    limit: int = 100, pagination_token: Optional[str] = None
+) -> Tuple[Sequence[HubSpotContact], Optional[str]]:
     """
     Fetch the list of contacts from HubSpot.
 
@@ -388,18 +384,18 @@ def list_contacts(
 
     Args:
         limit: The maximum number of results to display per page. The maximum value for this is 100.
-        after: Cursor for pagination.
+        pagination_token: Cursor for pagination.
 
     Returns:
-        A tuple of a list of HubSpotContact objects and the next 'after' cursor, if
-            available. If the next 'after' cursor is None, there is no more data to get.
+        A tuple of a list of HubSpotContact objects and the next 'pagination_token' cursor, if
+            available. If the next 'pagination_token' cursor is None, there is no more data to get.
     """
     url = "https://api.hubapi.com/crm/v3/objects/contacts"
     params = {}
     if limit:
         params["limit"] = limit
-    if after:
-        params["after"] = after
+    if pagination_token:
+        params["after"] = pagination_token
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
@@ -428,16 +424,16 @@ def list_contacts(
         )
         contacts.append(contact)
 
-    next_after = (
+    next_pagination_token = (
         data["paging"]["next"]["after"]
         if "paging" in data and "next" in data["paging"]
         else None
     )
 
-    return contacts, next_after
+    return contacts, next_pagination_token
 
 
-def create_contacts(contacts: List[HubSpotContact]) -> List[str]:
+def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> Sequence[str]:
     """
     Create multiple contacts in HubSpot using the batch API.
 
@@ -493,10 +489,10 @@ class ContactCustomPropertyUpdate:
     updated_properties: List[Tuple[HubSpotContactCustomPropertyName, str]]
 
 
-def update_contacts(
-    default_properties: List[ContactDefaultPropertyUpdate],
-    custom_properties: List[ContactCustomPropertyUpdate],
-) -> List[str]:
+def hubspot_update_contacts(
+    default_properties: Sequence[ContactDefaultPropertyUpdate],
+    custom_properties: Sequence[ContactCustomPropertyUpdate],
+) -> Sequence[str]:
     """
     Update multiple contacts in HubSpot.
 
@@ -505,10 +501,13 @@ def update_contacts(
     """
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
-    merged_properties = defaultdict(dict)
+    merged_properties = {}
 
     for property_update in default_properties + custom_properties:
-        merged_properties[property_update.contact_id].update(
+        contact_properties = merged_properties.setdefault(
+            property_update.contact_id, {}
+        )
+        contact_properties.update(
             {prop.name: value for prop, value in property_update.updated_properties}
         )
 
@@ -526,28 +525,28 @@ def update_contacts(
         return [result["id"] for result in data["results"]]
 
 
-def search_contacts(
+def hubspot_search_contacts(
     search_criteria: Dict[str, str],
-    additional_properties: Optional[
+    return_with_additional_properties: Optional[
         Sequence[
             Union[HubSpotContactDefaultPropertyName, HubSpotContactCustomPropertyName]
         ]
     ] = None,
-) -> List[HubSpotContact]:
+) -> Sequence[HubSpotContact]:
     """
     Search for HubSpot contacts based on various criteria.
 
     Args:
         search_criteria: A dictionary where keys are the property names (e.g.,
           "firstname", "email") and values are the search values for those properties.
-        additional_properties: A sequence of property names to fetch from found
+        return_with_additional_properties: A sequence of property names to fetch from found
             contacts. If present, the corresponding values will be provided in the
-            HubSpotContactProperties additional_properties field. Standard hubspot
+            HubSpotContactProperties return_with_additional_properties field. Standard hubspot
             properties are available, but users must know the names of custom properties
             if they are to be found.
 
     Returns:
-        List[HubSpotContact]: A list of HubSpotContact objects matching the search
+        Sequence[HubSpotContact]: A list of HubSpotContact objects matching the search
             criteria.
     """
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
@@ -560,8 +559,8 @@ def search_contacts(
         )
 
     properties = ["firstname", "lastname", "email", "lastmodifieddate"]
-    if additional_properties:
-        properties.extend([prop.name for prop in additional_properties])
+    if return_with_additional_properties:
+        properties.extend([prop.name for prop in return_with_additional_properties])
     # Prepare the request body with the filters
     payload = {"filterGroups": [{"filters": filters}], "properties": properties}
 
@@ -576,8 +575,8 @@ def search_contacts(
     for item in data.get("results", []):
         property_values = item.get("properties", {})
         additional_property_values = {}
-        if additional_properties:
-            for addl in additional_properties:
+        if return_with_additional_properties:
+            for addl in return_with_additional_properties:
                 val = property_values.get(addl, None)
                 if val:
                     additional_property_values[addl] = val
@@ -733,8 +732,6 @@ class HubSpotCompanyDefaultPropertyName:
         "hs_was_imported",
         "hubspot_owner_assigneddate",
         "is_public",
-        "num_associated_contacts",
-        "num_associated_deals",
         "num_conversion_events",
         "recent_conversion_date",
         "recent_conversion_event_name",
@@ -812,7 +809,7 @@ def _parse_company(data: dict) -> HubSpotCompany:
         additional_properties={
             key: value
             for key, value in data["properties"].items()
-            if key not in ["name", "domain", "hs_object_id", "lastmodifieddate"]
+            if key not in ["name", "domain", "hs_object_id", "hs_lastmodifieddate"]
             and value is not None
         },
     )
@@ -826,28 +823,28 @@ def _parse_company(data: dict) -> HubSpotCompany:
     )
 
 
-def list_companies(
+def hubspot_list_companies(
     limit: int = 100,
-    after: Optional[str] = None,
-    additional_properties: Optional[
+    pagination_token: Optional[str] = None,
+    return_with_additional_properties: Optional[
         Sequence[
             Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName]
         ]
     ] = None,
-) -> Tuple[List[HubSpotCompany], Optional[str]]:
+) -> Tuple[Sequence[HubSpotCompany], Optional[str]]:
     """
     Fetch the list of companies from HubSpot.
 
     Args:
         limit: The maximum number of results to display per page.
-        after: Cursor for pagination.
-        additional_properties: A sequence of property names to fetch from found
+        pagination_token: Cursor for pagination.
+        return_with_additional_properties: A sequence of property names to fetch from found
             companies. If present, the corresponding values will be provided in the
             HubSpotCompanyProperties field.
 
     Returns:
-        A tuple of a list of HubSpotCompany objects and the next 'after' cursor, if
-            available. If the next 'after' cursor is None, there is no more data to get.
+        A tuple of a list of HubSpotCompany objects and the next 'pagination_token' cursor, if
+            available. If the next 'pagination_token' cursor is None, there is no more data to get.
     """
     url = "https://api.hubapi.com/crm/v3/objects/companies"
     params = {
@@ -863,10 +860,12 @@ def list_companies(
             "lastmodifieddate",
         ],
     }
-    if after:
-        params["after"] = after
-    if additional_properties:
-        params["properties"].extend([prop.name for prop in additional_properties])
+    if pagination_token:
+        params["after"] = pagination_token
+    if return_with_additional_properties:
+        params["properties"].extend(
+            [prop.name for prop in return_with_additional_properties]
+        )
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
@@ -880,37 +879,37 @@ def list_companies(
         company = _parse_company(item)
         companies.append(company)
 
-    next_after = (
+    next_pagination_token = (
         data["paging"]["next"]["after"]
         if "paging" in data and "next" in data["paging"]
         else None
     )
 
-    return companies, next_after
+    return companies, next_pagination_token
 
 
-def search_companies(
+def hubspot_search_companies(
     search_criteria: Dict[str, str],
-    additional_properties: Optional[
+    return_with_additional_properties: Optional[
         Sequence[
             Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName]
         ]
     ] = None,
-) -> List[HubSpotCompany]:
+) -> Sequence[HubSpotCompany]:
     """
     Search for companies in HubSpot CRM based on various criteria.
 
     Args:
         search_criteria: A dictionary where keys are the property names (e.g.,
           "name", "domain") and values are the search values for those properties.
-        additional_properties: A sequence of property names to fetch from found
+        return_with_additional_properties: A sequence of property names to fetch from found
             companies. If present, the corresponding values will be provided in the
-            HubSpotCompanyProperties additional_properties field. Standard HubSpot
+            HubSpotCompanyProperties return_with_additional_properties field. Standard HubSpot
             properties are available, but users must know the names of custom properties
             if they are to be found.
 
     Returns:
-        List[HubSpotCompany]: A list of HubSpotCompany objects matching the search
+        Sequence[HubSpotCompany]: A list of HubSpotCompany objects matching the search
             criteria.
     """
     url = "https://api.hubapi.com/crm/v3/objects/companies/search"
@@ -926,8 +925,8 @@ def search_companies(
         "name",
         "domain",
     ]
-    if additional_properties:
-        properties.extend([prop.name for prop in additional_properties])
+    if return_with_additional_properties:
+        properties.extend([prop.name for prop in return_with_additional_properties])
 
     payload = {"filterGroups": [{"filters": filters}], "properties": properties}
 
@@ -1009,7 +1008,7 @@ def _parse_deal(data: dict) -> HubSpotDeal:
     )
 
 
-def fetch_deal_by_id(deal_id: str) -> HubSpotDeal:
+def hubspot_fetch_deal_by_id(deal_id: str) -> HubSpotDeal:
     """Fetch a deal by its ID from HubSpot."""
     url = f"https://api.hubapi.com/crm/v3/objects/deals/{deal_id}"
 
@@ -1027,9 +1026,9 @@ def fetch_deal_by_id(deal_id: str) -> HubSpotDeal:
     return _parse_deal(data)
 
 
-def fetch_company_by_id(
+def hubspot_fetch_company_by_id(
     company_id: str,
-    additional_properties: Optional[
+    return_with_additional_properties: Optional[
         Sequence[
             Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName]
         ]
@@ -1043,8 +1042,8 @@ def fetch_company_by_id(
         "name",
         "domain",
     ]
-    if additional_properties:
-        properties += [prop.name for prop in additional_properties]
+    if return_with_additional_properties:
+        properties += [prop.name for prop in return_with_additional_properties]
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
@@ -1071,10 +1070,10 @@ class CompanyCustomPropertyUpdate:
     updated_properties: List[Tuple[HubSpotCompanyCustomPropertyName, str]]
 
 
-def update_companies(
-    default_properties: List[CompanyDefaultPropertyUpdate],
-    custom_properties: List[CompanyCustomPropertyUpdate],
-) -> List[str]:
+def hubspot_update_companies(
+    default_properties: Sequence[CompanyDefaultPropertyUpdate],
+    custom_properties: Sequence[CompanyCustomPropertyUpdate],
+) -> Sequence[str]:
     """
     Update multiple companies in HubSpot.
 
@@ -1083,10 +1082,13 @@ def update_companies(
     """
     url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
 
-    merged_properties = defaultdict(dict)
+    merged_properties = {}
 
     for property_update in default_properties + custom_properties:
-        merged_properties[property_update.company_id].update(
+        company_properties = merged_properties.setdefault(
+            property_update.company_id, {}
+        )
+        company_properties.update(
             {prop.name: value for prop, value in property_update.updated_properties}
         )
 
@@ -1159,13 +1161,15 @@ class HubSpotCustomObjectType:
     name: str
 
 
-def fetch_associated_object_ids(
+def hubspot_fetch_associated_object_ids(
     source_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
     target_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
     source_object_id: str,
-) -> List[str]:
+) -> Sequence[str]:
     """
-    Fetches the IDs of target objects associated with the source object.
+    Returns the IDs of target objects associated with the source object
+    using the HubSpot association API. You must use this to find HubSpot
+    objects that are associated to each other.
     """
     source_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
         source_object_type.name, source_object_type.name
