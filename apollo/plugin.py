@@ -3,8 +3,7 @@ from dataclasses import dataclass
 import httpx
 from typing import Optional, List
 
-
-_API_KEY = "INSERT YOUR API KEY HERE"
+from lutraai.augmented_request_client import AugmentedTransport
 
 
 @dataclass
@@ -153,20 +152,21 @@ def _parse_people_enrichment_data(enrichment_data: dict) -> PeopleEnrichmentData
 def fetch_people_enrichment_data(
     first_name: str, last_name: str, email: str
 ) -> PeopleEnrichmentData:
-    """Fetch enrichment data for  detail using Apollo's API."""
+    """Fetch people enrichment data using Apollo's API."""
     url = "https://api.apollo.io/v1/people/match"
     headers = {
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
     }
     data = {
-        "api_key": _API_KEY,
+        "api_key": "Add API KEY here",
         "first_name": first_name,
         "last_name": last_name,
         "email": email,
     }
-
-    with httpx.Client() as client:
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_apollo),
+    ) as client:
         response = client.post(url, json=data, headers=headers)
         response.raise_for_status()
         result = response.json()
