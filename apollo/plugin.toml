@@ -1,0 +1,7 @@
+name = "Apollo"
+description = "Fetch enrichment data from Apollo."
+logo_url = "/asserts/logos/apollo-io.svg"
+
+[[required_actions]]
+action_reference_type = "authenticated_request_apollo_request_body_auth"
+augmented_request_configuration_id = "c6a1be36-5539-4517-aec9-31a516bd5b62"
