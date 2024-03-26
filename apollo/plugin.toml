@@ -1,6 +1,6 @@
 name = "Apollo"
 description = "Fetch enrichment data from Apollo."
-logo_url = "/asserts/logos/apollo.svg"
+logo_url = "/asserts/logos/apollo-io.svg"
 
 [[required_actions]]
 action_reference_type = "authenticated_request_apollo_request_body_auth"
