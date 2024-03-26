@@ -825,22 +825,22 @@ def _parse_company(data: dict) -> HubSpotCompany:
 
 def hubspot_list_companies(
     limit: int = 100,
-    pagination_token: Optional[str] = None,
     return_with_additional_properties: Optional[
         Sequence[
             Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName]
         ]
     ] = None,
+    pagination_token: Optional[str] = None,
 ) -> Tuple[Sequence[HubSpotCompany], Optional[str]]:
     """
     Fetch the list of companies from HubSpot.
 
     Args:
         limit: The maximum number of results to display per page.
-        pagination_token: Cursor for pagination.
         return_with_additional_properties: A sequence of property names to fetch from found
             companies. If present, the corresponding values will be provided in the
             HubSpotCompanyProperties field.
+        pagination_token: Cursor for pagination.
 
     Returns:
         A tuple of a list of HubSpotCompany objects and the next 'pagination_token' cursor, if
