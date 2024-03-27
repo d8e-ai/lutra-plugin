@@ -26,7 +26,7 @@ class ApolloFundingEvent:
 
 @dataclass
 class ApolloOrganization:
-    name: str
+    name: Optional[str]
     website_url: Optional[str]
     blog_url: Optional[str]
     angellist_url: Optional[str]
@@ -65,6 +65,7 @@ class ApolloPersonProfile:
     departments: List[str]
     subdepartments: List[str]
     seniority: Optional[str]
+    phone_numbers: List[str]
 
 
 def _parse_apollo_date(date_str: Optional[str]) -> Optional[datetime]:
@@ -86,7 +87,7 @@ def _parse_apollo_funding_event(event: dict) -> ApolloFundingEvent:
 
 def _parse_organization_data(org_data: dict) -> ApolloOrganization:
     return ApolloOrganization(
-        name=org_data["name"],
+        name=org_data.get("name"),
         website_url=org_data.get("website_url"),
         blog_url=org_data.get("blog_url"),
         angellist_url=org_data.get("angellist_url"),
@@ -146,11 +147,20 @@ def _parse_people_enrichment_data(enrichment_data: dict) -> ApolloPersonProfile:
         departments=enrichment_data.get("departments", []),
         subdepartments=enrichment_data.get("subdepartments", []),
         seniority=enrichment_data.get("seniority"),
+        phone_numbers=[
+            number.get("sanitized_number", "")
+            for number in enrichment_data.get("phone_numbers", [])
+        ],
     )
 
 
 def apollo_people_enrichment(
-    first_name: str, last_name: str, email: str
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    email: Optional[str] = None,
+    name: Optional[str] = None,
+    organization_name: Optional[str] = None,
+    domain: Optional[str] = None,
 ) -> ApolloPersonProfile:
     """Retrieves a person's profile through Apollo's People Enrichment API,
     including details such as employment, social media urls, and other personal data."""
@@ -159,11 +169,20 @@ def apollo_people_enrichment(
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
     }
-    data = {
-        "first_name": first_name,
-        "last_name": last_name,
-        "email": email,
-    }
+    data = {}
+    if first_name:
+        data["first_name"] = first_name
+    if last_name:
+        data["last_name"] = last_name
+    if email:
+        data["email"] = email
+    if name:
+        data["name"] = name
+
+    if organization_name:
+        data["organization_name"] = organization_name
+    if domain:
+        data["domain"] = domain
     with httpx.Client(
         transport=AugmentedTransport(
             actions_v0.authenticated_request_apollo_request_body_auth
