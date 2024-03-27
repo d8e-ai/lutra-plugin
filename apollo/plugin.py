@@ -163,26 +163,26 @@ def apollo_people_enrichment(
     domain: Optional[str] = None,
 ) -> ApolloPersonProfile:
     """Retrieves a person's profile through Apollo's People Enrichment API,
-    including details such as employment, social media urls, and other personal data."""
+    including details such as employment, social media urls, and other personal data.
+    You can either use the combination of first and last name or a single name
+    field to identify the person; it is not necessary to provide both.
+    """
     url = "https://api.apollo.io/v1/people/match"
     headers = {
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
     }
-    data = {}
-    if first_name:
-        data["first_name"] = first_name
-    if last_name:
-        data["last_name"] = last_name
-    if email:
-        data["email"] = email
-    if name:
-        data["name"] = name
+    data = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "email": email,
+        "name": name,
+        "organization_name": organization_name,
+        "domain": domain,
+    }
 
-    if organization_name:
-        data["organization_name"] = organization_name
-    if domain:
-        data["domain"] = domain
+    data = {key: value for key, value in data.items() if value is not None}
+
     with httpx.Client(
         transport=AugmentedTransport(
             actions_v0.authenticated_request_apollo_request_body_auth
