@@ -39,6 +39,7 @@ class AirtableRecordID:
     id: str
 
 
+@purpose("Parse IDs from a web UI URL.")
 def airtable_parse_ids_from_url(
     url: str,
 ) -> Tuple[
