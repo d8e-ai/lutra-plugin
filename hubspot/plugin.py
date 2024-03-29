@@ -366,6 +366,15 @@ class HubSpotPropertyValue:
     def __float__(self) -> float:
         return self.as_float()
 
+    def as_datetime(self) -> datetime:
+        match self.value:
+            case datetime():
+                return self.value
+            case str():
+                return datetime.fromisoformat(self.value)
+            case _:
+                raise
+
     def as_str(self) -> str:
         match self.value:
             case str():
@@ -524,20 +533,55 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> Sequence[str]
     return [result["id"] for result in data["results"]]
 
 
-def _coerce_properties(properties: Dict[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]):
+def _coerce_properties_to_lutra(properties: Dict[str, Union[str, int, float, datetime, bool]]) -> Dict[str, HubSpotPropertyValue]:
+    coerced_properties: Dict[str, HubSpotPropertyValue] = {}
+    for name, value in properties.items():
+        
+        if name in _CONTACT_PROPERTIES_STRING:
+            c_value = str(value)
+        elif name in _CONTACT_PROPERTIES_NUMBER:
+            if isinstance(value, str):
+                if "." in value:
+                    c_value = float(value)
+                else:
+                    c_value = int(value)
+            elif isinstance(value, int | float):
+                c_value = value
+            else:
+                c_value = float(value)
+        elif name in _CONTACT_PROPERTIES_DATETIME:
+            if isinstance(value, datetime):
+                c_value = value
+            elif isinstance(value, str):
+                c_value = datetime.fromisoformat(value)
+            else:
+                raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
+        elif name in _CONTACT_PROPERTIES_BOOLEAN:
+            c_value = bool(util.strtobool(value))
+        else:
+            # Custom property, assume value is of right type.
+            # TODO: Accept custom property schema and coerce accordingly.
+            c_value = value
+
+        coerced_properties[name] = HubSpotPropertyValue(value=c_value)
+    
+    return coerced_properties
+
+def _coerce_properties_to_hubspot(
+    properties: Dict[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
+) -> Dict[str, Union[str, int, bool]]:
     coerced_properties = {}
     for name, value in properties.items():
         if isinstance(value, HubSpotPropertyValue):
             value = value.value
+
         if name in _CONTACT_PROPERTIES_STRING:
             coerced_properties[name] = str(value)
         elif name in _CONTACT_PROPERTIES_NUMBER:
-            coerced_properties[name] = float(value)
+            coerced_properties[name] = str(value)
         elif name in _CONTACT_PROPERTIES_DATETIME:
             if isinstance(value, datetime):
-                coerced_properties[name] = value
-            elif isinstance(value, str):
-                coerced_properties[name] = datetime.fromisoformat(value)
+                coerced_properties[name] = int(value.timestamp() * 1000)
             else:
                 raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
         elif name in _CONTACT_PROPERTIES_BOOLEAN:
@@ -545,17 +589,18 @@ def _coerce_properties(properties: Dict[str, Union[str, int, float, datetime, bo
         else:
             # Custom property, assume value is of right type.
             # TODO: Accept custom property schema and coerce accordingly.
-            coerced_properties[name] = value
+            coerced_properties[name] = str(value)
+
     return coerced_properties
             
 
 def hubspot_update_contacts(
-    contact_updates: Dict[str, Sequence[Tuple[str, Union[str, int, float, datetime, bool]]]],
+    contact_updates: Dict[str, Sequence[Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]]],
 ) -> Sequence[str]:
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
     payload = [
-        {"id": contact_id, "properties": _coerce_properties(dict(properties))}
+        {"id": contact_id, "properties": _coerce_properties_to_hubspot(dict(properties))}
         for contact_id, properties in contact_updates.items()
     ]
 
@@ -642,9 +687,9 @@ def hubspot_search_contacts(
         for property in return_with_custom_properties:
             val = property_values.get(property, None)
             if val:
-                additional_property_values[property] = HubSpotPropertyValue(value=val)
+                additional_property_values[property] = val
 
-        additional_property_values = _coerce_properties(additional_property_values)
+        additional_property_values = _coerce_properties_to_lutra(additional_property_values)
 
         contact = HubSpotContact(
             id=item["id"],
@@ -667,10 +712,6 @@ def hubspot_search_contacts(
         contacts.append(contact)
 
     return contacts
-
-
-
-
 
 
 @dataclass
