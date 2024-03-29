@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Optional, Sequence, Tuple, Union, Literal, List
@@ -5,6 +6,41 @@ from typing import Dict, Optional, Sequence, Tuple, Union, Literal, List
 import httpx
 
 from lutraai.augmented_request_client import AugmentedTransport
+
+
+def _update_properties(url: str, payload: Dict[str, dict]):
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.post(url, json={"inputs": payload})
+        data = response.json()
+        if response.status_code == 400:
+            validation_results = data.get("validationResults")
+            error_messages = []
+            for result in validation_results:
+                err_msg = result.get("localizedErrorMessage")
+                if "not one of the allowed options:" in err_msg:  # enumeration
+                    matches = re.findall(r'value: "([^"]+)"', err_msg)
+                    matches_str = ", ".join(matches)
+                    error_messages.append(
+                        f"Property '{result.get('name')}' only accepts following values: {matches_str}"
+                    )
+                elif "not a valid_number" in err_msg:  # number
+                    error_messages.append(
+                        f"Property '{result.get('name')}' only accepts numbers."
+                    )
+                elif "was not a valid long" in err_msg:  # datetime
+                    error_messages.append(
+                        f"Property '{result.get('name')}' is not a valid posix timestamp in milliseconds."
+                    )
+                else:  # bool doesn't error no matter what you set it to
+                    pass
+                raise RuntimeError("\n".join(error_messages))
+        else:
+            response.raise_for_status()
+
+        data = response.json()
+        return [result["id"] for result in data["results"]]
 
 
 @dataclass
@@ -516,13 +552,7 @@ def hubspot_update_contacts(
         for contact_id, properties in merged_properties.items()
     ]
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = client.post(url, json={"inputs": payload})
-        response.raise_for_status()
-        data = response.json()
-        return [result["id"] for result in data["results"]]
+    return _update_properties(url, payload)
 
 
 def hubspot_search_contacts(
@@ -1097,13 +1127,7 @@ def hubspot_update_companies(
         for company_id, properties in merged_properties.items()
     ]
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
-    ) as client:
-        response = client.post(url, json={"inputs": payload})
-        response.raise_for_status()
-        data = response.json()
-        return [result["id"] for result in data["results"]]
+    return _update_properties(url, payload)
 
 
 _HUBSPOT_OBJECT_TYPE_IDS = dict(
