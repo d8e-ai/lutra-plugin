@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Optional, Sequence, Tuple, Union, Literal, List
+from typing import Dict, Sequence, Union, Literal, List
 
 import httpx
 
@@ -66,14 +66,14 @@ def _to_transport_list(properties: HubSpotPropertiesToFetch) -> List[str]:
 
 @dataclass
 class HubSpotProperties:
-    default_str_properties: Dict[str, str] = {}
-    default_number_properties: Dict[str, float] = {}
-    default_datetime_properties: Dict[str, datetime] = {}
-    default_bool_properties: Dict[str, bool] = {}
-    custom_str_properties: Dict[str, str] = {}
-    custom_number_properties: Dict[str, float] = {}
-    custom_datetime_properties: Dict[str, datetime] = {}
-    custom_bool_properties: Dict[str, bool] = {}
+    default_str_properties: Dict[str, str]
+    default_number_properties: Dict[str, float]
+    default_datetime_properties: Dict[str, datetime]
+    default_bool_properties: Dict[str, bool]
+    custom_str_properties: Dict[str, str]
+    custom_number_properties: Dict[str, float]
+    custom_datetime_properties: Dict[str, datetime]
+    custom_bool_properties: Dict[str, bool]
 
 def _to_transport_dict(properties: HubSpotProperties):
     transport_dict = {}
@@ -592,7 +592,7 @@ class HubSpotContactProperties(HubSpotProperties):
             "hs_predictivecontactscorebucket",
         ],
         str,
-    ] = {}
+    ]
     default_number_properties: Dict[
         Literal[
             "days_to_close",
@@ -678,7 +678,7 @@ class HubSpotContactProperties(HubSpotProperties):
             "hs_predictivecontactscore",
         ],
         float,
-    ] = {}
+    ]
     default_datetime_properties: Dict[
         Literal[
             "first_conversion_date",
@@ -774,7 +774,7 @@ class HubSpotContactProperties(HubSpotProperties):
             "hs_lifecyclestage_other_date",
         ],
         datetime,
-    ] = {}
+    ]
     default_bool_properties: Dict[
         Literal[
             "hs_content_membership_email_confirmed",
@@ -793,7 +793,11 @@ class HubSpotContactProperties(HubSpotProperties):
             "hs_email_is_ineligible",
         ],
         bool,
-    ] = {}
+    ]
+    custom_str_properties: Dict[str, str]
+    custom_bool_properties: Dict[str, bool]
+    custom_datetime_properties: Dict[str, datetime]
+    custom_number_properties: Dict[str, float]
 
 def _from_contact_transport_dict(
     data: dict, properties_to_fetch: HubSpotContactPropertiesToFetch
@@ -899,6 +903,7 @@ def hubspot_search_contacts(
 def hubspot_update_contacts(
     requests: List[HubSpotUpdateContactRequest],
 ) -> Sequence[str]:
+    """Updates multiple contacts."""
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
     payload = []
     for request in requests:
@@ -909,7 +914,7 @@ def hubspot_update_contacts(
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json=payload)
+        response = client.post(url, json={"inputs": payload})
         return _handle_update_properties_response(response)
 
 
@@ -1195,7 +1200,7 @@ class HubSpotCompanyProperties(HubSpotProperties):
             "web_technologies",
         ],
         str,
-    ] = {}
+    ]
     default_number_properties: Dict[
         Literal[
             "facebookfans",
@@ -1243,7 +1248,7 @@ class HubSpotCompanyProperties(HubSpotProperties):
             "days_to_close",
         ],
         float,
-    ] = {}
+    ]
     default_datetime_properties: Dict[
         Literal[
             "closedate_timestamp_earliest_value_a2a17e6e",
@@ -1307,11 +1312,15 @@ class HubSpotCompanyProperties(HubSpotProperties):
             "first_contact_createdate",
         ],
         datetime,
-    ] = {}
+    ]
     default_bool_properties: Dict[
         Literal["hs_is_target_account", "hs_read_only", "hs_was_imported", "is_public"],
         bool,
-    ] = {}
+    ]
+    custom_str_properties: Dict[str, str]
+    custom_bool_properties: Dict[str, bool]
+    custom_datetime_properties: Dict[str, datetime]
+    custom_number_properties: Dict[str, float]
 
 def _from_company_transport_dict(
     data: dict, properties_to_fetch: HubSpotCompanyPropertiesToFetch
@@ -1417,7 +1426,7 @@ def hubspot_search_companies(
 def hubspot_update_companies(
     requests: List[HubSpotUpdateCompanyRequest],
 ) -> Sequence[str]:
-    """Update multiple HubSpot companies in a single request."""
+    """Updates multiple companies."""
     url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
     payload = []
     for request in requests:
@@ -1428,7 +1437,7 @@ def hubspot_update_companies(
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json=payload)
+        response = client.post(url, json={"inputs": payload})
         return _handle_update_properties_response(response)
 
 
@@ -1696,7 +1705,7 @@ class HubSpotDealProperties(HubSpotProperties):
             "closed_won_reason",
         ],
         str,
-    ] = {}
+    ]
     default_number_properties: Dict[
         Literal[
             "amount_in_home_currency",
@@ -1760,7 +1769,7 @@ class HubSpotDealProperties(HubSpotProperties):
             "num_associated_contacts",
         ],
         float,
-    ] = {}
+    ]
     default_datetime_properties: Dict[
         Literal[
             "hs_analytics_latest_source_timestamp",
@@ -1808,7 +1817,7 @@ class HubSpotDealProperties(HubSpotProperties):
             "hs_createdate",
         ],
         datetime,
-    ] = {}
+    ]
     default_bool_properties: Dict[
         Literal[
             "hs_is_active_shared_deal",
@@ -1823,7 +1832,11 @@ class HubSpotDealProperties(HubSpotProperties):
             "hs_was_imported",
         ],
         bool,
-    ] = {}
+    ]
+    custom_str_properties: Dict[str, str]
+    custom_bool_properties: Dict[str, bool]
+    custom_datetime_properties: Dict[str, datetime]
+    custom_number_properties: Dict[str, float]
 
 def _from_deal_transport_dict(
     data: dict, properties_to_fetch: HubSpotDealPropertiesToFetch
