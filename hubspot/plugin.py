@@ -347,7 +347,7 @@ _CONTACT_PROPERTIES_BOOLEAN = [
 
 @dataclass
 class HubSpotPropertyValue:
-    """A cell in a Google Sheet.
+    """A property value from HubSpot.
 
     as_* methods can raise a ValueError if the value cannot be safely converted to the appropriate type.
 
@@ -557,7 +557,7 @@ def _coerce_properties_to_lutra(properties: Dict[str, Union[str, int, float, dat
             else:
                 raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
         elif name in _CONTACT_PROPERTIES_BOOLEAN:
-            c_value = bool(util.strtobool(value))
+            c_value = bool(util.strtobool(str(value)))
         else:
             # Custom property, assume value is of right type.
             # TODO: Accept custom property schema and coerce accordingly.
@@ -585,7 +585,7 @@ def _coerce_properties_to_hubspot(
             else:
                 raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
         elif name in _CONTACT_PROPERTIES_BOOLEAN:
-            coerced_properties[name] = bool(util.strtobool(value))
+            coerced_properties[name] = bool(util.strtobool(str(value)))
         else:
             # Custom property, assume value is of right type.
             # TODO: Accept custom property schema and coerce accordingly.
@@ -618,7 +618,7 @@ Update multiple contacts in HubSpot.
 contact_updates is a dict mapping contact id to a list of tuples with the property names to update, and their new values.
 
 Returns:
-Contact IDs that have been updated.
+    Contact IDs that have been updated.
 
 The following are default properties (and types) in Hubspot:
 
@@ -670,6 +670,7 @@ def hubspot_search_contacts(
 
     properties = ["firstname", "lastname", "email", "lastmodifieddate"]
     properties.extend(return_with_custom_properties)
+    properties = list(set(properties))
     # Prepare the request body with the filters
     payload = {"filterGroups": [{"filters": filters}], "properties": properties}
 
