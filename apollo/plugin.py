@@ -18,10 +18,10 @@ class ApolloEmploymentHistory:
 class ApolloFundingEvent:
     date: datetime
     news_url: Optional[str]
-    type: str
+    type: Optional[str]
     investors: List[str]
-    amount: str
-    currency: str
+    amount: Optional[str]
+    currency: Optional[str]
 
 
 @dataclass
@@ -78,10 +78,10 @@ def _parse_apollo_funding_event(event: dict) -> ApolloFundingEvent:
     return ApolloFundingEvent(
         date=datetime.fromisoformat(event["date"]),
         news_url=event.get("news_url"),
-        type=event["type"],
+        type=event.get("type"),
         investors=event["investors"].split(", ") if event.get("investors") else [],
-        amount=event["amount"],
-        currency=event["currency"],
+        amount=event.get("amount"),
+        currency=event.get("currency"),
     )
 
 
