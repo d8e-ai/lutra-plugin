@@ -900,8 +900,6 @@ class HubSpotCompanyDefaultPropertyName:
     ]
 
 
-
-
 @dataclass
 class HubSpotCompanyCustomPropertyName:
     name: str
