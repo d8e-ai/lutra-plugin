@@ -1075,7 +1075,7 @@ def hubspot_update_companies(
 hubspot_update_companies.__doc__ = f"""\
 Update multiple companies in HubSpot.
 
-company_updates is a dict mapping contact id to a list of tuples with the property names to update, and their new values.
+company_updates is a dict mapping company id to a list of tuples with the property names to update, and their new values.
 
 Returns:
 Company IDs that have been updated.
@@ -1180,85 +1180,461 @@ def hubspot_search_companies(
     return companies
 
 
-@dataclass
-class HubSpotDealProperties:
-    """Represents the properties of a HubSpot deal."""
+_DEAL_PROPERTIES_STRING = [
+    "deal_currency_code",
+    "hs_all_assigned_business_unit_ids",
+    "hs_all_collaborator_owner_ids",
+    "hs_all_deal_split_owner_ids",
+    "hs_analytics_latest_source",
+    "hs_analytics_latest_source_company",
+    "hs_analytics_latest_source_contact",
+    "hs_analytics_latest_source_data_1",
+    "hs_analytics_latest_source_data_1_company",
+    "hs_analytics_latest_source_data_1_contact",
+    "hs_analytics_latest_source_data_2",
+    "hs_analytics_latest_source_data_2_company",
+    "hs_analytics_latest_source_data_2_contact",
+    "hs_analytics_source",
+    "hs_analytics_source_data_1",
+    "hs_analytics_source_data_2",
+    "hs_campaign",
+    "hs_deal_amount_calculation_preference",
+    "hs_latest_approval_status",
+    "hs_line_item_global_term_hs_discount_percentage",
+    "hs_line_item_global_term_hs_recurring_billing_period",
+    "hs_line_item_global_term_hs_recurring_billing_start_date",
+    "hs_line_item_global_term_recurringbillingfrequency",
+    "hs_manual_forecast_category",
+    "hs_merged_object_ids",
+    "hs_next_step",
+    "hs_notes_next_activity_type",
+    "hs_object_source",
+    "hs_object_source_detail_1",
+    "hs_object_source_detail_2",
+    "hs_object_source_detail_3",
+    "hs_object_source_id",
+    "hs_object_source_label",
+    "hs_priority",
+    "hs_tag_ids",
+    "hs_unique_creation_key",
+    "hs_user_ids_of_all_notification_followers",
+    "hs_user_ids_of_all_notification_unfollowers",
+    "hs_user_ids_of_all_owners",
+    "dealname",
+    "dealstage",
+    "pipeline",
+    "engagements_last_meeting_booked_campaign",
+    "engagements_last_meeting_booked_medium",
+    "engagements_last_meeting_booked_source",
+    "hubspot_owner_id",
+    "hubspot_team_id",
+    "dealtype",
+    "hs_all_owner_ids",
+    "description",
+    "hs_all_team_ids",
+    "hs_all_accessible_team_ids",
+    "closed_lost_reason",
+    "closed_won_reason",
+]
 
-    amount: int
-    close_date: Optional[datetime]
-    create_date: datetime
-    deal_name: str
-    deal_stage: str
-    pipeline: str
-    additional_properties: Dict[str, str]
+_DEAL_PROPERTIES_NUMBER = [
+    "amount_in_home_currency",
+    "days_to_close",
+    "hs_acv",
+    "hs_arr",
+    "hs_closed_amount",
+    "hs_closed_amount_in_home_currency",
+    "hs_closed_won_count",
+    "hs_created_by_user_id",
+    "hs_days_to_close_raw",
+    "hs_deal_score",
+    "hs_deal_stage_probability",
+    "hs_deal_stage_probability_shadow",
+    "hs_exchange_rate",
+    "hs_forecast_amount",
+    "hs_forecast_probability",
+    "hs_is_open_count",
+    "hs_latest_approval_status_approval_id",
+    "hs_likelihood_to_close",
+    "hs_mrr",
+    "hs_num_associated_active_deal_registrations",
+    "hs_num_associated_deal_registrations",
+    "hs_num_associated_deal_splits",
+    "hs_num_of_associated_line_items",
+    "hs_num_target_accounts",
+    "hs_object_id",
+    "hs_object_source_user_id",
+    "hs_pinned_engagement_id",
+    "hs_predicted_amount",
+    "hs_predicted_amount_in_home_currency",
+    "hs_projected_amount",
+    "hs_projected_amount_in_home_currency",
+    "hs_source_object_id",
+    "hs_tcv",
+    "hs_time_in_appointmentscheduled",
+    "hs_time_in_closedlost",
+    "hs_time_in_closedwon",
+    "hs_time_in_contractsent",
+    "hs_time_in_decisionmakerboughtin",
+    "hs_time_in_presentationscheduled",
+    "hs_time_in_qualifiedtobuy",
+    "hs_updated_by_user_id",
+    "hs_v2_cumulative_time_in_appointmentscheduled",
+    "hs_v2_cumulative_time_in_closedlost",
+    "hs_v2_cumulative_time_in_closedwon",
+    "hs_v2_cumulative_time_in_contractsent",
+    "hs_v2_cumulative_time_in_decisionmakerboughtin",
+    "hs_v2_cumulative_time_in_presentationscheduled",
+    "hs_v2_cumulative_time_in_qualifiedtobuy",
+    "hs_v2_latest_time_in_appointmentscheduled",
+    "hs_v2_latest_time_in_closedlost",
+    "hs_v2_latest_time_in_closedwon",
+    "hs_v2_latest_time_in_contractsent",
+    "hs_v2_latest_time_in_decisionmakerboughtin",
+    "hs_v2_latest_time_in_presentationscheduled",
+    "hs_v2_latest_time_in_qualifiedtobuy",
+    "amount",
+    "num_contacted_notes",
+    "num_notes",
+    "num_associated_contacts",
+]
+
+_DEAL_PROPERTIES_DATETIME = [
+    "hs_analytics_latest_source_timestamp",
+    "hs_analytics_latest_source_timestamp_company",
+    "hs_analytics_latest_source_timestamp_contact",
+    "hs_closed_won_date",
+    "hs_date_entered_appointmentscheduled",
+    "hs_date_entered_closedlost",
+    "hs_date_entered_closedwon",
+    "hs_date_entered_contractsent",
+    "hs_date_entered_decisionmakerboughtin",
+    "hs_date_entered_presentationscheduled",
+    "hs_date_entered_qualifiedtobuy",
+    "hs_date_exited_appointmentscheduled",
+    "hs_date_exited_closedlost",
+    "hs_date_exited_closedwon",
+    "hs_date_exited_contractsent",
+    "hs_date_exited_decisionmakerboughtin",
+    "hs_date_exited_presentationscheduled",
+    "hs_date_exited_qualifiedtobuy",
+    "hs_lastmodifieddate",
+    "hs_v2_date_entered_appointmentscheduled",
+    "hs_v2_date_entered_closedlost",
+    "hs_v2_date_entered_closedwon",
+    "hs_v2_date_entered_contractsent",
+    "hs_v2_date_entered_decisionmakerboughtin",
+    "hs_v2_date_entered_presentationscheduled",
+    "hs_v2_date_entered_qualifiedtobuy",
+    "hs_v2_date_exited_appointmentscheduled",
+    "hs_v2_date_exited_closedlost",
+    "hs_v2_date_exited_closedwon",
+    "hs_v2_date_exited_contractsent",
+    "hs_v2_date_exited_decisionmakerboughtin",
+    "hs_v2_date_exited_presentationscheduled",
+    "hs_v2_date_exited_qualifiedtobuy",
+    "hubspot_owner_assigneddate",
+    "closedate",
+    "createdate",
+    "engagements_last_meeting_booked",
+    "hs_latest_meeting_activity",
+    "hs_sales_email_last_replied",
+    "notes_last_contacted",
+    "notes_last_updated",
+    "notes_next_activity_date",
+    "hs_createdate",
+]
+
+_DEAL_PROPERTIES_BOOLEAN = [
+    "hs_is_active_shared_deal",
+    "hs_is_closed",
+    "hs_is_closed_won",
+    "hs_is_deal_split",
+    "hs_line_item_global_term_hs_discount_percentage_enabled",
+    "hs_line_item_global_term_hs_recurring_billing_period_enabled",
+    "hs_line_item_global_term_hs_recurring_billing_start_date_enabled",
+    "hs_line_item_global_term_recurringbillingfrequency_enabled",
+    "hs_read_only",
+    "hs_was_imported",
+]
 
 
 @dataclass
 class HubSpotDeal:
-    """Represents a deal in HubSpot."""
+    """The `additional_properties` field stores any additional properties that are
+    available in the HubSpot deal system that callers can ask for. If found, they
+    will be found here.
+    """
 
     id: str
-    properties: HubSpotDealProperties
+    dealname: str
+    dealstage: str
+    closedate: Optional[datetime]
+    amount: float
+    hs_object_id: str
+    last_modified_date: datetime
+    additional_properties: Dict[str, HubSpotPropertyValue]
     createdAt: datetime
     updatedAt: datetime
     archived: bool
 
 
-def _parse_deal(data: dict) -> HubSpotDeal:
-    properties = data["properties"]
+def hubspot_list_deals(
+    limit: int = 100,
+    pagination_token: Optional[HubSpotPaginationToken] = None,
+) -> Tuple[Sequence[HubSpotDeal], Optional[str]]:
+    """
+    Fetch the list of deals from HubSpot.
 
-    deal_properties = HubSpotDealProperties(
-        amount=int(properties["amount"]),
-        close_date=(
-            datetime.fromisoformat(properties["closedate"])
-            if properties["closedate"]
-            else None
-        ),
-        create_date=datetime.fromisoformat(properties["createdate"]),
-        deal_name=properties["dealname"],
-        deal_stage=properties["dealstage"],
-        pipeline=properties["pipeline"],
-        additional_properties={
-            k: v
-            for k, v in properties.items()
-            if k
-            not in [
-                "amount",
-                "closedate",
-                "createdate",
-                "dealname",
-                "dealstage",
-                "pipeline",
-            ]
-            and v is not None
-        },
-    )
+    Args:
+        limit: The maximum number of results to display per page.
+        pagination_token: Cursor for pagination.
 
-    return HubSpotDeal(
-        id=data["id"],
-        properties=deal_properties,
-        createdAt=datetime.fromisoformat(data["createdAt"]),
-        updatedAt=datetime.fromisoformat(data["updatedAt"]),
-        archived=data["archived"],
-    )
-
-
-def hubspot_fetch_deal_by_id(deal_id: str) -> HubSpotDeal:
-    """Fetch a deal by its ID from HubSpot."""
-    url = f"https://api.hubapi.com/crm/v3/objects/deals/{deal_id}"
+    Returns:
+        A tuple of a list of HubSpotDeal objects and the next 'pagination_token' cursor, if
+        available. If the next 'pagination_token' cursor is None, there is no more data to get.
+    """
+    url = "https://api.hubapi.com/crm/v3/objects/deals"
+    properties = [
+        "dealname",
+        "dealstage",
+        "closedate",
+        "amount",
+        "hs_object_id",
+        "hs_lastmodifieddate",
+    ]
+    params = {"properties": properties}
+    if limit:
+        params["limit"] = limit
+    if pagination_token:
+        params["after"] = pagination_token.token
 
     with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.get(url)
+        response = client.get(url, params=params)
         response.raise_for_status()
         data = response.json()
 
-    deal_properties = data.get("properties", {})
-    if not deal_properties:
-        raise ValueError(f"Deal with ID {deal_id} not found")
+    deals = []
+    for item in data["results"]:
+        properties = item["properties"]
+        deal = HubSpotDeal(
+            id=item["id"],
+            createdAt=datetime.fromisoformat(item["createdAt"]),
+            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            archived=item["archived"],
+            dealname=properties.get("dealname"),
+            dealstage=properties.get("dealstage"),
+            closedate=(
+                datetime.fromisoformat(properties["closedate"])
+                if "closeddate" in properties
+                else None
+            ),
+            amount=float(properties.get("amount", 0)),
+            hs_object_id=properties.get("hs_object_id"),
+            last_modified_date=datetime.fromisoformat(
+                properties["hs_lastmodifieddate"]
+            ),
+            additional_properties={},
+        )
+        deals.append(deal)
+    next_pagination_token = (
+        data["paging"]["next"]["after"]
+        if "paging" in data and "next" in data["paging"]
+        else None
+    )
 
-    return _parse_deal(data)
+    return deals, next_pagination_token
+
+
+def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> Sequence[str]:
+    """
+    Create multiple deals in HubSpot using the batch API.
+
+    Deals are created with the properties specified in the HubSpotDeal class.
+    Additional properties can be updated using a separate update function if needed.
+
+    Args:
+        deals: A list of HubSpotDeal objects to be created.
+
+    Returns:
+        A list of strings, where each string is the ID of a created deal.
+    """
+    url = "https://api.hubapi.com/crm/v3/objects/deals/batch/create"
+
+    # Prepare the payload from the deals list
+    deal_payload = []
+    for deal in deals:
+        deal_data = {
+            "properties": {
+                "dealname": deal.dealname,
+                "dealstage": deal.dealstage,
+                "closedate": deal.closedate.isoformat() if deal.closedate else None,
+                "amount": str(deal.amount),  # Assuming amount is a numeric field
+            }
+        }
+        deal_payload.append(deal_data)
+
+    payload = {"inputs": deal_payload}
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.post(url, json=payload)
+        response.raise_for_status()
+        data = response.json()
+
+    return [result["id"] for result in data["results"]]
+
+
+def hubspot_update_deals(
+    deal_updates: Dict[
+        str,
+        Sequence[
+            Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
+        ],
+    ],
+) -> Sequence[str]:
+    """
+    Update multiple deals in HubSpot.
+
+    deal_updates is a dict mapping deal id to a list of tuples with the property names to update, and their new values.
+
+    Returns:
+        Deal IDs that have been updated.
+    """
+    url = "https://api.hubapi.com/crm/v3/objects/deals/batch/update"
+    payload = [
+        {"id": deal_id, "properties": _coerce_properties_to_hubspot(dict(properties))}
+        for deal_id, properties in deal_updates.items()
+    ]
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.post(url, json={"inputs": payload})
+        response.raise_for_status()
+        data = response.json()
+
+    return [result["id"] for result in data["results"]]
+
+
+hubspot_update_deals.__doc__ = f"""\
+Update multiple Deals in HubSpot.
+
+deal_updates is a dict mapping deal id to a list of tuples with the property names to update, and their new values.
+
+Returns:
+Deal IDs that have been updated.
+
+The following are default properties (and types) in Hubspot:
+
+Default Properties of Type String:
+{", ".join(_DEAL_PROPERTIES_STRING)}
+
+Default Properties of Type Number:
+{", ".join(_DEAL_PROPERTIES_NUMBER)}
+
+Default Properties of Type Datetime:
+{", ".join(_DEAL_PROPERTIES_DATETIME)}
+
+Default Properties of Type Boolean:
+{", ".join(_DEAL_PROPERTIES_BOOLEAN)}
+"""
+
+
+def hubspot_search_deals(
+    search_criteria: Dict[str, str],
+    return_with_custom_properties: Sequence[str] = (),
+) -> Sequence[HubSpotDeal]:
+    """
+    Search for HubSpot deals based on various criteria.
+
+    Default properties will always be fetched. However, properties with no values will not be in the additional_properties
+    dict. You MUST check whether the property exists in additional_properties before using it.
+
+    Args:
+        search_criteria: A dictionary where keys are the property names (e.g.,
+          "dealname", "amount") and values are the search values for those properties.
+        return_with_custom_properties: A sequence of custom property names to fetch from found
+            deals. These will be included in additional_properties if they exist.
+
+    Returns:
+        Sequence[HubSpotDeal]: A list of HubSpotDeal objects matching the search
+            criteria.
+    """
+
+    return_with_custom_properties = list(return_with_custom_properties)
+    # Example extension, adjust as necessary for your deal properties
+    return_with_custom_properties += (
+        _DEAL_PROPERTIES_DATETIME
+        + _DEAL_PROPERTIES_BOOLEAN
+        + _DEAL_PROPERTIES_NUMBER
+        + _DEAL_PROPERTIES_STRING
+    )
+    url = "https://api.hubapi.com/crm/v3/objects/deals/search"
+
+    # Construct the filters based on the search criteria
+    filters = []
+    for property_name, value in search_criteria.items():
+        filters.append(
+            {"propertyName": property_name, "operator": "EQ", "value": value}
+        )
+
+    # Adjust these properties based on what you consider default for deals
+    properties = ["dealname", "dealstage", "closedate", "amount", "lastmodifieddate"]
+    properties.extend(return_with_custom_properties)
+    payload = {"filterGroups": [{"filters": filters}], "properties": properties}
+
+    deals = []
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.post(url, json=payload)
+        response.raise_for_status()
+        data = response.json()
+
+    for item in data.get("results", []):
+        property_values = item.get("properties", {})
+        additional_property_values = {}
+        for property in return_with_custom_properties:
+            val = property_values.get(property, None)
+            if val:
+                additional_property_values[property] = val
+
+        additional_property_values = _coerce_properties_to_lutra(
+            additional_property_values
+        )
+
+        deal = HubSpotDeal(
+            id=item["id"],
+            createdAt=datetime.fromisoformat(
+                item.get("createdAt", "1970-01-01T00:00:00Z")
+            ),
+            updatedAt=datetime.fromisoformat(
+                item.get("updatedAt", "1970-01-01T00:00:00Z")
+            ),
+            archived=item.get("archived", False),
+            dealname=property_values.get("dealname", ""),
+            dealstage=property_values.get("dealstage", ""),
+            closedate=(
+                datetime.fromisoformat(
+                    property_values.get("closedate", "1970-01-01T00:00:00Z")
+                )
+                if property_values.get("closedate")
+                else None
+            ),
+            amount=float(property_values.get("amount", 0)),
+            hs_object_id=item["id"],
+            last_modified_date=datetime.fromisoformat(
+                property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
+            ),
+            additional_properties=additional_property_values,
+        )
+        deals.append(deal)
+
+    return deals
 
 
 _HUBSPOT_OBJECT_TYPE_IDS = dict(
