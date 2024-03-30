@@ -231,7 +231,7 @@ _CONTACT_PROPERTIES_NUMBER = [
     "hubspotscore",
     "associatedcompanyid",
     "associatedcompanylastupdated",
-    "hs_predictivecontactscore"
+    "hs_predictivecontactscore",
 ]
 
 _CONTACT_PROPERTIES_DATETIME = [
@@ -325,7 +325,7 @@ _CONTACT_PROPERTIES_DATETIME = [
     "hs_lifecyclestage_evangelist_date",
     "hs_lifecyclestage_customer_date",
     "hs_lifecyclestage_subscriber_date",
-    "hs_lifecyclestage_other_date"
+    "hs_lifecyclestage_other_date",
 ]
 
 _CONTACT_PROPERTIES_BOOLEAN = [
@@ -342,8 +342,9 @@ _CONTACT_PROPERTIES_BOOLEAN = [
     "hs_sequences_is_enrolled",
     "hs_was_imported",
     "hs_email_optout",
-    "hs_email_is_ineligible"
+    "hs_email_is_ineligible",
 ]
+
 
 @dataclass
 class HubSpotPropertyValue:
@@ -420,6 +421,7 @@ class HubSpotContact:
     available in the HubSpot contact system that callers can ask for. If found, they
     will be found here.
     """
+
     id: str
     first_name: str
     last_name: str
@@ -430,11 +432,12 @@ class HubSpotContact:
     createdAt: datetime
     updatedAt: datetime
     archived: bool
-    
+
 
 @dataclass
 class HubSpotPaginationToken:
     token: str
+
 
 def hubspot_list_contacts(
     limit: int = 100, pagination_token: Optional[HubSpotPaginationToken] = None
@@ -533,10 +536,12 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> Sequence[str]
     return [result["id"] for result in data["results"]]
 
 
-def _coerce_properties_to_lutra(properties: Dict[str, Union[str, int, float, datetime, bool]]) -> Dict[str, HubSpotPropertyValue]:
+def _coerce_properties_to_lutra(
+    properties: Dict[str, Union[str, int, float, datetime, bool]]
+) -> Dict[str, HubSpotPropertyValue]:
     coerced_properties: Dict[str, HubSpotPropertyValue] = {}
     for name, value in properties.items():
-        
+
         if name in _CONTACT_PROPERTIES_STRING:
             c_value = str(value)
         elif name in _CONTACT_PROPERTIES_NUMBER:
@@ -564,8 +569,9 @@ def _coerce_properties_to_lutra(properties: Dict[str, Union[str, int, float, dat
             c_value = value
 
         coerced_properties[name] = HubSpotPropertyValue(value=c_value)
-    
+
     return coerced_properties
+
 
 def _coerce_properties_to_hubspot(
     properties: Dict[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
@@ -592,15 +598,23 @@ def _coerce_properties_to_hubspot(
             coerced_properties[name] = str(value)
 
     return coerced_properties
-            
+
 
 def hubspot_update_contacts(
-    contact_updates: Dict[str, Sequence[Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]]],
+    contact_updates: Dict[
+        str,
+        Sequence[
+            Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
+        ],
+    ],
 ) -> Sequence[str]:
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
     payload = [
-        {"id": contact_id, "properties": _coerce_properties_to_hubspot(dict(properties))}
+        {
+            "id": contact_id,
+            "properties": _coerce_properties_to_hubspot(dict(properties)),
+        }
         for contact_id, properties in contact_updates.items()
     ]
 
@@ -611,6 +625,7 @@ def hubspot_update_contacts(
         response.raise_for_status()
         data = response.json()
         return [result["id"] for result in data["results"]]
+
 
 hubspot_update_contacts.__doc__ = f"""\
 Update multiple contacts in HubSpot.
@@ -658,7 +673,12 @@ def hubspot_search_contacts(
     """
 
     return_with_custom_properties = list(return_with_custom_properties)
-    return_with_custom_properties += _CONTACT_PROPERTIES_DATETIME + _CONTACT_PROPERTIES_BOOLEAN + _CONTACT_PROPERTIES_NUMBER + _CONTACT_PROPERTIES_STRING
+    return_with_custom_properties += (
+        _CONTACT_PROPERTIES_DATETIME
+        + _CONTACT_PROPERTIES_BOOLEAN
+        + _CONTACT_PROPERTIES_NUMBER
+        + _CONTACT_PROPERTIES_STRING
+    )
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
 
     # Construct the filters based on the search criteria
@@ -690,7 +710,9 @@ def hubspot_search_contacts(
             if val:
                 additional_property_values[property] = val
 
-        additional_property_values = _coerce_properties_to_lutra(additional_property_values)
+        additional_property_values = _coerce_properties_to_lutra(
+            additional_property_values
+        )
 
         contact = HubSpotContact(
             id=item["id"],
@@ -715,229 +737,213 @@ def hubspot_search_contacts(
     return contacts
 
 
-@dataclass
-class HubSpotCompanyProperties:
-    """Represents the properties of a HubSpot company.
+_COMPANY_PROPERTIES_STRING = [
+    "about_us",
+    "first_conversion_event_name",
+    "founded_year",
+    "hs_additional_domains",
+    "hs_all_assigned_business_unit_ids",
+    "hs_analytics_first_touch_converting_campaign",
+    "hs_analytics_last_touch_converting_campaign",
+    "hs_analytics_latest_source",
+    "hs_analytics_latest_source_data_1",
+    "hs_analytics_latest_source_data_2",
+    "hs_analytics_source",
+    "hs_analytics_source_data_1",
+    "hs_analytics_source_data_2",
+    "hs_annual_revenue_currency_code",
+    "hs_avatar_filemanager_key",
+    "hs_ideal_customer_profile",
+    "hs_last_sales_activity_type",
+    "hs_merged_object_ids",
+    "hs_notes_next_activity_type",
+    "hs_object_source",
+    "hs_object_source_detail_1",
+    "hs_object_source_detail_2",
+    "hs_object_source_detail_3",
+    "hs_object_source_id",
+    "hs_object_source_label",
+    "hs_pipeline",
+    "hs_target_account",
+    "hs_target_account_recommendation_state",
+    "hs_unique_creation_key",
+    "hs_user_ids_of_all_notification_followers",
+    "hs_user_ids_of_all_notification_unfollowers",
+    "hs_user_ids_of_all_owners",
+    "recent_conversion_event_name",
+    "timezone",
+    "total_money_raised",
+    "name",
+    "owneremail",
+    "twitterhandle",
+    "ownername",
+    "phone",
+    "twitterbio",
+    "address",
+    "address2",
+    "facebook_company_page",
+    "city",
+    "linkedin_company_page",
+    "linkedinbio",
+    "state",
+    "googleplus_page",
+    "engagements_last_meeting_booked_campaign",
+    "engagements_last_meeting_booked_medium",
+    "engagements_last_meeting_booked_source",
+    "hubspot_owner_id",
+    "zip",
+    "country",
+    "hubspot_team_id",
+    "hs_all_owner_ids",
+    "website",
+    "domain",
+    "hs_all_team_ids",
+    "hs_all_accessible_team_ids",
+    "industry",
+    "lifecyclestage",
+    "hs_lead_status",
+    "type",
+    "description",
+    "web_technologies",
+]
 
-    The `additional_properties` field stores any additional properties that are
-    available in the HubSpot company system that callers can ask for. If found, they
-    will be found here.
-    """
+_COMPANY_PROPERTIES_NUMBER = [
+    "facebookfans",
+    "hs_analytics_num_page_views",
+    "hs_analytics_num_page_views_cardinality_sum_e46e85b0",
+    "hs_analytics_num_visits",
+    "hs_analytics_num_visits_cardinality_sum_53d952a6",
+    "hs_created_by_user_id",
+    "hs_customer_success_ticket_sentiment",
+    "hs_num_blockers",
+    "hs_num_contacts_with_buying_roles",
+    "hs_num_decision_makers",
+    "hs_num_open_deals",
+    "hs_object_id",
+    "hs_object_source_user_id",
+    "hs_pinned_engagement_id",
+    "hs_predictivecontactscore_v2",
+    "hs_predictivecontactscore_v2_next_max_max_d4e58c1e",
+    "hs_source_object_id",
+    "hs_target_account_probability",
+    "hs_time_in_customer",
+    "hs_time_in_evangelist",
+    "hs_time_in_lead",
+    "hs_time_in_marketingqualifiedlead",
+    "hs_time_in_opportunity",
+    "hs_time_in_other",
+    "hs_time_in_salesqualifiedlead",
+    "hs_time_in_subscriber",
+    "hs_total_deal_value",
+    "hs_updated_by_user_id",
+    "num_associated_contacts",
+    "num_associated_deals",
+    "num_conversion_events",
+    "num_conversion_events_cardinality_sum_d095f14b",
+    "recent_deal_amount",
+    "total_revenue",
+    "twitterfollowers",
+    "num_contacted_notes",
+    "num_notes",
+    "numberofemployees",
+    "annualrevenue",
+    "hs_parent_company_id",
+    "hs_num_child_companies",
+    "hubspotscore",
+    "days_to_close",
+]
 
-    name: str
-    domain: str
-    hs_object_id: str
-    last_modified_date: datetime
+_COMPANY_PROPERTIES_DATETIME = [
+    "closedate_timestamp_earliest_value_a2a17e6e",
+    "first_contact_createdate_timestamp_earliest_value_78b50eea",
+    "first_conversion_date",
+    "first_conversion_date_timestamp_earliest_value_61f58f2c",
+    "first_conversion_event_name_timestamp_earliest_value_68ddae0a",
+    "first_deal_created_date",
+    "hs_analytics_first_timestamp",
+    "hs_analytics_first_timestamp_timestamp_earliest_value_11e3a63a",
+    "hs_analytics_first_touch_converting_campaign_timestamp_earliest_value_4757fe10",
+    "hs_analytics_first_visit_timestamp",
+    "hs_analytics_first_visit_timestamp_timestamp_earliest_value_accc17ae",
+    "hs_analytics_last_timestamp",
+    "hs_analytics_last_timestamp_timestamp_latest_value_4e16365a",
+    "hs_analytics_last_touch_converting_campaign_timestamp_latest_value_81a64e30",
+    "hs_analytics_last_visit_timestamp",
+    "hs_analytics_last_visit_timestamp_timestamp_latest_value_999a0fce",
+    "hs_analytics_latest_source_timestamp",
+    "hs_analytics_source_data_1_timestamp_earliest_value_9b2f1fa1",
+    "hs_analytics_source_data_2_timestamp_earliest_value_9b2f9400",
+    "hs_analytics_source_timestamp_earliest_value_25a3a52c",
+    "hs_createdate",
+    "hs_date_entered_customer",
+    "hs_date_entered_evangelist",
+    "hs_date_entered_lead",
+    "hs_date_entered_marketingqualifiedlead",
+    "hs_date_entered_opportunity",
+    "hs_date_entered_other",
+    "hs_date_entered_salesqualifiedlead",
+    "hs_date_entered_subscriber",
+    "hs_date_exited_customer",
+    "hs_date_exited_evangelist",
+    "hs_date_exited_lead",
+    "hs_date_exited_marketingqualifiedlead",
+    "hs_date_exited_opportunity",
+    "hs_date_exited_other",
+    "hs_date_exited_salesqualifiedlead",
+    "hs_date_exited_subscriber",
+    "hs_last_booked_meeting_date",
+    "hs_last_logged_call_date",
+    "hs_last_open_task_date",
+    "hs_last_sales_activity_date",
+    "hs_last_sales_activity_timestamp",
+    "hs_lastmodifieddate",
+    "hs_latest_createdate_of_active_subscriptions",
+    "hs_target_account_recommendation_snooze_time",
+    "hubspot_owner_assigneddate",
+    "recent_conversion_date",
+    "recent_conversion_date_timestamp_latest_value_72856da1",
+    "recent_conversion_event_name_timestamp_latest_value_66c820bf",
+    "recent_deal_close_date",
+    "engagements_last_meeting_booked",
+    "hs_latest_meeting_activity",
+    "hs_sales_email_last_replied",
+    "notes_last_contacted",
+    "notes_last_updated",
+    "notes_next_activity_date",
+    "createdate",
+    "closedate",
+    "first_contact_createdate",
+]
 
-    additional_properties: Dict[str, str]
+_COMPANY_PROPERTIES_BOOLEAN = [
+    "hs_is_target_account",
+    "hs_read_only",
+    "hs_was_imported",
+    "is_public",
+]
 
 
 @dataclass
 class HubSpotCompany:
+    """The `additional_properties` field stores any additional properties that are
+    available in the HubSpot contact system that callers can ask for. If found, they
+    will be found here.
+    """
+
     id: str
-    properties: HubSpotCompanyProperties
+    name: str
+    domain: str
+    hs_object_id: str
+    last_modified_date: datetime
+    additional_properties: Dict[str, HubSpotPropertyValue]
     createdAt: datetime
     updatedAt: datetime
     archived: bool
 
 
-@dataclass
-class HubSpotCompanyDefaultPropertyName:
-    name: Literal[
-        "about_us",
-        "facebookfans",
-        "first_conversion_date",
-        "first_conversion_event_name",
-        "first_deal_created_date",
-        "founded_year",
-        "hs_additional_domains",
-        "hs_all_assigned_business_unit_ids",
-        "hs_analytics_first_timestamp",
-        "hs_analytics_first_touch_converting_campaign",
-        "hs_analytics_first_visit_timestamp",
-        "hs_analytics_last_timestamp",
-        "hs_analytics_last_touch_converting_campaign",
-        "hs_analytics_last_visit_timestamp",
-        "hs_analytics_latest_source",
-        "hs_analytics_latest_source_data_1",
-        "hs_analytics_latest_source_data_2",
-        "hs_analytics_latest_source_timestamp",
-        "hs_analytics_num_page_views",
-        "hs_analytics_num_visits",
-        "hs_analytics_source",
-        "hs_analytics_source_data_1",
-        "hs_analytics_source_data_2",
-        "hs_annual_revenue_currency_code",
-        "hs_avatar_filemanager_key",
-        "hs_created_by_user_id",
-        "hs_createdate",
-        "hs_customer_success_ticket_sentiment",
-        "hs_date_entered_customer",
-        "hs_date_entered_evangelist",
-        "hs_date_entered_lead",
-        "hs_date_entered_marketingqualifiedlead",
-        "hs_date_entered_opportunity",
-        "hs_date_entered_other",
-        "hs_date_entered_salesqualifiedlead",
-        "hs_date_entered_subscriber",
-        "hs_date_exited_customer",
-        "hs_date_exited_evangelist",
-        "hs_date_exited_lead",
-        "hs_date_exited_marketingqualifiedlead",
-        "hs_date_exited_opportunity",
-        "hs_date_exited_other",
-        "hs_date_exited_salesqualifiedlead",
-        "hs_date_exited_subscriber",
-        "hs_ideal_customer_profile",
-        "hs_is_target_account",
-        "hs_last_booked_meeting_date",
-        "hs_last_logged_call_date",
-        "hs_last_open_task_date",
-        "hs_last_sales_activity_date",
-        "hs_last_sales_activity_timestamp",
-        "hs_last_sales_activity_type",
-        "hs_lastmodifieddate",
-        "hs_latest_createdate_of_active_subscriptions",
-        "hs_merged_object_ids",
-        "hs_notes_next_activity",
-        "hs_notes_next_activity_type",
-        "hs_num_blockers",
-        "hs_num_contacts_with_buying_roles",
-        "hs_num_decision_makers",
-        "hs_num_open_deals",
-        "hs_object_id",
-        "hs_object_source",
-        "hs_object_source_detail_1",
-        "hs_object_source_detail_2",
-        "hs_object_source_detail_3",
-        "hs_object_source_id",
-        "hs_object_source_label",
-        "hs_object_source_user_id",
-        "hs_pinned_engagement_id",
-        "hs_pipeline",
-        "hs_predictivecontactscore_v2",
-        "hs_read_only",
-        "hs_source_object_id",
-        "hs_target_account",
-        "hs_target_account_probability",
-        "hs_target_account_recommendation_snooze_time",
-        "hs_target_account_recommendation_state",
-        "hs_time_in_customer",
-        "hs_time_in_evangelist",
-        "hs_time_in_lead",
-        "hs_time_in_marketingqualifiedlead",
-        "hs_time_in_opportunity",
-        "hs_time_in_other",
-        "hs_time_in_salesqualifiedlead",
-        "hs_time_in_subscriber",
-        "hs_total_deal_value",
-        "hs_unique_creation_key",
-        "hs_updated_by_user_id",
-        "hs_user_ids_of_all_notification_followers",
-        "hs_user_ids_of_all_notification_unfollowers",
-        "hs_user_ids_of_all_owners",
-        "hs_was_imported",
-        "hubspot_owner_assigneddate",
-        "is_public",
-        "num_conversion_events",
-        "recent_conversion_date",
-        "recent_conversion_event_name",
-        "recent_deal_amount",
-        "recent_deal_close_date",
-        "timezone",
-        "total_money_raised",
-        "total_revenue",
-        "name",
-        "owneremail",
-        "twitterhandle",
-        "ownername",
-        "phone",
-        "twitterbio",
-        "twitterfollowers",
-        "address",
-        "address2",
-        "facebook_company_page",
-        "city",
-        "linkedin_company_page",
-        "linkedinbio",
-        "state",
-        "googleplus_page",
-        "engagements_last_meeting_booked",
-        "engagements_last_meeting_booked_campaign",
-        "engagements_last_meeting_booked_medium",
-        "engagements_last_meeting_booked_source",
-        "hs_latest_meeting_activity",
-        "hs_sales_email_last_replied",
-        "hubspot_owner_id",
-        "notes_last_contacted",
-        "notes_last_updated",
-        "notes_next_activity_date",
-        "num_contacted_notes",
-        "num_notes",
-        "zip",
-        "country",
-        "hubspot_team_id",
-        "hs_all_owner_ids",
-        "website",
-        "domain",
-        "hs_all_team_ids",
-        "hs_all_accessible_team_ids",
-        "numberofemployees",
-        "industry",
-        "annualrevenue",
-        "lifecyclestage",
-        "hs_lead_status",
-        "hs_parent_company_id",
-        "type",
-        "description",
-        "hs_num_child_companies",
-        "hubspotscore",
-        "createdate",
-        "closedate",
-        "first_contact_createdate",
-        "days_to_close",
-        "web_technologies",
-    ]
-
-
-@dataclass
-class HubSpotCompanyCustomPropertyName:
-    name: str
-
-
-def _parse_company(data: dict) -> HubSpotCompany:
-    properties = data["properties"]
-
-    company_properties = HubSpotCompanyProperties(
-        name=properties["name"],
-        domain=properties["domain"],
-        hs_object_id=properties["hs_object_id"],
-        last_modified_date=datetime.fromisoformat(properties["hs_lastmodifieddate"]),
-        additional_properties={
-            key: value
-            for key, value in data["properties"].items()
-            if key not in ["name", "domain", "hs_object_id", "hs_lastmodifieddate"]
-            and value is not None
-        },
-    )
-
-    return HubSpotCompany(
-        id=data["id"],
-        properties=company_properties,
-        createdAt=datetime.fromisoformat(data["createdAt"]),
-        updatedAt=datetime.fromisoformat(data["updatedAt"]),
-        archived=data["archived"],
-    )
-
-
 def hubspot_list_companies(
     limit: int = 100,
-    return_with_additional_properties: Optional[
-        Sequence[
-            Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName]
-        ]
-    ] = None,
-    pagination_token: Optional[str] = None,
+    pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotCompany], Optional[str]]:
     """
     Fetch the list of companies from HubSpot.
@@ -954,25 +960,13 @@ def hubspot_list_companies(
             available. If the next 'pagination_token' cursor is None, there is no more data to get.
     """
     url = "https://api.hubapi.com/crm/v3/objects/companies"
-    params = {
-        "limit": limit,
-        "properties": [
-            "name",
-            "domain",
-            "city",
-            "state",
-            "phone",
-            "industry",
-            "hs_object_id",
-            "lastmodifieddate",
-        ],
-    }
+    properties = ["name", "domain", "hs_object_id", "hs_lastmodifieddate"]
+    params = {}
+    if limit:
+        params["limit"] = limit
     if pagination_token:
-        params["after"] = pagination_token
-    if return_with_additional_properties:
-        params["properties"].extend(
-            [prop.name for prop in return_with_additional_properties]
-        )
+        params["after"] = pagination_token.token
+    params["properties"] = properties
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
@@ -983,8 +977,26 @@ def hubspot_list_companies(
 
     companies = []
     for item in data["results"]:
-        company = _parse_company(item)
+        properties = item["properties"]
+        company = HubSpotCompany(
+            id=item["id"],
+            createdAt=datetime.fromisoformat(item["createdAt"]),
+            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            archived=item["archived"],
+            name=properties.get("name"),
+            domain=properties.get("domain"),
+            hs_object_id=properties.get("hs_object_id"),
+            last_modified_date=datetime.fromisoformat(
+                properties["hs_lastmodifieddate"]
+            ),
+            additional_properties={},
+        )
         companies.append(company)
+    next_pagination_token = (
+        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
+        if "paging" in data and "next" in data["paging"]
+        else None
+    )
 
     next_pagination_token = (
         data["paging"]["next"]["after"]
@@ -995,30 +1007,122 @@ def hubspot_list_companies(
     return companies, next_pagination_token
 
 
+def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> Sequence[str]:
+    """
+    Create multiple company in HubSpot using the batch API.
+
+    Companies are created with just the first name, last name, and email properties.
+    Further properties can be updated using the update_contacts function.
+
+    Args:
+        companies: A list of HubSpotCompany objects to be created.
+
+    Returns:
+        A list of strings, where each string is the ID of a created company.
+    """
+    url = "https://api.hubapi.com/crm/v3/objects/companies/batch/create"
+
+    # Prepare the payload from the contacts list
+    company_payload = []
+    for company in companies:
+        company_data = {
+            "properties": {
+                "name": company.name,
+                "domain": company.domain,
+            }
+        }
+        company_payload.append(company_data)
+
+    payload = {"inputs": company_payload}
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.post(url, json=payload)
+        response.raise_for_status()
+        data = response.json()
+
+    # Extract and return the IDs of the created company
+    return [result["id"] for result in data["results"]]
+
+
+def hubspot_update_companies(
+    company_updates: Dict[
+        str,
+        Sequence[
+            Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
+        ],
+    ],
+) -> Sequence[str]:
+    url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
+    payload = [
+        {
+            "id": company_id,
+            "properties": _coerce_properties_to_hubspot(dict(properties)),
+        }
+        for company_id, properties in company_updates.items()
+    ]
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.post(url, json={"inputs": payload})
+        response.raise_for_status()
+        data = response.json()
+        return [result["id"] for result in data["results"]]
+
+
+hubspot_update_companies.__doc__ = f"""\
+Update multiple companies in HubSpot.
+
+company_updates is a dict mapping contact id to a list of tuples with the property names to update, and their new values.
+
+Returns:
+Company IDs that have been updated.
+
+The following are default properties (and types) in Hubspot:
+
+Default Properties of Type String:
+{", ".join(_COMPANY_PROPERTIES_STRING)}
+
+Default Properties of Type Number:
+{", ".join(_COMPANY_PROPERTIES_NUMBER)}
+
+Default Properties of Type Datetime:
+{", ".join(_COMPANY_PROPERTIES_DATETIME)}
+
+Default Properties of Type Boolean:
+{", ".join(_COMPANY_PROPERTIES_BOOLEAN)}
+"""
+
+
 def hubspot_search_companies(
     search_criteria: Dict[str, str],
-    return_with_additional_properties: Optional[
-        Sequence[
-            Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName]
-        ]
-    ] = None,
+    return_with_custom_properties: Sequence[str] = (),
 ) -> Sequence[HubSpotCompany]:
     """
     Search for companies in HubSpot CRM based on various criteria.
 
+    Default properties will always be fetched. However, properties with no values will not be in additional_properties
+    dict. You MUST check whether the property exists in additional_properties before using it.
+
     Args:
         search_criteria: A dictionary where keys are the property names (e.g.,
           "name", "domain") and values are the search values for those properties.
-        return_with_additional_properties: A sequence of property names to fetch from found
-            companies. If present, the corresponding values will be provided in the
-            HubSpotCompanyProperties return_with_additional_properties field. Standard HubSpot
-            properties are available, but users must know the names of custom properties
-            if they are to be found.
+        return_with_custom_properties: A sequence of custom property names to fetch from found
+            contacts. These will be included in additional_properties if they exist.
 
     Returns:
         Sequence[HubSpotCompany]: A list of HubSpotCompany objects matching the search
             criteria.
     """
+    return_with_custom_properties = list(return_with_custom_properties)
+    return_with_custom_properties += (
+        _COMPANY_PROPERTIES_DATETIME
+        + _COMPANY_PROPERTIES_BOOLEAN
+        + _COMPANY_PROPERTIES_NUMBER
+        + _COMPANY_PROPERTIES_STRING
+    )
     url = "https://api.hubapi.com/crm/v3/objects/companies/search"
 
     # Construct the filters based on the search criteria
@@ -1032,9 +1136,7 @@ def hubspot_search_companies(
         "name",
         "domain",
     ]
-    if return_with_additional_properties:
-        properties.extend([prop.name for prop in return_with_additional_properties])
-
+    properties.extend(return_with_custom_properties)
     payload = {"filterGroups": [{"filters": filters}], "properties": properties}
 
     companies = []
@@ -1046,7 +1148,33 @@ def hubspot_search_companies(
         data = response.json()
 
     for item in data.get("results", []):
-        company = _parse_company(item)
+        property_values = item.get("properties", {})
+        additional_property_values = {}
+        for property in return_with_custom_properties:
+            val = property_values.get(property, None)
+            if val:
+                additional_property_values[property] = val
+        additional_property_values = _coerce_properties_to_lutra(
+            additional_property_values
+        )
+
+        company = HubSpotCompany(
+            id=item["id"],
+            createdAt=datetime.fromisoformat(
+                item.get("createdAt", "1970-01-01T00:00:00Z")
+            ),
+            updatedAt=datetime.fromisoformat(
+                item.get("updatedAt", "1970-01-01T00:00:00Z")
+            ),
+            archived=item.get("archived", False),
+            name=property_values.get("name", ""),
+            domain=property_values.get("domain", ""),
+            hs_object_id=item["id"],
+            last_modified_date=datetime.fromisoformat(
+                property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
+            ),
+            additional_properties=additional_property_values,
+        )
         companies.append(company)
 
     return companies
@@ -1131,86 +1259,6 @@ def hubspot_fetch_deal_by_id(deal_id: str) -> HubSpotDeal:
         raise ValueError(f"Deal with ID {deal_id} not found")
 
     return _parse_deal(data)
-
-
-def hubspot_fetch_company_by_id(
-    company_id: str,
-    return_with_additional_properties: Optional[
-        Sequence[
-            Union[HubSpotCompanyDefaultPropertyName, HubSpotCompanyCustomPropertyName]
-        ]
-    ] = None,
-) -> HubSpotCompany:
-    """
-    Fetch a company from HubSpot CRM based on a company ID.
-    """
-    url = f"https://api.hubapi.com/crm/v3/objects/companies/{company_id}"
-    properties = [
-        "name",
-        "domain",
-    ]
-    if return_with_additional_properties:
-        properties += [prop.name for prop in return_with_additional_properties]
-
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
-    ) as client:
-        response = client.get(url, params={"properties": ",".join(properties)})
-        response.raise_for_status()
-        data = response.json()
-        return _parse_company(data)
-
-
-@dataclass
-class CompanyDefaultPropertyUpdate:
-    """The data required to update a company's default properties."""
-
-    company_id: str
-    updated_properties: List[Tuple[HubSpotCompanyDefaultPropertyName, str]]
-
-
-@dataclass
-class CompanyCustomPropertyUpdate:
-    """The data required to update a company's custom properties."""
-
-    company_id: str
-    updated_properties: List[Tuple[HubSpotCompanyCustomPropertyName, str]]
-
-
-def hubspot_update_companies(
-    default_properties: Sequence[CompanyDefaultPropertyUpdate],
-    custom_properties: Sequence[CompanyCustomPropertyUpdate],
-) -> Sequence[str]:
-    """
-    Update multiple companies in HubSpot.
-
-    Returns:
-        Company IDs that has been updated.
-    """
-    url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
-
-    merged_properties = {}
-
-    for property_update in default_properties + custom_properties:
-        company_properties = merged_properties.setdefault(
-            property_update.company_id, {}
-        )
-        company_properties.update(
-            {prop.name: value for prop, value in property_update.updated_properties}
-        )
-
-    payload = [
-        {"id": company_id, "properties": properties}
-        for company_id, properties in merged_properties.items()
-    ]
-
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
-    ) as client:
-        response = client.post(url, json={"inputs": payload})
-        response.raise_for_status()
-        data = response.json()
-        return [result["id"] for result in data["results"]]
 
 
 _HUBSPOT_OBJECT_TYPE_IDS = dict(
