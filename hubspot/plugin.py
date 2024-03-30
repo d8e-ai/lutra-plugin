@@ -1566,7 +1566,6 @@ def hubspot_search_deals(
     """
 
     return_with_custom_properties = list(return_with_custom_properties)
-    # Example extension, adjust as necessary for your deal properties
     return_with_custom_properties += (
         _DEAL_PROPERTIES_DATETIME
         + _DEAL_PROPERTIES_BOOLEAN
@@ -1582,7 +1581,6 @@ def hubspot_search_deals(
             {"propertyName": property_name, "operator": "EQ", "value": value}
         )
 
-    # Adjust these properties based on what you consider default for deals
     properties = ["dealname", "dealstage", "closedate", "amount", "lastmodifieddate"]
     properties.extend(return_with_custom_properties)
     payload = {"filterGroups": [{"filters": filters}], "properties": properties}
