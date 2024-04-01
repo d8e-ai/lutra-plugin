@@ -1,7 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from distutils import util
-from typing import Dict, Literal, Optional, Sequence, Tuple, Union, Any
+from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any
+from enum import Enum
 
 import httpx
 from lutraai.augmented_request_client import AugmentedTransport
@@ -423,18 +424,19 @@ class HubSpotContact:
     """The `additional_properties` field stores any additional properties that are
     available in the HubSpot contact system that callers can ask for. If found, they
     will be found here.
-    """
 
-    id: str
+    You MUST specify all the fields when constructing this object.
+    """
     first_name: str
     last_name: str
     email: str
-    hs_object_id: str
-    last_modified_date: datetime
-    additional_properties: Dict[str, HubSpotPropertyValue]
-    createdAt: datetime
-    updatedAt: datetime
-    archived: bool
+    id: str = ""
+    hs_object_id: str = ""
+    last_modified_date: datetime = field(default_factory=datetime.now)
+    additional_properties: Dict[str, HubSpotPropertyValue] = field(default_factory=dict)
+    createdAt: datetime = field(default_factory=datetime.now)
+    updatedAt: datetime = field(default_factory=datetime.now)
+    archived: bool = False
 
 
 @dataclass
@@ -499,7 +501,7 @@ def hubspot_list_contacts(
     return contacts, next_pagination_token
 
 
-def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> Sequence[str]:
+def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
     """
     Create multiple contacts in HubSpot using the batch API.
 
@@ -519,9 +521,9 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> Sequence[str]
     for contact in contacts:
         contact_data = {
             "properties": {
-                "firstname": contact.properties.first_name,
-                "lastname": contact.properties.last_name,
-                "email": contact.properties.email,
+                "firstname": contact.first_name,
+                "lastname": contact.last_name,
+                "email": contact.email,
             }
         }
         contacts_payload.append(contact_data)
@@ -610,7 +612,7 @@ def hubspot_update_contacts(
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
-) -> Sequence[str]:
+) -> List[str]:
     """Update multiple contacts in HubSpot.
 
 contact_updates is a dict mapping contact id to a list of tuples with the property names to update, and their new values.
@@ -976,7 +978,7 @@ hs_email_is_ineligible
 def hubspot_search_contacts(
     search_criteria: Dict[str, str],
     return_with_custom_properties: Sequence[str] = (),
-) -> Sequence[HubSpotContact]:
+) -> List[HubSpotContact]:
     """
     Search for HubSpot contacts based on various criteria.
 
@@ -1250,17 +1252,19 @@ class HubSpotCompany:
     """The `additional_properties` field stores any additional properties that are
     available in the HubSpot contact system that callers can ask for. If found, they
     will be found here.
+
+    You MUST specify all the fields when constructing this object.
     """
 
-    id: str
     name: str
-    domain: str
-    hs_object_id: str
-    last_modified_date: datetime
-    additional_properties: Dict[str, HubSpotPropertyValue]
-    createdAt: datetime
-    updatedAt: datetime
-    archived: bool
+    domain: Optional[str] = None
+    id: str = ""
+    hs_object_id: str = ""
+    last_modified_date: datetime = field(default_factory=datetime.now)
+    additional_properties: Dict[str, HubSpotPropertyValue] = field(default_factory=dict)
+    createdAt: datetime = field(default_factory=datetime.now)
+    updatedAt: datetime = field(default_factory=datetime.now)
+    archived: bool = False
 
 
 def hubspot_list_companies(
@@ -1329,7 +1333,7 @@ def hubspot_list_companies(
     return companies, next_pagination_token
 
 
-def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> Sequence[str]:
+def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
     """
     Create multiple company in HubSpot using the batch API.
 
@@ -1375,7 +1379,7 @@ def hubspot_update_companies(
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
-) -> Sequence[str]:
+) -> List[str]:
     """Update multiple companies in HubSpot.
 
 company_updates is a dict mapping company id to a list of tuples with the property names to update, and their new values.
@@ -1586,7 +1590,7 @@ is_public
 def hubspot_search_companies(
     search_criteria: Dict[str, str],
     return_with_custom_properties: Sequence[str] = (),
-) -> Sequence[HubSpotCompany]:
+) -> List[HubSpotCompany]:
     """
     Search for companies in HubSpot CRM based on various criteria.
 
@@ -1934,7 +1938,7 @@ def hubspot_list_deals(
     return deals, next_pagination_token
 
 
-def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> Sequence[str]:
+def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
     """
     Create multiple deals in HubSpot using the batch API.
 
@@ -1981,7 +1985,7 @@ def hubspot_update_deals(
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
-) -> Sequence[str]:
+) -> List[str]:
     """Update multiple Deals in HubSpot.
 
 deal_updates is a dict mapping deal id to a list of tuples with the property names to update, and their new values.
@@ -2179,11 +2183,10 @@ hs_was_imported
         return [result["id"] for result in data["results"]]
 
 
-
 def hubspot_search_deals(
     search_criteria: Dict[str, str],
     return_with_custom_properties: Sequence[str] = (),
-) -> Sequence[HubSpotDeal]:
+) -> List[HubSpotDeal]:
     """
     Search for HubSpot deals based on various criteria.
 
@@ -2330,7 +2333,7 @@ def hubspot_fetch_associated_object_ids(
     source_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
     target_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
     source_object_id: str,
-) -> Sequence[str]:
+) -> List[str]:
     """
     Returns the IDs of target objects associated with the source object
     using the HubSpot association API. You must use this to find HubSpot
@@ -2344,6 +2347,86 @@ def hubspot_fetch_associated_object_ids(
     )
     url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/read"
     params = {"inputs": [{"id": source_object_id}]}
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    ) as client:
+        response = client.post(url, json=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if results := data.get("results", []):
+            return [
+                associated_object["toObjectId"]
+                for associated_object in results[0].get("to", [])
+            ]
+
+    return []
+
+
+ASSOCIATION_TYPE_IDS = {
+    "CONTACT_TO_CONTACT": 449,
+    "CONTACT_TO_COMPANY": 279,
+    "CONTACT_TO_PRIMARY_COMPANY": 1,
+    "CONTACT_TO_DEAL": 4,
+    "COMPANY_TO_COMPANY": 450,
+    "COMPANY_TO_CONTACT": 280,
+    "COMPANY_TO_DEAL": 342,
+}
+
+
+@dataclass
+class HubSpotAssociationType:
+    type: Literal[
+        "CONTACT_TO_CONTACT",
+        "CONTACT_TO_COMPANY",
+        "CONTACT_TO_PRIMARY_COMPANY",
+        "CONTACT_TO_DEAL",
+        "COMPANY_TO_COMPANY",
+        "COMPANY_TO_CONTACT",
+        "COMPANY_TO_DEAL",
+    ]
+
+
+def hubspot_create_association_between_object_ids(
+    association_type: HubSpotAssociationType,
+    source_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
+    source_object_id: str,
+    target_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
+    target_object_id: str,
+) -> List[str]:
+    """
+    Returns the IDs of target objects associated with the source object
+    using the HubSpot association API. You must use this to find HubSpot
+    objects that are associated to each other.
+    """
+    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
+        source_object_type.name, source_object_type.name
+    )
+    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
+        target_object_type.name, target_object_type.name
+    )
+    url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/create"
+    params = {
+        "inputs": [
+            {
+                "types": [
+                    {
+                        "associationCategory": "HUBSPOT_DEFINED",
+                        "associationTypeId": ASSOCIATION_TYPE_IDS.get(
+                            association_type.type
+                        ),
+                    }
+                ],
+                "from": {
+                    "id": source_object_id,
+                },
+                "to": {
+                    "id": target_object_id,
+                }
+            }
+        ]
+    }
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
