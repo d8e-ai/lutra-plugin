@@ -1012,7 +1012,7 @@ def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> Sequence[st
     Create multiple company in HubSpot using the batch API.
 
     Companies are created with just the first name, last name, and email properties.
-    Further properties can be updated using the update_contacts function.
+    Further properties can be updated using the hubspot_update_companies function.
 
     Args:
         companies: A list of HubSpotCompany objects to be created.
@@ -1362,8 +1362,7 @@ _DEAL_PROPERTIES_BOOLEAN = [
 @dataclass
 class HubSpotDeal:
     """The `additional_properties` field stores any additional properties that are
-    available in the HubSpot deal system that callers can ask for. If found, they
-    will be found here.
+    available in the HubSpot deal system that callers can ask for.
     """
 
     id: str
