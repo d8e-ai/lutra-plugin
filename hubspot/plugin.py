@@ -431,8 +431,8 @@ class HubSpotContact:
     hs_object_id: str
     last_modified_date: datetime
     additional_properties: Dict[str, HubSpotPropertyValue]
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime
+    updated_at: datetime
     archived: bool
 
 
@@ -477,8 +477,8 @@ def hubspot_list_contacts(
         properties = item["properties"]
         contact = HubSpotContact(
             id=item["id"],
-            createdAt=datetime.fromisoformat(item["createdAt"]),
-            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            created_at=datetime.fromisoformat(item["createdAt"]),
+            updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
             first_name=properties["firstname"],
             last_name=properties["lastname"],
@@ -773,10 +773,10 @@ def hubspot_search_contacts(
 
         contact = HubSpotContact(
             id=item["id"],
-            createdAt=datetime.fromisoformat(
+            created_at=datetime.fromisoformat(
                 item.get("createdAt", "1970-01-01T00:00:00Z")
             ),
-            updatedAt=datetime.fromisoformat(
+            updated_at=datetime.fromisoformat(
                 item.get("updatedAt", "1970-01-01T00:00:00Z")
             ),
             archived=item.get("archived", False),
@@ -976,8 +976,8 @@ class HubSpotCompany:
     hs_object_id: str
     last_modified_date: datetime
     additional_properties: Dict[str, HubSpotPropertyValue]
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime
+    updated_at: datetime
     archived: bool
 
 
@@ -1020,8 +1020,8 @@ def hubspot_list_companies(
         properties = item["properties"]
         company = HubSpotCompany(
             id=item["id"],
-            createdAt=datetime.fromisoformat(item["createdAt"]),
-            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            created_at=datetime.fromisoformat(item["createdAt"]),
+            updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
             name=properties.get("name"),
             domain=properties.get("domain"),
@@ -1236,10 +1236,10 @@ def hubspot_search_companies(
 
         company = HubSpotCompany(
             id=item["id"],
-            createdAt=datetime.fromisoformat(
+            created_at=datetime.fromisoformat(
                 item.get("createdAt", "1970-01-01T00:00:00Z")
             ),
-            updatedAt=datetime.fromisoformat(
+            updated_at=datetime.fromisoformat(
                 item.get("updatedAt", "1970-01-01T00:00:00Z")
             ),
             archived=item.get("archived", False),
@@ -1449,8 +1449,8 @@ class HubSpotDeal:
     hs_object_id: str
     last_modified_date: datetime
     additional_properties: Dict[str, HubSpotPropertyValue]
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime
+    updated_at: datetime
     archived: bool
 
 
@@ -1496,8 +1496,8 @@ def hubspot_list_deals(
         properties = item["properties"]
         deal = HubSpotDeal(
             id=item["id"],
-            createdAt=datetime.fromisoformat(item["createdAt"]),
-            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            created_at=datetime.fromisoformat(item["createdAt"]),
+            updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
             dealname=properties.get("dealname"),
             dealstage=properties.get("dealstage"),
@@ -1705,10 +1705,10 @@ def hubspot_search_deals(
 
         deal = HubSpotDeal(
             id=item["id"],
-            createdAt=datetime.fromisoformat(
+            created_at=datetime.fromisoformat(
                 item.get("createdAt", "1970-01-01T00:00:00Z")
             ),
-            updatedAt=datetime.fromisoformat(
+            updated_at=datetime.fromisoformat(
                 item.get("updatedAt", "1970-01-01T00:00:00Z")
             ),
             archived=item.get("archived", False),
