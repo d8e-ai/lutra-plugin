@@ -355,7 +355,7 @@ class HubSpotPropertyValue:
 
     Empty strings are treated as 0 for int and float conversions.
 
-    Value can only be a string, int, float, or datetime.
+    `value` property can only be a string, int, float, or datetime.
     """
 
     value: Any
