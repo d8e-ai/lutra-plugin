@@ -2438,3 +2438,33 @@ def hubspot_create_association_between_object_ids(
     ) as client:
         response = client.post(url, json=params)
         response.raise_for_status()
+
+
+def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: str):
+    params = {
+        "objectIdToMerge": object_to_merge_id,
+        "primaryObjectId": primary_object_id,
+    }
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    ) as client:
+        response = client.post(url, json=params)
+        response.raise_for_status()
+
+
+def hubspot_merge_contacts(
+    primary_contact: HubSpotContact, contact_to_merge: HubSpotContact
+):
+    ''' Merge contact_to_merge with primary_contact, retaining primary_contact
+    '''
+    url = "https://api.hubapi.com/crm/v3/objects/contacts/merge"
+    _merge_objects(url, primary_contact.id, contact_to_merge.id)
+
+
+def hubspot_merge_companies(
+    primary_company: HubSpotCompany, company_to_merge: HubSpotCompany
+):
+    ''' Merge company_to_merge with primary_company, retaining primary_company
+    '''
+    url = "https://api.hubapi.com/crm/v3/objects/companies/merge"
+    _merge_objects(url, primary_company.id, company_to_merge.id)
