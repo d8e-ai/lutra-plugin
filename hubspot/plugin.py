@@ -99,8 +99,6 @@ _CONTACT_PROPERTIES_STRING = [
     "work_email",
     "firstname",
     "hs_analytics_first_url",
-    "hs_email_optout_88607926",
-    "hs_email_optout_96642417",
     "twitterhandle",
     "currentlyinworkflow",
     "hs_analytics_last_url",
@@ -712,8 +710,6 @@ start_date
 work_email
 firstname
 hs_analytics_first_url
-hs_email_optout_88607926
-hs_email_optout_96642417
 twitterhandle
 currentlyinworkflow
 hs_analytics_last_url
@@ -1132,9 +1128,7 @@ _COMPANY_PROPERTIES_STRING = [
 _COMPANY_PROPERTIES_NUMBER = [
     "facebookfans",
     "hs_analytics_num_page_views",
-    "hs_analytics_num_page_views_cardinality_sum_e46e85b0",
     "hs_analytics_num_visits",
-    "hs_analytics_num_visits_cardinality_sum_53d952a6",
     "hs_created_by_user_id",
     "hs_customer_success_ticket_sentiment",
     "hs_num_blockers",
@@ -1145,7 +1139,6 @@ _COMPANY_PROPERTIES_NUMBER = [
     "hs_object_source_user_id",
     "hs_pinned_engagement_id",
     "hs_predictivecontactscore_v2",
-    "hs_predictivecontactscore_v2_next_max_max_d4e58c1e",
     "hs_source_object_id",
     "hs_target_account_probability",
     "hs_time_in_customer",
@@ -1161,7 +1154,6 @@ _COMPANY_PROPERTIES_NUMBER = [
     "num_associated_contacts",
     "num_associated_deals",
     "num_conversion_events",
-    "num_conversion_events_cardinality_sum_d095f14b",
     "recent_deal_amount",
     "total_revenue",
     "twitterfollowers",
@@ -1176,26 +1168,13 @@ _COMPANY_PROPERTIES_NUMBER = [
 ]
 
 _COMPANY_PROPERTIES_DATETIME = [
-    "closedate_timestamp_earliest_value_a2a17e6e",
-    "first_contact_createdate_timestamp_earliest_value_78b50eea",
     "first_conversion_date",
-    "first_conversion_date_timestamp_earliest_value_61f58f2c",
-    "first_conversion_event_name_timestamp_earliest_value_68ddae0a",
     "first_deal_created_date",
     "hs_analytics_first_timestamp",
-    "hs_analytics_first_timestamp_timestamp_earliest_value_11e3a63a",
-    "hs_analytics_first_touch_converting_campaign_timestamp_earliest_value_4757fe10",
     "hs_analytics_first_visit_timestamp",
-    "hs_analytics_first_visit_timestamp_timestamp_earliest_value_accc17ae",
     "hs_analytics_last_timestamp",
-    "hs_analytics_last_timestamp_timestamp_latest_value_4e16365a",
-    "hs_analytics_last_touch_converting_campaign_timestamp_latest_value_81a64e30",
     "hs_analytics_last_visit_timestamp",
-    "hs_analytics_last_visit_timestamp_timestamp_latest_value_999a0fce",
     "hs_analytics_latest_source_timestamp",
-    "hs_analytics_source_data_1_timestamp_earliest_value_9b2f1fa1",
-    "hs_analytics_source_data_2_timestamp_earliest_value_9b2f9400",
-    "hs_analytics_source_timestamp_earliest_value_25a3a52c",
     "hs_createdate",
     "hs_date_entered_customer",
     "hs_date_entered_evangelist",
@@ -1223,8 +1202,6 @@ _COMPANY_PROPERTIES_DATETIME = [
     "hs_target_account_recommendation_snooze_time",
     "hubspot_owner_assigneddate",
     "recent_conversion_date",
-    "recent_conversion_date_timestamp_latest_value_72856da1",
-    "recent_conversion_event_name_timestamp_latest_value_66c820bf",
     "recent_deal_close_date",
     "engagements_last_meeting_booked",
     "hs_latest_meeting_activity",
@@ -1457,9 +1434,7 @@ web_technologies
 Default Properties of Type Number:
 facebookfans
 hs_analytics_num_page_views
-hs_analytics_num_page_views_cardinality_sum_e46e85b0
 hs_analytics_num_visits
-hs_analytics_num_visits_cardinality_sum_53d952a6
 hs_created_by_user_id
 hs_customer_success_ticket_sentiment
 hs_num_blockers
@@ -1470,7 +1445,6 @@ hs_object_id
 hs_object_source_user_id
 hs_pinned_engagement_id
 hs_predictivecontactscore_v2
-hs_predictivecontactscore_v2_next_max_max_d4e58c1e
 hs_source_object_id
 hs_target_account_probability
 hs_time_in_customer
@@ -1486,7 +1460,6 @@ hs_updated_by_user_id
 num_associated_contacts
 num_associated_deals
 num_conversion_events
-num_conversion_events_cardinality_sum_d095f14b
 recent_deal_amount
 total_revenue
 twitterfollowers
@@ -1500,26 +1473,13 @@ hubspotscore
 days_to_close
 
 Default Properties of Type Datetime:
-closedate_timestamp_earliest_value_a2a17e6e
-first_contact_createdate_timestamp_earliest_value_78b50eea
 first_conversion_date
-first_conversion_date_timestamp_earliest_value_61f58f2c
-first_conversion_event_name_timestamp_earliest_value_68ddae0a
 first_deal_created_date
 hs_analytics_first_timestamp
-hs_analytics_first_timestamp_timestamp_earliest_value_11e3a63a
-hs_analytics_first_touch_converting_campaign_timestamp_earliest_value_4757fe10
 hs_analytics_first_visit_timestamp
-hs_analytics_first_visit_timestamp_timestamp_earliest_value_accc17ae
 hs_analytics_last_timestamp
-hs_analytics_last_timestamp_timestamp_latest_value_4e16365a
-hs_analytics_last_touch_converting_campaign_timestamp_latest_value_81a64e30
 hs_analytics_last_visit_timestamp
-hs_analytics_last_visit_timestamp_timestamp_latest_value_999a0fce
 hs_analytics_latest_source_timestamp
-hs_analytics_source_data_1_timestamp_earliest_value_9b2f1fa1
-hs_analytics_source_data_2_timestamp_earliest_value_9b2f9400
-hs_analytics_source_timestamp_earliest_value_25a3a52c
 hs_createdate
 hs_date_entered_customer
 hs_date_entered_evangelist
@@ -1547,8 +1507,6 @@ hs_latest_createdate_of_active_subscriptions
 hs_target_account_recommendation_snooze_time
 hubspot_owner_assigneddate
 recent_conversion_date
-recent_conversion_date_timestamp_latest_value_72856da1
-recent_conversion_event_name_timestamp_latest_value_66c820bf
 recent_deal_close_date
 engagements_last_meeting_booked
 hs_latest_meeting_activity
