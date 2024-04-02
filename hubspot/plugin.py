@@ -632,46 +632,46 @@ Returns:
 The property names MUST be one of the following:
 
 Default Properties of Type String:
-adopter_category : An assessment of whether the contact is likely to use our product.
-company_size : Contact's company size.
-date_of_birth : Contact's date of birth.
-degree : Contact's degree.
-field_of_study : Contact's field of study.
-first_conversion_event_name : First form this contact submitted.
-gender : Contact's gender.
-job_function : Contact's job function.
-jobtitle : A contact's job title.
-hs_lead_status : The contact's sales, prospecting, or outreach status.
-hs_persona : A contact's persona.
-lifecyclestage : The qualification of contacts to sales readiness.
-email : A contact's email address.
-mobilephone : A contact's mobile phone number.
-phone : A contact's primary phone number.
-city : A contact's city of residence.
-state : The contact's state of residence.
-country : The contact's country/region of residence.
-industry : The Industry a contact is in.
-hs_linkedinid : A contact's linkedin id.
+adopter_category: An assessment of whether the contact is likely to use our product.
+company_size: Contact's company size.
+date_of_birth: Contact's date of birth.
+degree: Contact's degree.
+field_of_study: Contact's field of study.
+first_conversion_event_name: First form this contact submitted.
+gender: Contact's gender.
+job_function: Contact's job function.
+jobtitle: A contact's job title.
+hs_lead_status: The contact's sales, prospecting, or outreach status.
+hs_persona: A contact's persona.
+lifecyclestage: The qualification of contacts to sales readiness.
+email: A contact's email address.
+mobilephone: A contact's mobile phone number.
+phone: A contact's primary phone number.
+city: A contact's city of residence.
+state: The contact's state of residence.
+country: The contact's country/region of residence.
+industry: The Industry a contact is in.
+hs_linkedinid: A contact's linkedin id.
 
 Default Properties of Type Number:
-num_associated_deals : Count of deals associated with this contact.
-num_conversion_events : The number of forms this contact has submitted.
-num_unique_conversion_events : The number of different forms this contact has submitted.
-recent_deal_amount : Amount of last closed won deal associated with a contact.
-total_revenue : Sum of all closed-won deal revenue associated with the contact.
+num_associated_deals: Count of deals associated with this contact.
+num_conversion_events: The number of forms this contact has submitted.
+num_unique_conversion_events: The number of different forms this contact has submitted.
+recent_deal_amount: Amount of last closed won deal associated with a contact.
+total_revenue: Sum of all closed-won deal revenue associated with the contact.
 
 Default Properties of Type Datetime:
-first_conversion_date : Date this contact first submitted a form.
-first_deal_created_date : Date first deal was created for contact.
-recent_conversion_date : The date this contact last submitted a form.
-recent_deal_close_date : Date last deal associated with contact was closed-won.
-closedate : Date the contact became a customer.
+first_conversion_date: Date this contact first submitted a form.
+first_deal_created_date: Date first deal was created for contact.
+recent_conversion_date: The date this contact last submitted a form.
+recent_deal_close_date: Date last deal associated with contact was closed-won.
+closedate: Date the contact became a customer.
 
 Default Properties of Type Boolean:
-hs_email_bad_address : The email address associated with this contact is invalid.
-hs_is_contact : Is a contact, has not been deleted and is not a visitor.
-hs_is_unworked : Contact has not been assigned or has not been engaged after last owner assignment/re-assignment.
-hs_sequences_is_enrolled : A yes/no field that indicates whether the contact is currently in a Sequence.
+hs_email_bad_address: The email address associated with this contact is invalid.
+hs_is_contact: Is a contact, has not been deleted and is not a visitor.
+hs_is_unworked: Contact has not been assigned or has not been engaged after last owner assignment/re-assignment.
+hs_sequences_is_enrolled: A yes/no field that indicates whether the contact is currently in a Sequence.
 """
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
@@ -697,6 +697,7 @@ hs_sequences_is_enrolled : A yes/no field that indicates whether the contact is 
         data = response.json()
         return [result["id"] for result in data["results"]]
 
+def _search_contacts(filters: List[Dict[str, str]], )
 
 def hubspot_search_contacts(
     search_criteria: Dict[str, str],
@@ -1103,41 +1104,42 @@ Company IDs that have been updated.
 The property names to update MUST be one of the following:
 
 Default Properties of Type String:
-name : The name of the company or organization.
-website : The main website of the company or organization. This property is used to identify unique companies.
-domain : The domain name of the company or organization.
-industry : The type of business the company performs.
-lifecyclestage : The qualification of companies to sales readiness throughout the buying journey.
-description : A short statement about the company's mission and goals.
-phone : Company primary phone number.
-address : Street address of the company or organization, including unit number.
-city : City where the company is located.
-state : State or region in which the company or organization is located.
-country : Country in which the company or organization is located.
-zip : Postal or zip code of the company or organization.
-hs_annual_revenue_currency_code : The currency code associated with the annual revenue amount.
-owneremail : HubSpot owner email for this company or organization.
-ownername : HubSpot owner name for this company or organization.
-linkedin_company_page : The URL of the LinkedIn company page for the company or organization.
-facebook_company_page : The URL of the Facebook company page for the company or organization.
+name: The name of the company or organization.
+website: The main website of the company or organization. This property is used to identify unique companies.
+domain: The domain name of the company or organization.
+industry: The type of business the company performs.
+lifecyclestage: The qualification of companies to sales readiness throughout the buying journey.
+description: A short statement about the company's mission and goals.
+phone: Company primary phone number.
+address: Street address of the company or organization, including unit number.
+address2: Additional address of the company or organization.
+city: City where the company is located.
+state: State or region in which the company or organization is located.
+country: Country in which the company or organization is located.
+zip: Postal or zip code of the company or organization.
+hs_annual_revenue_currency_code: The currency code associated with the annual revenue amount.
+owneremail: HubSpot owner email for this company or organization.
+ownername: HubSpot owner name for this company or organization.
+linkedin_company_page: The URL of the LinkedIn company page for the company or organization.
+facebook_company_page: The URL of the Facebook company page for the company or organization.
 
 Default Properties of Type Datetime:
-hs_createdate : The date and time at which this object was created. This value is automatically set by HubSpot and may not be modified.
-first_contact_createdate : The date that the first contact from this company entered the system, which could pre-date the company's create date.
-recent_conversion_date : The most recent conversion date across all contacts associated this company or organization.
-hs_lastmodifieddate : Most recent timestamp of any property update for this company. This includes HubSpot internal properties.
+hs_createdate: The date and time at which this object was created. This value is automatically set by HubSpot and may not be modified.
+first_contact_createdate: The date that the first contact from this company entered the system, which could pre-date the company's create date.
+recent_conversion_date: The most recent conversion date across all contacts associated this company or organization.
+hs_lastmodifieddate: Most recent timestamp of any property update for this company. This includes HubSpot internal properties.
 
 Default Properties of Type Number:
-numberofemployees : The total number of employees who work for the company or organization.
-annualrevenue : The actual or estimated annual revenue of the company.
-hs_num_open_deals : The number of open deals associated with this company.
-total_revenue : The total amount of closed won deals.
-num_associated_contacts : The number of contacts associated with this company.
-num_associated_deals : The number of deals associated with this company.
+numberofemployees: The total number of employees who work for the company or organization.
+annualrevenue: The actual or estimated annual revenue of the company.
+hs_num_open_deals: The number of open deals associated with this company.
+total_revenue: The total amount of closed won deals.
+num_associated_contacts: The number of contacts associated with this company.
+num_associated_deals: The number of deals associated with this company.
 
 Default Properties of Type Boolean:
-hs_is_target_account : Identifies whether this company is being marketed and sold to as part of your account-based strategy.
-is_public : Indicates if the company is publicly traded.
+hs_is_target_account: Identifies whether this company is being marketed and sold to as part of your account-based strategy.
+is_public: Indicates if the company is publicly traded.
 """
     url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
     payload = [
@@ -1579,35 +1581,35 @@ Deal IDs that have been updated.
 The property names to update MUST be one of the following:
 
 Default Properties of Type Number:
-amount_in_home_currency : The deal amount in your company's currency, using the exchange rate.
-days_to_close : The number of days the deal took to close.
-hs_acv : The annual contract value of this deal.
-hs_arr : The annual recurring revenue of this deal.
-hs_deal_stage_probability : The probability a deal will close, based on the deal stage probability setting.
-hs_likelihood_to_close : HubSpot predicted likelihood of the deal to close by the close date.
-hs_mrr : The monthly recurring revenue of this deal.
-hs_object_id : The unique ID for this deal record.
-amount : The total amount of the deal.
-num_associated_contacts : The number of contacts associated with this deal.
+amount_in_home_currency: The deal amount in your company's currency, using the exchange rate.
+days_to_close: The number of days the deal took to close.
+hs_acv: The annual contract value of this deal.
+hs_arr: The annual recurring revenue of this deal.
+hs_deal_stage_probability: The probability a deal will close, based on the deal stage probability setting.
+hs_likelihood_to_close: HubSpot predicted likelihood of the deal to close by the close date.
+hs_mrr: The monthly recurring revenue of this deal.
+hs_object_id: The unique ID for this deal record.
+amount: The total amount of the deal.
+num_associated_contacts: The number of contacts associated with this deal.
 
 Default Properties of Type String:
-deal_currency_code : Currency code for the deal.
-dealname : The name given to this deal.
-dealstage : The stage of the deal, categorizing and tracking the progress.
-pipeline : The pipeline the deal is in, determining the stages available for the deal.
-description : Description of the deal.
-closed_lost_reason : Reason why this deal was lost.
-closed_won_reason : Reason why this deal was won.
+deal_currency_code: Currency code for the deal.
+dealname: The name given to this deal.
+dealstage: The stage of the deal, categorizing and tracking the progress.
+pipeline: The pipeline the deal is in, determining the stages available for the deal.
+description: Description of the deal.
+closed_lost_reason: Reason why this deal was lost.
+closed_won_reason: Reason why this deal was won.
 
 Default Properties of Type Datetime:
-closedate : Date the deal was closed, set automatically by HubSpot.
-createdate : Date the deal was created, set automatically by HubSpot.
-hs_closed_won_date : Returns the closedate if the deal is closed won.
-hs_lastmodifieddate : The most recent timestamp of any property update for this deal.
+closedate: Date the deal was closed, set automatically by HubSpot.
+createdate: Date the deal was created, set automatically by HubSpot.
+hs_closed_won_date: Returns the closedate if the deal is closed won.
+hs_lastmodifieddate: The most recent timestamp of any property update for this deal.
 
 Default Properties of Type Boolean:
-hs_is_closed : True if the deal was won or lost.
-hs_is_closed_won : True if the deal is in the closed-won state.
+hs_is_closed: True if the deal was won or lost.
+hs_is_closed_won: True if the deal is in the closed-won state.
 """
     url = "https://api.hubapi.com/crm/v3/objects/deals/batch/update"
     payload = [
