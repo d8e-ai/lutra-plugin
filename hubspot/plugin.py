@@ -962,10 +962,10 @@ hs_email_is_ineligible
             "id": contact_id,
             "properties": _coerce_properties_to_hubspot(
                 dict(properties),
-                _CONTACT_PROPERTIES_STRING,
-                _CONTACT_PROPERTIES_NUMBER,
-                _CONTACT_PROPERTIES_DATETIME,
-                _CONTACT_PROPERTIES_BOOLEAN,
+                string_property_names=_CONTACT_PROPERTIES_STRING,
+                number_property_names=_CONTACT_PROPERTIES_NUMBER,
+                datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
+                boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
             ),
         }
         for contact_id, properties in contact_updates.items()
@@ -1044,10 +1044,10 @@ def hubspot_search_contacts(
 
         additional_property_values = _coerce_properties_to_lutra(
             additional_property_values,
-            _CONTACT_PROPERTIES_STRING,
-            _CONTACT_PROPERTIES_NUMBER,
-            _CONTACT_PROPERTIES_DATETIME,
-            _CONTACT_PROPERTIES_BOOLEAN,
+            string_property_names=_CONTACT_PROPERTIES_STRING,
+            number_property_names=_CONTACT_PROPERTIES_NUMBER,
+            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
+            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
         )
 
         contact = HubSpotContact(
@@ -1542,10 +1542,10 @@ is_public
             "id": company_id,
             "properties": _coerce_properties_to_hubspot(
                 dict(properties),
-                _COMPANY_PROPERTIES_STRING,
-                _COMPANY_PROPERTIES_NUMBER,
-                _COMPANY_PROPERTIES_DATETIME,
-                _COMPANY_PROPERTIES_BOOLEAN,
+                string_property_names=_COMPANY_PROPERTIES_STRING,
+                number_property_names=_COMPANY_PROPERTIES_NUMBER,
+                datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
+                boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
             ),
         }
         for company_id, properties in company_updates.items()
@@ -1619,10 +1619,10 @@ def hubspot_search_companies(
                 additional_property_values[property] = val
         additional_property_values = _coerce_properties_to_lutra(
             additional_property_values,
-            _COMPANY_PROPERTIES_STRING,
-            _COMPANY_PROPERTIES_NUMBER,
-            _COMPANY_PROPERTIES_DATETIME,
-            _COMPANY_PROPERTIES_BOOLEAN,
+            string_property_names=_COMPANY_PROPERTIES_STRING,
+            number_property_names=_COMPANY_PROPERTIES_NUMBER,
+            datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
+            boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
         )
 
         company = HubSpotCompany(
@@ -2143,10 +2143,10 @@ hs_was_imported
             "id": deal_id,
             "properties": _coerce_properties_to_hubspot(
                 dict(properties),
-                _DEAL_PROPERTIES_STRING,
-                _DEAL_PROPERTIES_NUMBER,
-                _DEAL_PROPERTIES_DATETIME,
-                _DEAL_PROPERTIES_BOOLEAN,
+                string_property_names=_DEAL_PROPERTIES_STRING,
+                number_property_names=_DEAL_PROPERTIES_NUMBER,
+                datetime_property_names=_DEAL_PROPERTIES_DATETIME,
+                boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
             ),
         }
         for deal_id, properties in deal_updates.items()
@@ -2219,10 +2219,10 @@ def hubspot_search_deals(
 
         additional_property_values = _coerce_properties_to_lutra(
             additional_property_values,
-            _DEAL_PROPERTIES_STRING,
-            _DEAL_PROPERTIES_NUMBER,
-            _DEAL_PROPERTIES_DATETIME,
-            _DEAL_PROPERTIES_BOOLEAN,
+            string_property_names=_DEAL_PROPERTIES_STRING,
+            number_property_names=_DEAL_PROPERTIES_NUMBER,
+            datetime_property_names=_DEAL_PROPERTIES_DATETIME,
+            boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
         )
 
         deal = HubSpotDeal(
