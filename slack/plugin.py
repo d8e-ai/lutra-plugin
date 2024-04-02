@@ -283,7 +283,7 @@ def slack_conversations_history(
                 else ""
             )
             raise RuntimeError(
-                f"channel `{channel}` not found; {available_channels}"
+                f"channel '{channel}' not found; {available_channels}"
                 "double-check that you have authorized the correct workspace"
             )
         raise RuntimeError(f"fetching history: {data}")
