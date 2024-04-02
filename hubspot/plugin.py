@@ -1026,6 +1026,8 @@ def hubspot_search_contacts(
                 {"propertyName": property_name, "operator": "EQ", "value": value}
             )
     if not filters:
+        # We do this because if the search criteria values are just empty strings,
+        # the call to the search API will fail with a 400 error.
         return []
 
     properties = ["firstname", "lastname", "email", "lastmodifieddate"]
@@ -1610,6 +1612,10 @@ def hubspot_search_companies(
         filters.append(
             {"propertyName": property_name, "operator": "EQ", "value": value}
         )
+    if not filters:
+        # We do this because if the search criteria values are just empty strings,
+        # the call to the search API will fail with a 400 error.
+        return []
 
     properties = [
         "name",
@@ -2220,6 +2226,10 @@ def hubspot_search_deals(
         filters.append(
             {"propertyName": property_name, "operator": "EQ", "value": value}
         )
+    if not filters:
+        # We do this because if the search criteria values are just empty strings,
+        # the call to the search API will fail with a 400 error.
+        return []
 
     properties = ["dealname", "dealstage", "closedate", "amount", "lastmodifieddate"]
     properties.extend(return_with_custom_properties)
