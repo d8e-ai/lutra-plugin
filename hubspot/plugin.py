@@ -2455,7 +2455,7 @@ def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: str):
 def hubspot_merge_contacts(
     primary_contact: HubSpotContact, contact_to_merge: HubSpotContact
 ):
-    ''' Merge two contacts in HubSpot CRM.
+    ''' Merge contact_to_merge with primary_contact, retaining primary_contact
     '''
     url = "https://api.hubapi.com/crm/v3/objects/contacts/merge"
     _merge_objects(url, primary_contact.id, contact_to_merge.id)
@@ -2464,7 +2464,7 @@ def hubspot_merge_contacts(
 def hubspot_merge_companies(
     primary_company: HubSpotCompany, company_to_merge: HubSpotCompany
 ):
-    ''' Merge two companies in HubSpot CRM.
+    ''' Merge company_to_merge with primary_company, retaining primary_company
     '''
     url = "https://api.hubapi.com/crm/v3/objects/companies/merge"
     _merge_objects(url, primary_company.id, company_to_merge.id)
