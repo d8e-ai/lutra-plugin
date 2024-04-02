@@ -630,6 +630,8 @@ Returns:
     Contact IDs that have been updated.
 
 The property names MUST be one of the following:
+
+Default Properties of Type String:
 adopter_category
 company_size
 date_of_birth
@@ -769,6 +771,8 @@ numemployees
 annualrevenue
 industry
 hs_predictivecontactscorebucket
+
+Default Properties of Type Number:
 days_to_close
 hs_count_is_unworked
 hs_count_is_worked
@@ -849,6 +853,8 @@ hubspotscore
 associatedcompanyid
 associatedcompanylastupdated
 hs_predictivecontactscore
+
+Default Properties of Type Datetime:
 first_conversion_date
 first_deal_created_date
 hs_content_membership_follow_up_enqueued_at
@@ -940,6 +946,8 @@ hs_lifecyclestage_evangelist_date
 hs_lifecyclestage_customer_date
 hs_lifecyclestage_subscriber_date
 hs_lifecyclestage_other_date
+
+Default Properties of Type Boolean:
 hs_content_membership_email_confirmed
 hs_created_by_conversations
 hs_data_privacy_ads_consent
@@ -1381,6 +1389,8 @@ Returns:
 Company IDs that have been updated.
 
 The property names to update MUST be one of the following:
+
+Default Properties of Type String:
 about_us
 first_conversion_event_name
 founded_year
@@ -1448,6 +1458,8 @@ hs_lead_status
 type
 description
 web_technologies
+
+Default Properties of Type Number:
 facebookfans
 hs_analytics_num_page_views
 hs_analytics_num_visits
@@ -1487,6 +1499,8 @@ hs_parent_company_id
 hs_num_child_companies
 hubspotscore
 days_to_close
+
+Default Properties of Type Datetime:
 first_conversion_date
 first_deal_created_date
 hs_analytics_first_timestamp
@@ -1531,6 +1545,8 @@ notes_next_activity_date
 createdate
 closedate
 first_contact_createdate
+
+Default Properties of Type Boolean:
 hs_is_target_account
 hs_read_only
 hs_was_imported
@@ -1970,6 +1986,8 @@ Returns:
 Deal IDs that have been updated.
 
 The property names to update MUST be one of the following:
+
+Default Properties of Type String:
 deal_currency_code
 hs_all_assigned_business_unit_ids
 hs_all_collaborator_owner_ids
@@ -2024,6 +2042,8 @@ hs_all_team_ids
 hs_all_accessible_team_ids
 closed_lost_reason
 closed_won_reason
+
+Default Properties of Type Number:
 amount_in_home_currency
 days_to_close
 hs_acv
@@ -2083,6 +2103,8 @@ amount
 num_contacted_notes
 num_notes
 num_associated_contacts
+
+Default Properties of Type Datetime:
 hs_analytics_latest_source_timestamp
 hs_analytics_latest_source_timestamp_company
 hs_analytics_latest_source_timestamp_contact
@@ -2126,6 +2148,8 @@ notes_last_contacted
 notes_last_updated
 notes_next_activity_date
 hs_createdate
+
+Default Properties of Type Boolean:
 hs_is_active_shared_deal
 hs_is_closed
 hs_is_closed_won
@@ -2311,8 +2335,8 @@ class HubSpotCustomObjectType:
 
 
 def hubspot_fetch_associated_object_ids(
-    source_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
-    target_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
+    source_object_type: HubSpotObjectType,
+    target_object_type: HubSpotObjectType,
     source_object_id: str,
 ) -> List[str]:
     """
@@ -2320,12 +2344,8 @@ def hubspot_fetch_associated_object_ids(
     using the HubSpot association API. You must use this to find HubSpot
     objects that are associated to each other.
     """
-    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
-        source_object_type.name, source_object_type.name
-    )
-    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
-        target_object_type.name, target_object_type.name
-    )
+    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS[source_object_type.name]
+    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS[target_object_type.name]
     url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/read"
     params = {"inputs": [{"id": source_object_id}]}
 
@@ -2371,22 +2391,16 @@ class HubSpotAssociationType:
 
 def hubspot_create_association_between_object_ids(
     association_type: HubSpotAssociationType,
-    source_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
+    source_object_type: HubSpotObjectType,
     source_object_id: str,
-    target_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
+    target_object_type: HubSpotObjectType,
     target_object_id: str,
-) -> List[str]:
+):
     """
-    Returns the IDs of target objects associated with the source object
-    using the HubSpot association API. You must use this to find HubSpot
-    objects that are associated to each other.
+    Creates an association between the source and target objects in HubSpot.
     """
-    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
-        source_object_type.name, source_object_type.name
-    )
-    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
-        target_object_type.name, target_object_type.name
-    )
+    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS[source_object_type.name]
+    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS[target_object_type.name]
     url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/create"
     params = {
         "inputs": [
@@ -2414,12 +2428,3 @@ def hubspot_create_association_between_object_ids(
     ) as client:
         response = client.post(url, json=params)
         response.raise_for_status()
-        data = response.json()
-
-        if results := data.get("results", []):
-            return [
-                associated_object["toObjectId"]
-                for associated_object in results[0].get("to", [])
-            ]
-
-    return []
