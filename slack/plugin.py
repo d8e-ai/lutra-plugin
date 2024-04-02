@@ -182,7 +182,8 @@ def _list_users(client: httpx.Client) -> list[_SlackUser]:
             return users
 
 
-def _find_channel_by_name(client: httpx.Client, channel_name: str) -> str | None:
+def _conversation_ids_by_name(client: httpx.Client) -> dict[str, str]:
+    ids = {}
     cursor = None
     while True:
         params = {}
@@ -198,14 +199,23 @@ def _find_channel_by_name(client: httpx.Client, channel_name: str) -> str | None
         )
         if not data.get("ok", False):
             raise RuntimeError(f"listing channels: {data}")
-        for channel in data["channels"]:
-            if (candidate_name := channel.get("name")) is None:
-                continue
-            if channel_name in {candidate_name, f"#{candidate_name}"}:
-                return channel["id"]
+        ids.update(
+            {
+                channel["name"]: channel["id"]
+                for channel in data["channels"]
+                if "name" in channel
+            }
+        )
         cursor = data.get("response_metadata", {}).get("next_cursor")
         if cursor in {None, ""}:
-            return None
+            return ids
+
+
+def _find_conversation_by_name(
+    conversation_ids: dict[str, str], name: str
+) -> str | None:
+    canonical_name = name.lstrip("#")
+    return conversation_ids.get(canonical_name)
 
 
 @dataclass
@@ -241,12 +251,13 @@ def slack_conversations_history(
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
     ) as client:
-        channel_id = _find_channel_by_name(client, channel)
-        if channel_id is None:
+        conversation_ids = _conversation_ids_by_name(client)
+        conversation_id = _find_conversation_by_name(conversation_ids, channel)
+        if conversation_id is None:
             # `channel` does not match any name, so assume that it is an ID.
-            channel_id = channel
+            conversation_id = channel
         params = {
-            "channel": channel_id,
+            "channel": conversation_id,
             "limit": limit,
         }
         if oldest:
@@ -264,6 +275,17 @@ def slack_conversations_history(
             .json()
         )
     if not data.get("ok", False):
+        if data.get("error") == "channel_not_found":
+            # Avoid making the error message absurdly long.
+            available_channels = (
+                f"available channels: {sorted(list(conversation_ids.keys()))}; "
+                if len(conversation_ids) < 256
+                else ""
+            )
+            raise RuntimeError(
+                f"channel `{channel}` not found; {available_channels}"
+                "double-check that you have authorized the correct workspace"
+            )
         raise RuntimeError(f"fetching history: {data}")
     messages = [
         SlackMessage(
