@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from distutils import util
-from typing import Dict, Literal, Optional, Sequence, Tuple, Union, Any
+from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any
 
 import httpx
 from lutraai.augmented_request_client import AugmentedTransport
@@ -421,8 +421,9 @@ class HubSpotContact:
     """The `additional_properties` field stores any additional properties that are
     available in the HubSpot contact system that callers can ask for. If found, they
     will be found here.
-    """
 
+    You MUST specify all the fields when constructing this object.
+    """
     id: str
     first_name: str
     last_name: str
@@ -497,12 +498,79 @@ def hubspot_list_contacts(
     return contacts, next_pagination_token
 
 
-def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> Sequence[str]:
+def _coerce_properties_to_lutra(
+    properties: Dict[str, Union[str, int, float, datetime, bool]],
+    string_property_names: List[str],
+    number_property_names: List[str],
+    datetime_property_names: List[str],
+    boolean_property_names: List[str],
+) -> Dict[str, HubSpotPropertyValue]:
+    coerced_properties: Dict[str, HubSpotPropertyValue] = {}
+    for name, value in properties.items():
+
+        if name in string_property_names:
+            c_value = str(value)
+        elif name in number_property_names:
+            if isinstance(value, str):
+                if "." in value:
+                    c_value = float(value)
+                else:
+                    c_value = int(value)
+            elif isinstance(value, int | float):
+                c_value = value
+            else:
+                c_value = float(value)
+        elif name in datetime_property_names:
+            if isinstance(value, datetime):
+                c_value = value
+            elif isinstance(value, str):
+                c_value = datetime.fromisoformat(value)
+            else:
+                raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
+        elif name in boolean_property_names:
+            c_value = bool(util.strtobool(str(value)))
+        else:
+            # Custom property, assume value is of right type.
+            # TODO: Accept custom property schema and coerce accordingly.
+            c_value = value
+
+        coerced_properties[name] = HubSpotPropertyValue(value=c_value)
+
+    return coerced_properties
+
+
+def _coerce_properties_to_hubspot(
+    properties: Dict[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]],
+    string_property_names: List[str],
+    number_property_names: List[str],
+    datetime_property_names: List[str],
+    boolean_property_names: List[str],
+) -> Dict[str, Union[str, int, bool]]:
+    coerced_properties = {}
+    for name, value in properties.items():
+        if isinstance(value, HubSpotPropertyValue):
+            value = value.value
+
+        if name in string_property_names:
+            coerced_properties[name] = str(value)
+        elif name in number_property_names:
+            coerced_properties[name] = str(value)
+        elif name in datetime_property_names:
+            if isinstance(value, datetime):
+                coerced_properties[name] = int(value.timestamp() * 1000)
+            else:
+                raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
+        elif name in boolean_property_names:
+            coerced_properties[name] = bool(util.strtobool(str(value)))
+        else:
+            # We don't support custom properties right now
+            pass
+
+    return coerced_properties
+
+def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
     """
     Create multiple contacts in HubSpot using the batch API.
-
-    Contacts are created with just the first name, last name, and email properties.
-    Further properties can be updated using the update_contacts function.
 
     Args:
         contacts: A list of HubSpotContact objects to be created.
@@ -515,12 +583,21 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> Sequence[str]
     # Prepare the payload from the contacts list
     contacts_payload = []
     for contact in contacts:
+        properties = {
+            "firstname": contact.first_name,
+            "lastname": contact.last_name,
+            "email": contact.email
+        }
+        additional_properties = _coerce_properties_to_hubspot(
+            contact.additional_properties,
+            string_property_names=_CONTACT_PROPERTIES_STRING,
+            number_property_names=_CONTACT_PROPERTIES_NUMBER,
+            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
+            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+        )
+        properties.update(additional_properties)
         contact_data = {
-            "properties": {
-                "firstname": contact.properties.first_name,
-                "lastname": contact.properties.last_name,
-                "email": contact.properties.email,
-            }
+            "properties": properties,
         }
         contacts_payload.append(contact_data)
 
@@ -537,70 +614,6 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> Sequence[str]
     return [result["id"] for result in data["results"]]
 
 
-def _coerce_properties_to_lutra(
-    properties: Dict[str, Union[str, int, float, datetime, bool]]
-) -> Dict[str, HubSpotPropertyValue]:
-    coerced_properties: Dict[str, HubSpotPropertyValue] = {}
-    for name, value in properties.items():
-
-        if name in _CONTACT_PROPERTIES_STRING:
-            c_value = str(value)
-        elif name in _CONTACT_PROPERTIES_NUMBER:
-            if isinstance(value, str):
-                if "." in value:
-                    c_value = float(value)
-                else:
-                    c_value = int(value)
-            elif isinstance(value, int | float):
-                c_value = value
-            else:
-                c_value = float(value)
-        elif name in _CONTACT_PROPERTIES_DATETIME:
-            if isinstance(value, datetime):
-                c_value = value
-            elif isinstance(value, str):
-                c_value = datetime.fromisoformat(value)
-            else:
-                raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
-        elif name in _CONTACT_PROPERTIES_BOOLEAN:
-            c_value = bool(util.strtobool(str(value)))
-        else:
-            # Custom property, assume value is of right type.
-            # TODO: Accept custom property schema and coerce accordingly.
-            c_value = value
-
-        coerced_properties[name] = HubSpotPropertyValue(value=c_value)
-
-    return coerced_properties
-
-
-def _coerce_properties_to_hubspot(
-    properties: Dict[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
-) -> Dict[str, Union[str, int, bool]]:
-    coerced_properties = {}
-    for name, value in properties.items():
-        if isinstance(value, HubSpotPropertyValue):
-            value = value.value
-
-        if name in _CONTACT_PROPERTIES_STRING:
-            coerced_properties[name] = str(value)
-        elif name in _CONTACT_PROPERTIES_NUMBER:
-            coerced_properties[name] = str(value)
-        elif name in _CONTACT_PROPERTIES_DATETIME:
-            if isinstance(value, datetime):
-                coerced_properties[name] = int(value.timestamp() * 1000)
-            else:
-                raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
-        elif name in _CONTACT_PROPERTIES_BOOLEAN:
-            coerced_properties[name] = bool(util.strtobool(str(value)))
-        else:
-            # Custom property, assume value is of right type.
-            # TODO: Accept custom property schema and coerce accordingly.
-            coerced_properties[name] = str(value)
-
-    return coerced_properties
-
-
 def hubspot_update_contacts(
     contact_updates: Dict[
         str,
@@ -608,7 +621,7 @@ def hubspot_update_contacts(
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
-) -> Sequence[str]:
+) -> List[str]:
     """Update multiple contacts in HubSpot.
 
 contact_updates is a dict mapping contact id to a list of tuples with the property names to update, and their new values.
@@ -955,7 +968,13 @@ hs_email_is_ineligible
     payload = [
         {
             "id": contact_id,
-            "properties": _coerce_properties_to_hubspot(dict(properties)),
+            "properties": _coerce_properties_to_hubspot(
+                dict(properties),
+                string_property_names=_CONTACT_PROPERTIES_STRING,
+                number_property_names=_CONTACT_PROPERTIES_NUMBER,
+                datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
+                boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+            ),
         }
         for contact_id, properties in contact_updates.items()
     ]
@@ -972,7 +991,7 @@ hs_email_is_ineligible
 def hubspot_search_contacts(
     search_criteria: Dict[str, str],
     return_with_custom_properties: Sequence[str] = (),
-) -> Sequence[HubSpotContact]:
+) -> List[HubSpotContact]:
     """
     Search for HubSpot contacts based on various criteria.
 
@@ -1002,9 +1021,14 @@ def hubspot_search_contacts(
     # Construct the filters based on the search criteria
     filters = []
     for property_name, value in search_criteria.items():
-        filters.append(
-            {"propertyName": property_name, "operator": "EQ", "value": value}
-        )
+        if value:
+            filters.append(
+                {"propertyName": property_name, "operator": "EQ", "value": value}
+            )
+    if not filters:
+        # We do this because if the search criteria values are just empty strings,
+        # the call to the search API will fail with a 400 error.
+        return []
 
     properties = ["firstname", "lastname", "email", "lastmodifieddate"]
     properties.extend(return_with_custom_properties)
@@ -1029,7 +1053,11 @@ def hubspot_search_contacts(
                 additional_property_values[property] = val
 
         additional_property_values = _coerce_properties_to_lutra(
-            additional_property_values
+            additional_property_values,
+            string_property_names=_CONTACT_PROPERTIES_STRING,
+            number_property_names=_CONTACT_PROPERTIES_NUMBER,
+            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
+            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
         )
 
         contact = HubSpotContact(
@@ -1227,11 +1255,13 @@ class HubSpotCompany:
     """The `additional_properties` field stores any additional properties that are
     available in the HubSpot contact system that callers can ask for. If found, they
     will be found here.
+
+    You MUST specify all the fields when constructing this object.
     """
 
     id: str
     name: str
-    domain: str
+    domain: Optional[str]
     hs_object_id: str
     last_modified_date: datetime
     additional_properties: Dict[str, HubSpotPropertyValue]
@@ -1306,7 +1336,7 @@ def hubspot_list_companies(
     return companies, next_pagination_token
 
 
-def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> Sequence[str]:
+def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
     """
     Create multiple company in HubSpot using the batch API.
 
@@ -1352,7 +1382,7 @@ def hubspot_update_companies(
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
-) -> Sequence[str]:
+) -> List[str]:
     """Update multiple companies in HubSpot.
 
 company_updates is a dict mapping company id to a list of tuples with the property names to update, and their new values.
@@ -1528,7 +1558,13 @@ is_public
     payload = [
         {
             "id": company_id,
-            "properties": _coerce_properties_to_hubspot(dict(properties)),
+            "properties": _coerce_properties_to_hubspot(
+                dict(properties),
+                string_property_names=_COMPANY_PROPERTIES_STRING,
+                number_property_names=_COMPANY_PROPERTIES_NUMBER,
+                datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
+                boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
+            ),
         }
         for company_id, properties in company_updates.items()
     ]
@@ -1544,7 +1580,7 @@ is_public
 def hubspot_search_companies(
     search_criteria: Dict[str, str],
     return_with_custom_properties: Sequence[str] = (),
-) -> Sequence[HubSpotCompany]:
+) -> List[HubSpotCompany]:
     """
     Search for companies in HubSpot CRM based on various criteria.
 
@@ -1576,6 +1612,10 @@ def hubspot_search_companies(
         filters.append(
             {"propertyName": property_name, "operator": "EQ", "value": value}
         )
+    if not filters:
+        # We do this because if the search criteria values are just empty strings,
+        # the call to the search API will fail with a 400 error.
+        return []
 
     properties = [
         "name",
@@ -1600,7 +1640,11 @@ def hubspot_search_companies(
             if val:
                 additional_property_values[property] = val
         additional_property_values = _coerce_properties_to_lutra(
-            additional_property_values
+            additional_property_values,
+            string_property_names=_COMPANY_PROPERTIES_STRING,
+            number_property_names=_COMPANY_PROPERTIES_NUMBER,
+            datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
+            boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
         )
 
         company = HubSpotCompany(
@@ -1892,7 +1936,7 @@ def hubspot_list_deals(
     return deals, next_pagination_token
 
 
-def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> Sequence[str]:
+def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
     """
     Create multiple deals in HubSpot using the batch API.
 
@@ -1939,7 +1983,7 @@ def hubspot_update_deals(
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
-) -> Sequence[str]:
+) -> List[str]:
     """Update multiple Deals in HubSpot.
 
 deal_updates is a dict mapping deal id to a list of tuples with the property names to update, and their new values.
@@ -2125,7 +2169,16 @@ hs_was_imported
 """
     url = "https://api.hubapi.com/crm/v3/objects/deals/batch/update"
     payload = [
-        {"id": deal_id, "properties": _coerce_properties_to_hubspot(dict(properties))}
+        {
+            "id": deal_id,
+            "properties": _coerce_properties_to_hubspot(
+                dict(properties),
+                string_property_names=_DEAL_PROPERTIES_STRING,
+                number_property_names=_DEAL_PROPERTIES_NUMBER,
+                datetime_property_names=_DEAL_PROPERTIES_DATETIME,
+                boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
+            ),
+        }
         for deal_id, properties in deal_updates.items()
     ]
     with httpx.Client(
@@ -2137,11 +2190,10 @@ hs_was_imported
         return [result["id"] for result in data["results"]]
 
 
-
 def hubspot_search_deals(
     search_criteria: Dict[str, str],
     return_with_custom_properties: Sequence[str] = (),
-) -> Sequence[HubSpotDeal]:
+) -> List[HubSpotDeal]:
     """
     Search for HubSpot deals based on various criteria.
 
@@ -2174,6 +2226,10 @@ def hubspot_search_deals(
         filters.append(
             {"propertyName": property_name, "operator": "EQ", "value": value}
         )
+    if not filters:
+        # We do this because if the search criteria values are just empty strings,
+        # the call to the search API will fail with a 400 error.
+        return []
 
     properties = ["dealname", "dealstage", "closedate", "amount", "lastmodifieddate"]
     properties.extend(return_with_custom_properties)
@@ -2196,7 +2252,11 @@ def hubspot_search_deals(
                 additional_property_values[property] = val
 
         additional_property_values = _coerce_properties_to_lutra(
-            additional_property_values
+            additional_property_values,
+            string_property_names=_DEAL_PROPERTIES_STRING,
+            number_property_names=_DEAL_PROPERTIES_NUMBER,
+            datetime_property_names=_DEAL_PROPERTIES_DATETIME,
+            boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
         )
 
         deal = HubSpotDeal(
@@ -2285,21 +2345,17 @@ class HubSpotCustomObjectType:
 
 
 def hubspot_fetch_associated_object_ids(
-    source_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
-    target_object_type: Union[HubSpotObjectType, HubSpotCustomObjectType],
+    source_object_type: HubSpotObjectType,
+    target_object_type: HubSpotObjectType,
     source_object_id: str,
-) -> Sequence[str]:
+) -> List[str]:
     """
     Returns the IDs of target objects associated with the source object
     using the HubSpot association API. You must use this to find HubSpot
     objects that are associated to each other.
     """
-    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
-        source_object_type.name, source_object_type.name
-    )
-    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS.get(
-        target_object_type.name, target_object_type.name
-    )
+    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS[source_object_type.name]
+    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS[target_object_type.name]
     url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/read"
     params = {"inputs": [{"id": source_object_id}]}
 
@@ -2317,3 +2373,68 @@ def hubspot_fetch_associated_object_ids(
             ]
 
     return []
+
+
+ASSOCIATION_TYPE_IDS = {
+    "CONTACT_TO_CONTACT": 449,
+    "CONTACT_TO_COMPANY": 279,
+    "CONTACT_TO_PRIMARY_COMPANY": 1,
+    "CONTACT_TO_DEAL": 4,
+    "COMPANY_TO_COMPANY": 450,
+    "COMPANY_TO_CONTACT": 280,
+    "COMPANY_TO_DEAL": 342,
+}
+
+
+@dataclass
+class HubSpotAssociationType:
+    type: Literal[
+        "CONTACT_TO_CONTACT",
+        "CONTACT_TO_COMPANY",
+        "CONTACT_TO_PRIMARY_COMPANY",
+        "CONTACT_TO_DEAL",
+        "COMPANY_TO_COMPANY",
+        "COMPANY_TO_CONTACT",
+        "COMPANY_TO_DEAL",
+    ]
+
+
+def hubspot_create_association_between_object_ids(
+    association_type: HubSpotAssociationType,
+    source_object_type: HubSpotObjectType,
+    source_object_id: str,
+    target_object_type: HubSpotObjectType,
+    target_object_id: str,
+):
+    """
+    Creates an association between the source and target objects in HubSpot.
+    """
+    source_type_name = _HUBSPOT_OBJECT_TYPE_IDS[source_object_type.name]
+    target_type_name = _HUBSPOT_OBJECT_TYPE_IDS[target_object_type.name]
+    url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/create"
+    params = {
+        "inputs": [
+            {
+                "types": [
+                    {
+                        "associationCategory": "HUBSPOT_DEFINED",
+                        "associationTypeId": ASSOCIATION_TYPE_IDS.get(
+                            association_type.type
+                        ),
+                    }
+                ],
+                "from": {
+                    "id": source_object_id,
+                },
+                "to": {
+                    "id": target_object_id,
+                }
+            }
+        ]
+    }
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    ) as client:
+        response = client.post(url, json=params)
+        response.raise_for_status()
