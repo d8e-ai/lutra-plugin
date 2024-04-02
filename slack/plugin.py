@@ -6,6 +6,7 @@ import re
 import httpx
 
 from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.decorator import purpose
 
 
 _BOT_NAME = "Lutra Slack Bot"
@@ -40,6 +41,7 @@ def _with_mentions(users: list[_SlackUser], message: str) -> str:
     return re.sub(r"<@([^>]+)>", replace_with_id, message)
 
 
+@purpose("Send a message to a channel.")
 def slack_send_message_to_channel(
     channel: str, message: str, thread_ts: Optional[str]
 ) -> None:
@@ -79,6 +81,7 @@ def slack_send_message_to_channel(
             raise RuntimeError(f"sending message: {data}")
 
 
+@purpose("Send a message to a user.")
 def slack_send_message_to_user(user_display_name: str, message: str) -> None:
     """
     Send a message to a user by user name or ID.
@@ -126,6 +129,7 @@ def _get_self_user_id() -> str:
         return data["user_id"]
 
 
+@purpose("Send a message to yourself.")
 def slack_send_message_to_self(message: str) -> None:
     """
     Send a message to my own user.
@@ -226,6 +230,7 @@ class SlackMessage:
     ts: str
 
 
+@purpose("Get conversation history.")
 def slack_conversations_history(
     channel: str,
     oldest: Optional[datetime] = None,
