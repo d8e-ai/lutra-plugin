@@ -651,6 +651,7 @@ city : A contact's city of residence.
 state : The contact's state of residence.
 country : The contact's country/region of residence.
 industry : The Industry a contact is in.
+hs_linkedinid : A contact's linkedin id.
 
 Default Properties of Type Number:
 num_associated_deals : Count of deals associated with this contact.
