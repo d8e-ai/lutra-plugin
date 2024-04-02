@@ -276,14 +276,17 @@ def slack_conversations_history(
         )
     if not data.get("ok", False):
         if data.get("error") == "channel_not_found":
+            available_channels = f"{sorted(list(conversation_ids.keys()))}"
             # Avoid making the error message absurdly long.
-            available_channels = (
-                f"available channels: {sorted(list(conversation_ids.keys()))}; "
-                if len(conversation_ids) < 256
-                else ""
-            )
+            max_length = 1024
+            if len(available_channels) > max_length:
+                truncated = "...(truncated)"
+                available_channels = (
+                    f"{available_channels[:max_length - len(truncated)]}{truncated}"
+                )
             raise RuntimeError(
-                f"channel '{channel}' not found; {available_channels}"
+                f"channel '{channel}' not found; "
+                f"available_channels: {available_channels}; "
                 "double-check that you have authorized the correct workspace"
             )
         raise RuntimeError(f"fetching history: {data}")
