@@ -707,7 +707,7 @@ def _search_contacts(
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
     required_contact_properties = ["firstname", "lastname", "email", "lastmodifieddate"]
     all_properties = (
-        return_with_custom_properties
+        list(return_with_custom_properties)
         + _CONTACT_PROPERTIES_STRING
         + _CONTACT_PROPERTIES_DATETIME
         + _CONTACT_PROPERTIES_BOOLEAN
