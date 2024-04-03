@@ -431,8 +431,8 @@ class HubSpotContact:
     hs_object_id: str
     last_modified_date: datetime
     additional_properties: Dict[str, HubSpotPropertyValue]
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime
+    updated_at: datetime
     archived: bool
 
 
@@ -477,8 +477,8 @@ def hubspot_list_contacts(
         properties = item["properties"]
         contact = HubSpotContact(
             id=item["id"],
-            createdAt=datetime.fromisoformat(item["createdAt"]),
-            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            created_at=datetime.fromisoformat(item["createdAt"]),
+            updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
             first_name=properties["firstname"],
             last_name=properties["lastname"],
@@ -697,101 +697,92 @@ hs_sequences_is_enrolled: A yes/no field that indicates whether the contact is c
         data = response.json()
         return [result["id"] for result in data["results"]]
 
-def _search_contacts(filters: List[Dict[str, str]], )
 
-def hubspot_search_contacts(
-    search_criteria: Dict[str, str],
-    return_with_custom_properties: Sequence[str] = (),
-) -> List[HubSpotContact]:
-    """
-    Search for HubSpot contacts based on various criteria.
-
-    Default properties will always be fetched. However, properties with no values will not be in additional_properties
-    dict. You MUST check whether the property exists in additional_properties before using it.
-
-    Args:
-        search_criteria: A dictionary where keys are the property names (e.g.,
-          "firstname", "email") and values are the search values for those properties.
-        return_with_custom_properties: A sequence of custom property names to fetch from found
-            contacts. These will be included in additional_properties if they exist.
-
-    Returns:
-        Sequence[HubSpotContact]: A list of HubSpotContact objects matching the search
-            criteria.
-    """
-
-    return_with_custom_properties = list(return_with_custom_properties)
-    return_with_custom_properties += (
-        _CONTACT_PROPERTIES_DATETIME
-        + _CONTACT_PROPERTIES_BOOLEAN
-        + _CONTACT_PROPERTIES_NUMBER
-        + _CONTACT_PROPERTIES_STRING
-    )
-    url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
-
-    # Construct the filters based on the search criteria
-    filters = []
-    for property_name, value in search_criteria.items():
-        if value:
-            filters.append(
-                {"propertyName": property_name, "operator": "EQ", "value": value}
-            )
+def _search_contacts(
+    filters: List[Dict[str, str]],
+    pagination_token: Optional[HubSpotPaginationToken] = None,
+) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
     if not filters:
-        # We do this because if the search criteria values are just empty strings,
-        # the call to the search API will fail with a 400 error.
+        # The API will fail with an empty list
         return []
-
-    properties = ["firstname", "lastname", "email", "lastmodifieddate"]
-    properties.extend(return_with_custom_properties)
-    properties = list(set(properties))
-    # Prepare the request body with the filters
-    payload = {"filterGroups": [{"filters": filters}], "properties": properties}
-
-    contacts = []
+    url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
+    required_contact_properties = ["firstname", "lastname", "email", "lastmodifieddate"]
+    all_properties = (_CONTACT_PROPERTIES_STRING
+        + _CONTACT_PROPERTIES_DATETIME
+        + _CONTACT_PROPERTIES_BOOLEAN
+        + _CONTACT_PROPERTIES_NUMBER)
+    payload = {"filterGroups": [{"filters": filters}], "properties": all_properties + required_contact_properties, "limit": 100}
+    if pagination_token:
+        payload["after"] = pagination_token.token
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
         response = client.post(url, json=payload)
         response.raise_for_status()
         data = response.json()
-
-    for item in data.get("results", []):
-        property_values = item.get("properties", {})
-        additional_property_values = {}
-        for property in return_with_custom_properties:
-            val = property_values.get(property, None)
-            if val:
-                additional_property_values[property] = val
-
-        additional_property_values = _coerce_properties_to_lutra(
-            additional_property_values,
-            string_property_names=_CONTACT_PROPERTIES_STRING,
-            number_property_names=_CONTACT_PROPERTIES_NUMBER,
-            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
-            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+        contacts = []
+        property_values = {}
+        for item in data.get("results", []):
+            properties = item.get("properties", {})
+            property_values = {key: val for key, val in properties.items() if val}
+            additional_properties = _coerce_properties_to_lutra(
+                property_values,
+                string_property_names=_CONTACT_PROPERTIES_STRING,
+                number_property_names=_CONTACT_PROPERTIES_NUMBER,
+                datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
+                boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+            )
+            contact = HubSpotContact(
+                id=item["id"],
+                created_at=datetime.fromisoformat(
+                    item.get("createdAt", "1970-01-01T00:00:00Z")
+                ),
+                updated_at=datetime.fromisoformat(
+                    item.get("updatedAt", "1970-01-01T00:00:00Z")
+                ),
+                archived=item.get("archived", False),
+                first_name=property_values.get("firstname", ""),
+                last_name=property_values.get("lastname", ""),
+                email=property_values.get("email", ""),
+                hs_object_id=item["id"],
+                last_modified_date=datetime.fromisoformat(
+                    property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
+                ),
+                additional_properties=additional_properties,
+            )
+            contacts.append(contact)
+            
+        next_pagination_token = (
+            HubSpotPaginationToken(token=data["paging"]["next"]["after"])
+            if "paging" in data and "next" in data["paging"]
+            else None
         )
+        return contacts, next_pagination_token
 
-        contact = HubSpotContact(
-            id=item["id"],
-            createdAt=datetime.fromisoformat(
-                item.get("createdAt", "1970-01-01T00:00:00Z")
-            ),
-            updatedAt=datetime.fromisoformat(
-                item.get("updatedAt", "1970-01-01T00:00:00Z")
-            ),
-            archived=item.get("archived", False),
-            first_name=property_values.get("firstname", ""),
-            last_name=property_values.get("lastname", ""),
-            email=property_values.get("email", ""),
-            hs_object_id=item["id"],
-            last_modified_date=datetime.fromisoformat(
-                property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
-            ),
-            additional_properties=additional_property_values,
+def hubspot_search_contacts(
+    search_criteria: Dict[str, str],
+    created_after: Optional[datetime] = None,
+    created_before: Optional[datetime] = None,
+    pagination_token: Optional[HubSpotPaginationToken] = None,
+) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
+    '''Search for HubSpot contacts
+    
+search_criteria: A dictionary where keys are the property names (e.g., "firstname", "email"). The search values have to match exactly.
+and values are the search values for those properties.
+created_after: Return contacts that were created after this datetime
+created_before: Return contacts that were created before this datetime
+'''
+    filters = []
+    for name, value in search_criteria.items():
+        filters.append(
+            {"propertyName": name, "operator": "EQ", "value": value}
         )
-        contacts.append(contact)
-
-    return contacts
+    if created_after:
+        filters.append({"propertyName": "createdate", "operator": "GTE", "value": int(created_after.timestamp() * 1000)})
+    if created_before:
+        filters.append({"propertyName": "createdate", "operator": "LTE", "value": int(created_before.timestamp() * 1000)})
+    
+    return _search_contacts(filters, pagination_token)
 
 
 _COMPANY_PROPERTIES_STRING = [
@@ -976,8 +967,8 @@ class HubSpotCompany:
     hs_object_id: str
     last_modified_date: datetime
     additional_properties: Dict[str, HubSpotPropertyValue]
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime
+    updated_at: datetime
     archived: bool
 
 
@@ -1020,8 +1011,8 @@ def hubspot_list_companies(
         properties = item["properties"]
         company = HubSpotCompany(
             id=item["id"],
-            createdAt=datetime.fromisoformat(item["createdAt"]),
-            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            created_at=datetime.fromisoformat(item["createdAt"]),
+            updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
             name=properties.get("name"),
             domain=properties.get("domain"),
@@ -1034,12 +1025,6 @@ def hubspot_list_companies(
         companies.append(company)
     next_pagination_token = (
         HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-        if "paging" in data and "next" in data["paging"]
-        else None
-    )
-
-    next_pagination_token = (
-        data["paging"]["next"]["after"]
         if "paging" in data and "next" in data["paging"]
         else None
     )
@@ -1236,10 +1221,10 @@ def hubspot_search_companies(
 
         company = HubSpotCompany(
             id=item["id"],
-            createdAt=datetime.fromisoformat(
+            created_at=datetime.fromisoformat(
                 item.get("createdAt", "1970-01-01T00:00:00Z")
             ),
-            updatedAt=datetime.fromisoformat(
+            updated_at=datetime.fromisoformat(
                 item.get("updatedAt", "1970-01-01T00:00:00Z")
             ),
             archived=item.get("archived", False),
@@ -1449,8 +1434,8 @@ class HubSpotDeal:
     hs_object_id: str
     last_modified_date: datetime
     additional_properties: Dict[str, HubSpotPropertyValue]
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime
+    updated_at: datetime
     archived: bool
 
 
@@ -1496,8 +1481,8 @@ def hubspot_list_deals(
         properties = item["properties"]
         deal = HubSpotDeal(
             id=item["id"],
-            createdAt=datetime.fromisoformat(item["createdAt"]),
-            updatedAt=datetime.fromisoformat(item["updatedAt"]),
+            created_at=datetime.fromisoformat(item["createdAt"]),
+            updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
             dealname=properties.get("dealname"),
             dealstage=properties.get("dealstage"),
@@ -1705,10 +1690,10 @@ def hubspot_search_deals(
 
         deal = HubSpotDeal(
             id=item["id"],
-            createdAt=datetime.fromisoformat(
+            created_at=datetime.fromisoformat(
                 item.get("createdAt", "1970-01-01T00:00:00Z")
             ),
-            updatedAt=datetime.fromisoformat(
+            updated_at=datetime.fromisoformat(
                 item.get("updatedAt", "1970-01-01T00:00:00Z")
             ),
             archived=item.get("archived", False),
