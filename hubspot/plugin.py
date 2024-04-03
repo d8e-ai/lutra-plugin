@@ -767,7 +767,7 @@ def hubspot_search_contacts(
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
     '''Search for HubSpot contacts
     
-search_criteria: A dictionary where keys are the property names (e.g., "firstname", "email")
+search_criteria: A dictionary where keys are the property names (e.g., "firstname", "email"). The search values have to match exactly.
 and values are the search values for those properties.
 created_after: Return contacts that were created after this datetime
 created_before: Return contacts that were created before this datetime
