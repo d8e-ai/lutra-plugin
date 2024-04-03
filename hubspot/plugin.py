@@ -199,7 +199,6 @@ _CONTACT_PROPERTIES_NUMBER = [
     "hs_v2_latest_time_in_other",
     "hs_v2_latest_time_in_salesqualifiedlead",
     "hs_v2_latest_time_in_subscriber",
-    "lutrauserid",
     "num_associated_deals",
     "num_conversion_events",
     "num_unique_conversion_events",
@@ -563,8 +562,7 @@ def _coerce_properties_to_hubspot(
         elif name in boolean_property_names:
             coerced_properties[name] = bool(util.strtobool(str(value)))
         else:
-            # We don't support custom properties right now
-            pass
+            coerced_properties[name] = str(value)
 
     return coerced_properties
 
@@ -700,6 +698,7 @@ hs_sequences_is_enrolled: A yes/no field that indicates whether the contact is c
 
 def _search_contacts(
     filters: List[Dict[str, str]],
+    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
     if not filters:
@@ -707,10 +706,13 @@ def _search_contacts(
         return []
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
     required_contact_properties = ["firstname", "lastname", "email", "lastmodifieddate"]
-    all_properties = (_CONTACT_PROPERTIES_STRING
+    all_properties = (
+        list(return_with_custom_properties)
+        + _CONTACT_PROPERTIES_STRING
         + _CONTACT_PROPERTIES_DATETIME
         + _CONTACT_PROPERTIES_BOOLEAN
-        + _CONTACT_PROPERTIES_NUMBER)
+        + _CONTACT_PROPERTIES_NUMBER
+    )
     payload = {"filterGroups": [{"filters": filters}], "properties": all_properties + required_contact_properties, "limit": 100}
     if pagination_token:
         payload["after"] = pagination_token.token
@@ -751,7 +753,7 @@ def _search_contacts(
                 additional_properties=additional_properties,
             )
             contacts.append(contact)
-            
+
         next_pagination_token = (
             HubSpotPaginationToken(token=data["paging"]["next"]["after"])
             if "paging" in data and "next" in data["paging"]
@@ -763,6 +765,7 @@ def hubspot_search_contacts(
     search_criteria: Dict[str, str],
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
+    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
     '''Search for HubSpot contacts
@@ -782,7 +785,7 @@ created_before: Return contacts that were created before this datetime
     if created_before:
         filters.append({"propertyName": "createdate", "operator": "LTE", "value": int(created_before.timestamp() * 1000)})
     
-    return _search_contacts(filters, pagination_token)
+    return _search_contacts(filters, return_with_custom_properties, pagination_token)
 
 
 _COMPANY_PROPERTIES_STRING = [
@@ -1882,18 +1885,18 @@ def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: str):
 
 
 def hubspot_merge_contacts(
-    primary_contact: HubSpotContact, contact_to_merge: HubSpotContact
+    primary_contact_id: str, contact_to_merge_id: str
 ):
-    ''' Merge contact_to_merge with primary_contact, retaining primary_contact
+    ''' Merge contact_to_merge_id with primary_contact_id, retaining primary contact
     '''
     url = "https://api.hubapi.com/crm/v3/objects/contacts/merge"
-    _merge_objects(url, primary_contact.id, contact_to_merge.id)
+    _merge_objects(url, primary_contact_id, contact_to_merge_id)
 
 
 def hubspot_merge_companies(
-    primary_company: HubSpotCompany, company_to_merge: HubSpotCompany
+    primary_company_id: str, company_to_merge_id: str
 ):
-    ''' Merge company_to_merge with primary_company, retaining primary_company
+    ''' Merge company_to_merge with primary_company, retaining primary company
     '''
     url = "https://api.hubapi.com/crm/v3/objects/companies/merge"
-    _merge_objects(url, primary_company.id, company_to_merge.id)
+    _merge_objects(url, primary_company_id, company_to_merge_id)
