@@ -4,6 +4,7 @@ import httpx
 from typing import Optional, List
 
 from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.decorator import purpose
 
 
 @dataclass
@@ -154,6 +155,7 @@ def _parse_people_enrichment_data(enrichment_data: dict) -> ApolloPersonProfile:
     )
 
 
+@purpose("Get a person's profile.")
 def apollo_people_enrichment(
     first_name: Optional[str] = None,
     last_name: Optional[str] = None,
