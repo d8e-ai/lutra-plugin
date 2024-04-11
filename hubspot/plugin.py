@@ -5,6 +5,7 @@ from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any
 
 import httpx
 from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.decorator import purpose
 
 
 _CONTACT_PROPERTIES_STRING = [
@@ -423,6 +424,7 @@ class HubSpotContact:
 
     You MUST specify all the fields when constructing this object.
     """
+
     id: str
     first_name: str
     last_name: str
@@ -440,6 +442,7 @@ class HubSpotPaginationToken:
     token: str
 
 
+@purpose("List contacts.")
 def hubspot_list_contacts(
     limit: int = 100, pagination_token: Optional[HubSpotPaginationToken] = None
 ) -> Tuple[Sequence[HubSpotContact], Optional[HubSpotPaginationToken]]:
@@ -506,7 +509,6 @@ def _coerce_properties_to_lutra(
 ) -> Dict[str, HubSpotPropertyValue]:
     coerced_properties: Dict[str, HubSpotPropertyValue] = {}
     for name, value in properties.items():
-
         if name in string_property_names:
             c_value = str(value)
         elif name in number_property_names:
@@ -566,6 +568,8 @@ def _coerce_properties_to_hubspot(
 
     return coerced_properties
 
+
+@purpose("Create contacts.")
 def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
     """
     Create multiple contacts in HubSpot using the batch API.
@@ -584,7 +588,7 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
         properties = {
             "firstname": contact.first_name,
             "lastname": contact.last_name,
-            "email": contact.email
+            "email": contact.email,
         }
         additional_properties = _coerce_properties_to_hubspot(
             contact.additional_properties,
@@ -612,6 +616,7 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
     return [result["id"] for result in data["results"]]
 
 
+@purpose("Update contacts.")
 def hubspot_update_contacts(
     contact_updates: Dict[
         str,
@@ -622,55 +627,55 @@ def hubspot_update_contacts(
 ) -> List[str]:
     """Update multiple contacts in HubSpot.
 
-contact_updates is a dict mapping contact id to a list of tuples with the property names to update, and their new values.
+    contact_updates is a dict mapping contact id to a list of tuples with the property names to update, and their new values.
 
-Returns:
-    Contact IDs that have been updated.
+    Returns:
+        Contact IDs that have been updated.
 
-The property names MUST be one of the following:
+    The property names MUST be one of the following:
 
-Default Properties of Type String:
-adopter_category: An assessment of whether the contact is likely to use our product.
-company_size: Contact's company size.
-date_of_birth: Contact's date of birth.
-degree: Contact's degree.
-field_of_study: Contact's field of study.
-first_conversion_event_name: First form this contact submitted.
-gender: Contact's gender.
-job_function: Contact's job function.
-jobtitle: A contact's job title.
-hs_lead_status: The contact's sales, prospecting, or outreach status.
-hs_persona: A contact's persona.
-lifecyclestage: The qualification of contacts to sales readiness.
-email: A contact's email address.
-mobilephone: A contact's mobile phone number.
-phone: A contact's primary phone number.
-city: A contact's city of residence.
-state: The contact's state of residence.
-country: The contact's country/region of residence.
-industry: The Industry a contact is in.
-hs_linkedinid: A contact's linkedin id.
+    Default Properties of Type String:
+    adopter_category: An assessment of whether the contact is likely to use our product.
+    company_size: Contact's company size.
+    date_of_birth: Contact's date of birth.
+    degree: Contact's degree.
+    field_of_study: Contact's field of study.
+    first_conversion_event_name: First form this contact submitted.
+    gender: Contact's gender.
+    job_function: Contact's job function.
+    jobtitle: A contact's job title.
+    hs_lead_status: The contact's sales, prospecting, or outreach status.
+    hs_persona: A contact's persona.
+    lifecyclestage: The qualification of contacts to sales readiness.
+    email: A contact's email address.
+    mobilephone: A contact's mobile phone number.
+    phone: A contact's primary phone number.
+    city: A contact's city of residence.
+    state: The contact's state of residence.
+    country: The contact's country/region of residence.
+    industry: The Industry a contact is in.
+    hs_linkedinid: A contact's linkedin id.
 
-Default Properties of Type Number:
-num_associated_deals: Count of deals associated with this contact.
-num_conversion_events: The number of forms this contact has submitted.
-num_unique_conversion_events: The number of different forms this contact has submitted.
-recent_deal_amount: Amount of last closed won deal associated with a contact.
-total_revenue: Sum of all closed-won deal revenue associated with the contact.
+    Default Properties of Type Number:
+    num_associated_deals: Count of deals associated with this contact.
+    num_conversion_events: The number of forms this contact has submitted.
+    num_unique_conversion_events: The number of different forms this contact has submitted.
+    recent_deal_amount: Amount of last closed won deal associated with a contact.
+    total_revenue: Sum of all closed-won deal revenue associated with the contact.
 
-Default Properties of Type Datetime:
-first_conversion_date: Date this contact first submitted a form.
-first_deal_created_date: Date first deal was created for contact.
-recent_conversion_date: The date this contact last submitted a form.
-recent_deal_close_date: Date last deal associated with contact was closed-won.
-closedate: Date the contact became a customer.
+    Default Properties of Type Datetime:
+    first_conversion_date: Date this contact first submitted a form.
+    first_deal_created_date: Date first deal was created for contact.
+    recent_conversion_date: The date this contact last submitted a form.
+    recent_deal_close_date: Date last deal associated with contact was closed-won.
+    closedate: Date the contact became a customer.
 
-Default Properties of Type Boolean:
-hs_email_bad_address: The email address associated with this contact is invalid.
-hs_is_contact: Is a contact, has not been deleted and is not a visitor.
-hs_is_unworked: Contact has not been assigned or has not been engaged after last owner assignment/re-assignment.
-hs_sequences_is_enrolled: A yes/no field that indicates whether the contact is currently in a Sequence.
-"""
+    Default Properties of Type Boolean:
+    hs_email_bad_address: The email address associated with this contact is invalid.
+    hs_is_contact: Is a contact, has not been deleted and is not a visitor.
+    hs_is_unworked: Contact has not been assigned or has not been engaged after last owner assignment/re-assignment.
+    hs_sequences_is_enrolled: A yes/no field that indicates whether the contact is currently in a Sequence.
+    """
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
     payload = [
@@ -713,7 +718,11 @@ def _search_contacts(
         + _CONTACT_PROPERTIES_BOOLEAN
         + _CONTACT_PROPERTIES_NUMBER
     )
-    payload = {"filterGroups": [{"filters": filters}], "properties": all_properties + required_contact_properties, "limit": 100}
+    payload = {
+        "filterGroups": [{"filters": filters}],
+        "properties": all_properties + required_contact_properties,
+        "limit": 100,
+    }
     if pagination_token:
         payload["after"] = pagination_token.token
     with httpx.Client(
@@ -761,6 +770,8 @@ def _search_contacts(
         )
         return contacts, next_pagination_token
 
+
+@purpose("Search contacts.")
 def hubspot_search_contacts(
     search_criteria: Dict[str, str],
     created_after: Optional[datetime] = None,
@@ -768,23 +779,33 @@ def hubspot_search_contacts(
     return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
-    '''Search for HubSpot contacts
-    
-search_criteria: A dictionary where keys are the property names (e.g., "firstname", "email"). The search values have to match exactly.
-and values are the search values for those properties.
-created_after: Return contacts that were created after this datetime
-created_before: Return contacts that were created before this datetime
-'''
+    """Search for HubSpot contacts
+
+    search_criteria: A dictionary where keys are the property names (e.g., "firstname", "email"). The search values have to match exactly.
+    and values are the search values for those properties.
+    created_after: Return contacts that were created after this datetime
+    created_before: Return contacts that were created before this datetime
+    """
     filters = []
     for name, value in search_criteria.items():
-        filters.append(
-            {"propertyName": name, "operator": "EQ", "value": value}
-        )
+        filters.append({"propertyName": name, "operator": "EQ", "value": value})
     if created_after:
-        filters.append({"propertyName": "createdate", "operator": "GTE", "value": int(created_after.timestamp() * 1000)})
+        filters.append(
+            {
+                "propertyName": "createdate",
+                "operator": "GTE",
+                "value": int(created_after.timestamp() * 1000),
+            }
+        )
     if created_before:
-        filters.append({"propertyName": "createdate", "operator": "LTE", "value": int(created_before.timestamp() * 1000)})
-    
+        filters.append(
+            {
+                "propertyName": "createdate",
+                "operator": "LTE",
+                "value": int(created_before.timestamp() * 1000),
+            }
+        )
+
     return _search_contacts(filters, return_with_custom_properties, pagination_token)
 
 
@@ -975,6 +996,7 @@ class HubSpotCompany:
     archived: bool
 
 
+@purpose("List companies.")
 def hubspot_list_companies(
     limit: int = 100,
     pagination_token: Optional[HubSpotPaginationToken] = None,
@@ -1035,6 +1057,7 @@ def hubspot_list_companies(
     return companies, next_pagination_token
 
 
+@purpose("Create companies.")
 def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
     """
     Create multiple company in HubSpot using the batch API.
@@ -1074,6 +1097,7 @@ def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
     return [result["id"] for result in data["results"]]
 
 
+@purpose("Update companies.")
 def hubspot_update_companies(
     company_updates: Dict[
         str,
@@ -1084,51 +1108,51 @@ def hubspot_update_companies(
 ) -> List[str]:
     """Update multiple companies in HubSpot.
 
-company_updates is a dict mapping company id to a list of tuples with the property names to update, and their new values.
+    company_updates is a dict mapping company id to a list of tuples with the property names to update, and their new values.
 
-Returns:
-Company IDs that have been updated.
+    Returns:
+    Company IDs that have been updated.
 
-The property names to update MUST be one of the following:
+    The property names to update MUST be one of the following:
 
-Default Properties of Type String:
-name: The name of the company or organization.
-website: The main website of the company or organization. This property is used to identify unique companies.
-domain: The domain name of the company or organization.
-industry: The type of business the company performs.
-lifecyclestage: The qualification of companies to sales readiness throughout the buying journey.
-description: A short statement about the company's mission and goals.
-phone: Company primary phone number.
-address: Street address of the company or organization, including unit number.
-address2: Additional address of the company or organization.
-city: City where the company is located.
-state: State or region in which the company or organization is located.
-country: Country in which the company or organization is located.
-zip: Postal or zip code of the company or organization.
-hs_annual_revenue_currency_code: The currency code associated with the annual revenue amount.
-owneremail: HubSpot owner email for this company or organization.
-ownername: HubSpot owner name for this company or organization.
-linkedin_company_page: The URL of the LinkedIn company page for the company or organization.
-facebook_company_page: The URL of the Facebook company page for the company or organization.
+    Default Properties of Type String:
+    name: The name of the company or organization.
+    website: The main website of the company or organization. This property is used to identify unique companies.
+    domain: The domain name of the company or organization.
+    industry: The type of business the company performs.
+    lifecyclestage: The qualification of companies to sales readiness throughout the buying journey.
+    description: A short statement about the company's mission and goals.
+    phone: Company primary phone number.
+    address: Street address of the company or organization, including unit number.
+    address2: Additional address of the company or organization.
+    city: City where the company is located.
+    state: State or region in which the company or organization is located.
+    country: Country in which the company or organization is located.
+    zip: Postal or zip code of the company or organization.
+    hs_annual_revenue_currency_code: The currency code associated with the annual revenue amount.
+    owneremail: HubSpot owner email for this company or organization.
+    ownername: HubSpot owner name for this company or organization.
+    linkedin_company_page: The URL of the LinkedIn company page for the company or organization.
+    facebook_company_page: The URL of the Facebook company page for the company or organization.
 
-Default Properties of Type Datetime:
-hs_createdate: The date and time at which this object was created. This value is automatically set by HubSpot and may not be modified.
-first_contact_createdate: The date that the first contact from this company entered the system, which could pre-date the company's create date.
-recent_conversion_date: The most recent conversion date across all contacts associated this company or organization.
-hs_lastmodifieddate: Most recent timestamp of any property update for this company. This includes HubSpot internal properties.
+    Default Properties of Type Datetime:
+    hs_createdate: The date and time at which this object was created. This value is automatically set by HubSpot and may not be modified.
+    first_contact_createdate: The date that the first contact from this company entered the system, which could pre-date the company's create date.
+    recent_conversion_date: The most recent conversion date across all contacts associated this company or organization.
+    hs_lastmodifieddate: Most recent timestamp of any property update for this company. This includes HubSpot internal properties.
 
-Default Properties of Type Number:
-numberofemployees: The total number of employees who work for the company or organization.
-annualrevenue: The actual or estimated annual revenue of the company.
-hs_num_open_deals: The number of open deals associated with this company.
-total_revenue: The total amount of closed won deals.
-num_associated_contacts: The number of contacts associated with this company.
-num_associated_deals: The number of deals associated with this company.
+    Default Properties of Type Number:
+    numberofemployees: The total number of employees who work for the company or organization.
+    annualrevenue: The actual or estimated annual revenue of the company.
+    hs_num_open_deals: The number of open deals associated with this company.
+    total_revenue: The total amount of closed won deals.
+    num_associated_contacts: The number of contacts associated with this company.
+    num_associated_deals: The number of deals associated with this company.
 
-Default Properties of Type Boolean:
-hs_is_target_account: Identifies whether this company is being marketed and sold to as part of your account-based strategy.
-is_public: Indicates if the company is publicly traded.
-"""
+    Default Properties of Type Boolean:
+    hs_is_target_account: Identifies whether this company is being marketed and sold to as part of your account-based strategy.
+    is_public: Indicates if the company is publicly traded.
+    """
     url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
     payload = [
         {
@@ -1152,6 +1176,7 @@ is_public: Indicates if the company is publicly traded.
         return [result["id"] for result in data["results"]]
 
 
+@purpose("Search companies.")
 def hubspot_search_companies(
     search_criteria: Dict[str, str],
     return_with_custom_properties: Sequence[str] = (),
@@ -1442,6 +1467,7 @@ class HubSpotDeal:
     archived: bool
 
 
+@purpose("List deals.")
 def hubspot_list_deals(
     limit: int = 100,
     pagination_token: Optional[HubSpotPaginationToken] = None,
@@ -1511,6 +1537,7 @@ def hubspot_list_deals(
     return deals, next_pagination_token
 
 
+@purpose("Create deals.")
 def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
     """
     Create multiple deals in HubSpot using the batch API.
@@ -1551,6 +1578,7 @@ def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
     return [result["id"] for result in data["results"]]
 
 
+@purpose("Update deals.")
 def hubspot_update_deals(
     deal_updates: Dict[
         str,
@@ -1561,44 +1589,44 @@ def hubspot_update_deals(
 ) -> List[str]:
     """Update multiple Deals in HubSpot.
 
-deal_updates is a dict mapping deal id to a list of tuples with the property names to update, and their new values.
+    deal_updates is a dict mapping deal id to a list of tuples with the property names to update, and their new values.
 
-Returns:
-Deal IDs that have been updated.
+    Returns:
+    Deal IDs that have been updated.
 
-The property names to update MUST be one of the following:
+    The property names to update MUST be one of the following:
 
-Default Properties of Type Number:
-amount_in_home_currency: The deal amount in your company's currency, using the exchange rate.
-days_to_close: The number of days the deal took to close.
-hs_acv: The annual contract value of this deal.
-hs_arr: The annual recurring revenue of this deal.
-hs_deal_stage_probability: The probability a deal will close, based on the deal stage probability setting.
-hs_likelihood_to_close: HubSpot predicted likelihood of the deal to close by the close date.
-hs_mrr: The monthly recurring revenue of this deal.
-hs_object_id: The unique ID for this deal record.
-amount: The total amount of the deal.
-num_associated_contacts: The number of contacts associated with this deal.
+    Default Properties of Type Number:
+    amount_in_home_currency: The deal amount in your company's currency, using the exchange rate.
+    days_to_close: The number of days the deal took to close.
+    hs_acv: The annual contract value of this deal.
+    hs_arr: The annual recurring revenue of this deal.
+    hs_deal_stage_probability: The probability a deal will close, based on the deal stage probability setting.
+    hs_likelihood_to_close: HubSpot predicted likelihood of the deal to close by the close date.
+    hs_mrr: The monthly recurring revenue of this deal.
+    hs_object_id: The unique ID for this deal record.
+    amount: The total amount of the deal.
+    num_associated_contacts: The number of contacts associated with this deal.
 
-Default Properties of Type String:
-deal_currency_code: Currency code for the deal.
-dealname: The name given to this deal.
-dealstage: The stage of the deal, categorizing and tracking the progress.
-pipeline: The pipeline the deal is in, determining the stages available for the deal.
-description: Description of the deal.
-closed_lost_reason: Reason why this deal was lost.
-closed_won_reason: Reason why this deal was won.
+    Default Properties of Type String:
+    deal_currency_code: Currency code for the deal.
+    dealname: The name given to this deal.
+    dealstage: The stage of the deal, categorizing and tracking the progress.
+    pipeline: The pipeline the deal is in, determining the stages available for the deal.
+    description: Description of the deal.
+    closed_lost_reason: Reason why this deal was lost.
+    closed_won_reason: Reason why this deal was won.
 
-Default Properties of Type Datetime:
-closedate: Date the deal was closed, set automatically by HubSpot.
-createdate: Date the deal was created, set automatically by HubSpot.
-hs_closed_won_date: Returns the closedate if the deal is closed won.
-hs_lastmodifieddate: The most recent timestamp of any property update for this deal.
+    Default Properties of Type Datetime:
+    closedate: Date the deal was closed, set automatically by HubSpot.
+    createdate: Date the deal was created, set automatically by HubSpot.
+    hs_closed_won_date: Returns the closedate if the deal is closed won.
+    hs_lastmodifieddate: The most recent timestamp of any property update for this deal.
 
-Default Properties of Type Boolean:
-hs_is_closed: True if the deal was won or lost.
-hs_is_closed_won: True if the deal is in the closed-won state.
-"""
+    Default Properties of Type Boolean:
+    hs_is_closed: True if the deal was won or lost.
+    hs_is_closed_won: True if the deal is in the closed-won state.
+    """
     url = "https://api.hubapi.com/crm/v3/objects/deals/batch/update"
     payload = [
         {
@@ -1622,6 +1650,7 @@ hs_is_closed_won: True if the deal is in the closed-won state.
         return [result["id"] for result in data["results"]]
 
 
+@purpose("Search deals.")
 def hubspot_search_deals(
     search_criteria: Dict[str, str],
     return_with_custom_properties: Sequence[str] = (),
@@ -1776,6 +1805,7 @@ class HubSpotCustomObjectType:
     name: str
 
 
+@purpose("Fetch associated object IDs.")
 def hubspot_fetch_associated_object_ids(
     source_object_type: HubSpotObjectType,
     target_object_type: HubSpotObjectType,
@@ -1831,6 +1861,7 @@ class HubSpotAssociationType:
     ]
 
 
+@purpose("Create association between object IDs.")
 def hubspot_create_association_between_object_ids(
     association_type: HubSpotAssociationType,
     source_object_type: HubSpotObjectType,
@@ -1860,7 +1891,7 @@ def hubspot_create_association_between_object_ids(
                 },
                 "to": {
                     "id": target_object_id,
-                }
+                },
             }
         ]
     }
@@ -1884,19 +1915,15 @@ def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: str):
         response.raise_for_status()
 
 
-def hubspot_merge_contacts(
-    primary_contact_id: str, contact_to_merge_id: str
-):
-    ''' Merge contact_to_merge_id with primary_contact_id, retaining primary contact
-    '''
+@purpose("Merge contacts.")
+def hubspot_merge_contacts(primary_contact_id: str, contact_to_merge_id: str):
+    """Merge contact_to_merge_id with primary_contact_id, retaining primary contact"""
     url = "https://api.hubapi.com/crm/v3/objects/contacts/merge"
     _merge_objects(url, primary_contact_id, contact_to_merge_id)
 
 
-def hubspot_merge_companies(
-    primary_company_id: str, company_to_merge_id: str
-):
-    ''' Merge company_to_merge with primary_company, retaining primary company
-    '''
+@purpose("Merge companies.")
+def hubspot_merge_companies(primary_company_id: str, company_to_merge_id: str):
+    """Merge company_to_merge with primary_company, retaining primary company"""
     url = "https://api.hubapi.com/crm/v3/objects/companies/merge"
     _merge_objects(url, primary_company_id, company_to_merge_id)
