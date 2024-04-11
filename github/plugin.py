@@ -5,6 +5,7 @@ from typing import Literal, Optional
 import httpx
 
 from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.decorator import purpose
 
 
 @dataclass
@@ -23,6 +24,7 @@ class GitHubPullRequest:
     user_login: str
 
 
+@purpose("Get pull requests.")
 def github_pulls(
     owner: str,
     repo: str,
@@ -110,6 +112,7 @@ class GitHubIssue:
     labels: list[str]
 
 
+@purpose("Get issues.")
 def github_issues(
     owner: str,
     repo: str,
@@ -169,8 +172,12 @@ def github_issues(
             body=obj.get("body") or "",
             user_id=obj["user"]["id"],
             user_login=obj["user"]["login"],
-            assignee_id=obj["assignee"]["id"] if obj.get("assignee") is not None else None,
-            assignee_login=obj["assignee"]["login"] if obj.get("assignee") is not None else None,
+            assignee_id=obj["assignee"]["id"]
+            if obj.get("assignee") is not None
+            else None,
+            assignee_login=obj["assignee"]["login"]
+            if obj.get("assignee") is not None
+            else None,
             labels=[
                 label["name"] for label in obj.get("labels", [])
             ],  # Extracting label names
@@ -190,6 +197,7 @@ class GitHubComment:
     updated_at: datetime
 
 
+@purpose("Get comments.")
 def github_comments(
     owner: str,
     repo: str,
