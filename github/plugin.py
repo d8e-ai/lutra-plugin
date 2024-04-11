@@ -175,9 +175,9 @@ def github_issues(
             assignee_id=(
                 obj["assignee"]["id"] if obj.get("assignee") is not None else None
             ),
-            assignee_login=obj["assignee"]["login"]
-            if obj.get("assignee") is not None
-            else None,
+            assignee_login=(
+                obj["assignee"]["login"] if obj.get("assignee") is not None else None
+            ),
             labels=[
                 label["name"] for label in obj.get("labels", [])
             ],  # Extracting label names
