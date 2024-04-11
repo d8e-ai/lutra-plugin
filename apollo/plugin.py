@@ -155,7 +155,7 @@ def _parse_people_enrichment_data(enrichment_data: dict) -> ApolloPersonProfile:
     )
 
 
-@purpose("Get a person's profile.")
+@purpose("Get a person's enriched profile.")
 def apollo_people_enrichment(
     first_name: Optional[str] = None,
     last_name: Optional[str] = None,
