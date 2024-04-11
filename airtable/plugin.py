@@ -7,6 +7,7 @@ from urllib.parse import unquote, urlparse
 
 import httpx
 from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.decorator import purpose
 
 
 @dataclass
@@ -19,6 +20,7 @@ class AirtableTableID:
     """
     id can either be the table name or the table ID.
     """
+
     id: str
 
 
@@ -28,6 +30,7 @@ class AirtableViewID:
     You must pass view id to other functions if it was successfully
     extracted from the Airtable web UI URL.
     """
+
     id: str
 
 
@@ -36,9 +39,15 @@ class AirtableRecordID:
     id: str
 
 
+@purpose("Parse IDs from Airtable website URLs.")
 def airtable_parse_ids_from_url(
     url: str,
-) -> Tuple[AirtableBaseID, Optional[AirtableTableID], Optional[AirtableViewID], Optional[AirtableRecordID]]:
+) -> Tuple[
+    AirtableBaseID,
+    Optional[AirtableTableID],
+    Optional[AirtableViewID],
+    Optional[AirtableRecordID],
+]:
     """
     Parses Airtable IDs from an Airtable web UI URL.  The minimum required URL format is
     https://airtable.com/{base_id}, with {base_id} being mandatory.  The URL may
@@ -96,7 +105,7 @@ def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, 
         data = json.loads(text)
     except json.JSONDecodeError:
         return f"{prefix}{text}", include_schema
-    match (error := data.get("error")):
+    match error := data.get("error"):
         case str():
             return f"{prefix}{error}", include_schema
         case dict():
@@ -164,6 +173,7 @@ class AirtableRecord:
     fields: dict[str, Any]
 
 
+@purpose("List records.")
 def airtable_record_list(
     base_id: AirtableBaseID,
     table_id: AirtableTableID,
@@ -211,6 +221,7 @@ def airtable_record_list(
     ]
 
 
+@purpose("Create a record.")
 def airtable_record_create(
     base_id: AirtableBaseID,
     table_id: AirtableTableID,
@@ -247,6 +258,7 @@ def airtable_record_create(
     )
 
 
+@purpose("Update a record.")
 def airtable_record_update_patch(
     base_id: AirtableBaseID,
     table_id: AirtableTableID,
