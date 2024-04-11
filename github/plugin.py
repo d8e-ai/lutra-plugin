@@ -172,9 +172,9 @@ def github_issues(
             body=obj.get("body") or "",
             user_id=obj["user"]["id"],
             user_login=obj["user"]["login"],
-            assignee_id=obj["assignee"]["id"]
-            if obj.get("assignee") is not None
-            else None,
+            assignee_id=(
+                obj["assignee"]["id"] if obj.get("assignee") is not None else None
+            ),
             assignee_login=obj["assignee"]["login"]
             if obj.get("assignee") is not None
             else None,
