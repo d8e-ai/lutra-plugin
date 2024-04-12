@@ -6,6 +6,7 @@ from typing import Any, Optional, Tuple
 from urllib.parse import unquote, urlparse
 
 import httpx
+
 from lutraai.augmented_request_client import AugmentedTransport
 from lutraai.decorator import purpose
 
@@ -173,20 +174,32 @@ class AirtableRecord:
     fields: dict[str, Any]
 
 
+@dataclass
+class AirtablePaginationToken:
+    token: str
+
+
 @purpose("List records.")
 def airtable_record_list(
     base_id: AirtableBaseID,
     table_id: AirtableTableID,
     view_id: Optional[AirtableViewID] = None,
     include_fields: Optional[set[str]] = None,
-) -> list[AirtableRecord]:
+    pagination_token: Optional[AirtablePaginationToken] = None,
+) -> Tuple[list[AirtableRecord], Optional[AirtablePaginationToken]]:
     """
     Returns the results of an Airtable `list records` API call, allowing selection of
-    specific fields to include in the returned records. You must populate
-    include_fields with necessary fields to access data by name in returned records.
+    specific fields to include in the returned records and handling pagination.
+    You must populate include_fields with necessary fields to access data by name in returned records.
     Before accessing a field's value in the returned record, you MUST check for the existence of the field.
+
+    Returns:
+      - A list of AirtableRecord objects.
+      - A pagination token to be used in subsequent calls to retrieve additional records.
     """
-    post_body = {}
+    post_body: dict[str, Any] = {
+        "offset": pagination_token.token if pagination_token is not None else ""
+    }
     if include_fields is not None:
         post_body["fields"] = list(include_fields)
 
@@ -211,6 +224,9 @@ def airtable_record_list(
                 )
             )
         data = response.json()
+        next_offset = data.get("offset", None)
+        next_token = AirtablePaginationToken(token=next_offset) if next_offset else None
+
     return [
         AirtableRecord(
             record_id=AirtableRecordID(record["id"]),
@@ -218,7 +234,7 @@ def airtable_record_list(
             fields=record["fields"],
         )
         for record in data["records"]
-    ]
+    ], next_token
 
 
 @purpose("Create a record.")
