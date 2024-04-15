@@ -197,9 +197,10 @@ def airtable_record_list(
       - A list of AirtableRecord objects.
       - A pagination token to be used in subsequent calls to retrieve additional records.
     """
-    post_body: dict[str, Any] = {
-        "offset": pagination_token.token if pagination_token is not None else ""
-    }
+    post_body = {}
+    
+    if pagination_token is not None:
+        post_body["offset"] = pagination_token.token
     if include_fields is not None:
         post_body["fields"] = list(include_fields)
 
