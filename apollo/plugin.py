@@ -168,7 +168,10 @@ def apollo_people_enrichment(
     including details such as employment, social media urls, and other personal data.
     You can either use the combination of first and last name or a single name
     field to identify the person; it is not necessary to provide both.
+    You MUST provide either an email, domain, or an organization name.
     """
+    if not (email or organization_name or domain):
+        raise ValueError("You must provide either an email, organization name, or domain.")
     url = "https://api.apollo.io/v1/people/match"
     headers = {
         "Content-Type": "application/json",
