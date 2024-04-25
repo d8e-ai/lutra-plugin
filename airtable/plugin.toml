@@ -1,6 +1,7 @@
 name = "Airtable"
 description = "List and update records in Airtable."
 logo_url = "/assets/logos/airtable.svg"
+observable_source_types = ["airtable_view"]
 
 [[required_actions]]
 action_reference_type = "augmented_request"
