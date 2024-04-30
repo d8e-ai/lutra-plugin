@@ -175,6 +175,12 @@ class AirtableRecord:
 
 
 @dataclass
+class AirtableSortField:
+    field: str
+    direction: Optional[Literal["asc", "desc"]]
+
+
+@dataclass
 class AirtablePaginationToken:
     token: str
 
@@ -184,6 +190,8 @@ def airtable_record_list(
     base_id: AirtableBaseID,
     table_id: AirtableTableID,
     view_id: Optional[AirtableViewID] = None,
+    sort: Optional[list[AirtableSortField]] = None,
+    filter_by_formula: Optional[str] = None,
     include_fields: Optional[set[str]] = None,
     pagination_token: Optional[AirtablePaginationToken] = None,
 ) -> Tuple[list[AirtableRecord], Optional[AirtablePaginationToken]]:
@@ -192,6 +200,8 @@ def airtable_record_list(
     specific fields to include in the returned records and handling pagination.
     You must populate include_fields with necessary fields to access data by name in returned records.
     Before accessing a field's value in the returned record, you MUST check for the existence of the field.
+    Hint: To update all rows in a table, prefer repeating a call with a `filter_by_formula` that selects
+    non-updated rows over using `pagination_token`.
 
     Returns:
       - A list of AirtableRecord objects.
@@ -206,6 +216,17 @@ def airtable_record_list(
 
     if view_id is not None:
         post_body["view"] = view_id.id
+
+    if sort is not None:
+        post_body["sort"] = [
+            {
+                "field": sort_field.field,
+                "direction": sort_field.direction,
+            }
+            for sort_field in sort
+        ]
+    if filter_by_formula is not None:
+        post_body["filterByFormula"] = filter_by_formula
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
