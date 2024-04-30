@@ -200,8 +200,6 @@ def airtable_record_list(
     specific fields to include in the returned records and handling pagination.
     You must populate include_fields with necessary fields to access data by name in returned records.
     Before accessing a field's value in the returned record, you MUST check for the existence of the field.
-    Hint: To update all rows in a table, prefer repeating a call with a `filter_by_formula` that selects
-    non-updated rows over using `pagination_token`.
 
     Returns:
       - A list of AirtableRecord objects.
