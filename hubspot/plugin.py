@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
-from distutils import util
 from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any
+
+import pydantic
 
 import httpx
 from lutraai.augmented_request_client import AugmentedTransport
@@ -484,7 +485,7 @@ def hubspot_list_contacts(
             archived=item["archived"],
             first_name=properties["firstname"],
             last_name=properties["lastname"],
-            email=properties.get("email", ""),
+            email=properties.get("email") or "",
             hs_object_id=properties["hs_object_id"],
             last_modified_date=datetime.fromisoformat(properties["lastmodifieddate"]),
             additional_properties={},
@@ -529,7 +530,10 @@ def _coerce_properties_to_lutra(
             else:
                 raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
         elif name in boolean_property_names:
-            c_value = bool(util.strtobool(str(value)))
+            # HubSpot boolean properties seem to come as the strings "true" and "false," but we
+            # can't find a guarantee that they do, so use Pydantic parsing to accept many boolean
+            # representations just in case.
+            c_value = pydantic.parse_obj_as(bool, value)
         else:
             # Custom property, assume value is of right type.
             # TODO: Accept custom property schema and coerce accordingly.
@@ -562,7 +566,10 @@ def _coerce_properties_to_hubspot(
             else:
                 raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
         elif name in boolean_property_names:
-            coerced_properties[name] = bool(util.strtobool(str(value)))
+            # Because `value` comes from Lutra's codegen, we try to accept many representations of
+            # boolean, using Pydantic's tolerant logic. The HubSpot API seems to accept boolean
+            # values in the JSON request.
+            coerced_properties[name] = pydantic.parse_obj_as(bool, value)
         else:
             coerced_properties[name] = str(value)
 
