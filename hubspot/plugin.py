@@ -443,64 +443,6 @@ class HubSpotPaginationToken:
     token: str
 
 
-@purpose("List contacts.")
-def hubspot_list_contacts(
-    limit: int = 100, pagination_token: Optional[HubSpotPaginationToken] = None
-) -> Tuple[Sequence[HubSpotContact], Optional[HubSpotPaginationToken]]:
-    """
-    Fetch the list of contacts from HubSpot.
-
-    No additional properties are returned from this API. Use search_contacts to retrieve
-    specific contacts with additional properties.
-
-    Args:
-        limit: The maximum number of results to display per page. The maximum value for this is 100.
-        pagination_token: Cursor for pagination.
-
-    Returns:
-        A tuple of a list of HubSpotContact objects and the next 'pagination_token' cursor, if
-            available. If the next 'pagination_token' cursor is None, there is no more data to get.
-    """
-    url = "https://api.hubapi.com/crm/v3/objects/contacts"
-    params = {}
-    if limit:
-        params["limit"] = limit
-    if pagination_token:
-        params["after"] = pagination_token.token
-
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = client.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-
-    contacts = []
-    for item in data["results"]:
-        properties = item["properties"]
-        contact = HubSpotContact(
-            id=item["id"],
-            created_at=datetime.fromisoformat(item["createdAt"]),
-            updated_at=datetime.fromisoformat(item["updatedAt"]),
-            archived=item["archived"],
-            first_name=properties["firstname"],
-            last_name=properties["lastname"],
-            email=properties.get("email") or "",
-            hs_object_id=properties["hs_object_id"],
-            last_modified_date=datetime.fromisoformat(properties["lastmodifieddate"]),
-            additional_properties={},
-        )
-        contacts.append(contact)
-
-    next_pagination_token = (
-        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-        if "paging" in data and "next" in data["paging"]
-        else None
-    )
-
-    return contacts, next_pagination_token
-
-
 def _coerce_properties_to_lutra(
     properties: Dict[str, Union[str, int, float, datetime, bool]],
     string_property_names: List[str],
@@ -575,6 +517,67 @@ def _coerce_properties_to_hubspot(
 
     return coerced_properties
 
+@purpose("List contacts.")
+def hubspot_list_contacts(
+    limit: int = 100, pagination_token: Optional[HubSpotPaginationToken] = None
+) -> Tuple[Sequence[HubSpotContact], Optional[HubSpotPaginationToken]]:
+    """
+    Fetch the list of contacts from HubSpot.
+
+    Args:
+        limit: The maximum number of results to display per page. The maximum value for this is 100.
+        pagination_token: Cursor for pagination.
+
+    Returns:
+        A tuple of a list of HubSpotContact objects and the next 'pagination_token' cursor, if
+            available. If the next 'pagination_token' cursor is None, there is no more data to get.
+    """
+    url = "https://api.hubapi.com/crm/v3/objects/contacts"
+    params = {}
+    if limit:
+        params["limit"] = limit
+    if pagination_token:
+        params["after"] = pagination_token.token
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+    contacts = []
+    for item in data["results"]:
+        properties = item["properties"]
+        property_values = {key: val for key, val in properties.items() if val}
+        additional_properties = _coerce_properties_to_lutra(
+            property_values,
+            string_property_names=_CONTACT_PROPERTIES_STRING,
+            number_property_names=_CONTACT_PROPERTIES_NUMBER,
+            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
+            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+        )
+        contact = HubSpotContact(
+            id=item["id"],
+            created_at=datetime.fromisoformat(item["createdAt"]),
+            updated_at=datetime.fromisoformat(item["updatedAt"]),
+            archived=item["archived"],
+            first_name=properties["firstname"],
+            last_name=properties["lastname"],
+            email=properties.get("email") or "",
+            hs_object_id=properties["hs_object_id"],
+            last_modified_date=datetime.fromisoformat(properties["lastmodifieddate"]),
+            additional_properties=additional_properties,
+        )
+        contacts.append(contact)
+
+    next_pagination_token = (
+        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
+        if "paging" in data and "next" in data["paging"]
+        else None
+    )
+
+    return contacts, next_pagination_token
 
 @purpose("Create contacts.")
 def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
@@ -1041,18 +1044,26 @@ def hubspot_list_companies(
     companies = []
     for item in data["results"]:
         properties = item["properties"]
+        property_values = {key: val for key, val in properties.items() if val}
+        additional_properties = _coerce_properties_to_lutra(
+            property_values,
+            string_property_names=_COMPANY_PROPERTIES_STRING,
+            number_property_names=_COMPANY_PROPERTIES_NUMBER,
+            datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
+            boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
+        )
         company = HubSpotCompany(
             id=item["id"],
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
-            archived=item["archived"],
-            name=properties.get("name"),
-            domain=properties.get("domain"),
+            archived=item["archived"] or False,
+            name=properties.get("name") or "",
+            domain=properties.get("domain") or "",
             hs_object_id=properties.get("hs_object_id"),
             last_modified_date=datetime.fromisoformat(
                 properties["hs_lastmodifieddate"]
             ),
-            additional_properties={},
+            additional_properties=additional_properties,
         )
         companies.append(company)
     next_pagination_token = (
@@ -1515,6 +1526,14 @@ def hubspot_list_deals(
     deals = []
     for item in data["results"]:
         properties = item["properties"]
+        property_values = {key: val for key, val in properties.items() if val}
+        additional_properties = _coerce_properties_to_lutra(
+            property_values,
+            string_property_names=_DEAL_PROPERTIES_STRING,
+            number_property_names=_DEAL_PROPERTIES_NUMBER,
+            datetime_property_names=_DEAL_PROPERTIES_DATETIME,
+            boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
+        )
         deal = HubSpotDeal(
             id=item["id"],
             created_at=datetime.fromisoformat(item["createdAt"]),
@@ -1532,7 +1551,7 @@ def hubspot_list_deals(
             last_modified_date=datetime.fromisoformat(
                 properties["hs_lastmodifieddate"]
             ),
-            additional_properties={},
+            additional_properties=additional_properties,
         )
         deals.append(deal)
     next_pagination_token = (
