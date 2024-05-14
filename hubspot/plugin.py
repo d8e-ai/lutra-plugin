@@ -427,8 +427,8 @@ class HubSpotContact:
     """
 
     id: str
-    first_name: str
-    last_name: str
+    firstname: str
+    lastname: str
     email: str
     hs_object_id: str
     last_modified_date: datetime
@@ -549,7 +549,7 @@ def hubspot_list_contacts(
     contacts = []
     for item in data["results"]:
         properties = item["properties"]
-        property_values = {key: val for key, val in properties.items() if val}
+        property_values = {key: val for key, val in properties.items() if val is not None}
         additional_properties = _coerce_properties_to_lutra(
             property_values,
             string_property_names=_CONTACT_PROPERTIES_STRING,
@@ -562,8 +562,8 @@ def hubspot_list_contacts(
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
-            first_name=properties["firstname"],
-            last_name=properties["lastname"],
+            firstname=properties["firstname"],
+            lastname=properties["lastname"],
             email=properties.get("email") or "",
             hs_object_id=properties["hs_object_id"],
             last_modified_date=datetime.fromisoformat(properties["lastmodifieddate"]),
@@ -596,8 +596,8 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
     contacts_payload = []
     for contact in contacts:
         properties = {
-            "firstname": contact.first_name,
-            "lastname": contact.last_name,
+            "firstname": contact.firstname,
+            "lastname": contact.lastname,
             "email": contact.email,
         }
         additional_properties = _coerce_properties_to_hubspot(
@@ -762,8 +762,8 @@ def _search_contacts(
                     item.get("updatedAt", "1970-01-01T00:00:00Z")
                 ),
                 archived=item.get("archived", False),
-                first_name=property_values.get("firstname", ""),
-                last_name=property_values.get("lastname", ""),
+                firstname=property_values.get("firstname", ""),
+                lastname=property_values.get("lastname", ""),
                 email=property_values.get("email", ""),
                 hs_object_id=item["id"],
                 last_modified_date=datetime.fromisoformat(
@@ -1044,7 +1044,7 @@ def hubspot_list_companies(
     companies = []
     for item in data["results"]:
         properties = item["properties"]
-        property_values = {key: val for key, val in properties.items() if val}
+        property_values = {key: val for key, val in properties.items() if val is not None}
         additional_properties = _coerce_properties_to_lutra(
             property_values,
             string_property_names=_COMPANY_PROPERTIES_STRING,
@@ -1526,7 +1526,7 @@ def hubspot_list_deals(
     deals = []
     for item in data["results"]:
         properties = item["properties"]
-        property_values = {key: val for key, val in properties.items() if val}
+        property_values = {key: val for key, val in properties.items() if val is not None}
         additional_properties = _coerce_properties_to_lutra(
             property_values,
             string_property_names=_DEAL_PROPERTIES_STRING,
