@@ -426,7 +426,6 @@ class HubSpotContact:
     You MUST specify all the fields when constructing this object.
     """
 
-    id: str
     firstname: str
     lastname: str
     email: str
@@ -558,7 +557,6 @@ def hubspot_list_contacts(
             boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
         )
         contact = HubSpotContact(
-            id=item["id"],
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
@@ -754,7 +752,6 @@ def _search_contacts(
                 boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
             )
             contact = HubSpotContact(
-                id=item["id"],
                 created_at=datetime.fromisoformat(
                     item.get("createdAt", "1970-01-01T00:00:00Z")
                 ),
@@ -995,7 +992,6 @@ class HubSpotCompany:
     You MUST specify all the fields when constructing this object.
     """
 
-    id: str
     name: str
     domain: Optional[str]
     hs_object_id: str
@@ -1053,7 +1049,6 @@ def hubspot_list_companies(
             boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
         )
         company = HubSpotCompany(
-            id=item["id"],
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"] or False,
@@ -1266,7 +1261,6 @@ def hubspot_search_companies(
         )
 
         company = HubSpotCompany(
-            id=item["id"],
             created_at=datetime.fromisoformat(
                 item.get("createdAt", "1970-01-01T00:00:00Z")
             ),
@@ -1472,7 +1466,6 @@ class HubSpotDeal:
     available in the HubSpot deal system that callers can ask for.
     """
 
-    id: str
     dealname: str
     dealstage: str
     closedate: Optional[datetime]
@@ -1535,7 +1528,6 @@ def hubspot_list_deals(
             boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
         )
         deal = HubSpotDeal(
-            id=item["id"],
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
             archived=item["archived"],
@@ -1747,7 +1739,6 @@ def hubspot_search_deals(
         )
 
         deal = HubSpotDeal(
-            id=item["id"],
             created_at=datetime.fromisoformat(
                 item.get("createdAt", "1970-01-01T00:00:00Z")
             ),
