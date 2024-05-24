@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any
+from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any, Mapping
 
 import pydantic
 
@@ -628,7 +628,7 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
 
 @purpose("Update contacts.")
 def hubspot_update_contacts(
-    contact_updates: Dict[
+    contact_updates: Mapping[
         str,
         Sequence[
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
@@ -783,7 +783,7 @@ def _search_contacts(
 
 @purpose("Search contacts.")
 def hubspot_search_contacts(
-    search_criteria: Dict[str, str],
+    search_criteria: Mapping[str, str],
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
     return_with_custom_properties: Sequence[str] = (),
@@ -1117,7 +1117,7 @@ def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
 
 @purpose("Update companies.")
 def hubspot_update_companies(
-    company_updates: Dict[
+    company_updates: Mapping[
         str,
         Sequence[
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
@@ -1196,7 +1196,7 @@ def hubspot_update_companies(
 
 @purpose("Search companies.")
 def hubspot_search_companies(
-    search_criteria: Dict[str, str],
+    search_criteria: Mapping[str, str],
     return_with_custom_properties: Sequence[str] = (),
 ) -> List[HubSpotCompany]:
     """
@@ -1606,7 +1606,7 @@ def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
 
 @purpose("Update deals.")
 def hubspot_update_deals(
-    deal_updates: Dict[
+    deal_updates: Mapping[
         str,
         Sequence[
             Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
@@ -1678,7 +1678,7 @@ def hubspot_update_deals(
 
 @purpose("Search deals.")
 def hubspot_search_deals(
-    search_criteria: Dict[str, str],
+    search_criteria: Mapping[str, str],
     return_with_custom_properties: Sequence[str] = (),
 ) -> List[HubSpotDeal]:
     """
