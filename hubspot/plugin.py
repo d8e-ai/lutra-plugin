@@ -841,7 +841,9 @@ def hubspot_search_contacts(
     if not filter_groups:
         return _list_contacts(return_with_custom_properties, pagination_token)
 
-    return _search_contacts(filter_groups, return_with_custom_properties, pagination_token)
+    return _search_contacts(
+        filter_groups, return_with_custom_properties, pagination_token
+    )
 
 
 _COMPANY_PROPERTIES_STRING = [
