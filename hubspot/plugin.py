@@ -714,11 +714,11 @@ def hubspot_update_contacts(
 
 
 def _search_contacts(
-    filters: List[Dict[str, str]],
+    filter_groups: List[List[Dict[str, str]]],
     return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
-    if not filters:
+    if not filter_groups:
         # The API will fail with an empty list
         return []
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
@@ -730,7 +730,7 @@ def _search_contacts(
         + _CONTACT_PROPERTIES_NUMBER
     )
     payload = {
-        "filterGroups": [{"filters": filters}],
+        "filterGroups": filter_groups,
         "properties": properties_to_fetch,
         "limit": 100,
     }
@@ -789,7 +789,7 @@ class HubSpotSearchCondition:
         "GT",
         "GTE",
     ]
-    value: Union[str, int, float, datetime, bool, HubSpotPropertyValue]
+    value: HubSpotPropertyValue
 
 
 @dataclass
@@ -817,7 +817,7 @@ def hubspot_search_contacts(
                 {
                     "propertyName": and_condition.property_name,
                     "operator": and_condition.operator,
-                    "value": and_condition.value,
+                    "value": and_condition.value.value,
                 }
             )
         if created_after:
@@ -841,7 +841,7 @@ def hubspot_search_contacts(
     if not filter_groups:
         return _list_contacts(return_with_custom_properties, pagination_token)
 
-    return _search_contacts(filters, return_with_custom_properties, pagination_token)
+    return _search_contacts(filter_groups, return_with_custom_properties, pagination_token)
 
 
 _COMPANY_PROPERTIES_STRING = [
@@ -1226,7 +1226,7 @@ def hubspot_search_companies(
                 {
                     "propertyName": and_condition.property_name,
                     "operator": and_condition.operator,
-                    "value": and_condition.value,
+                    "value": and_condition.value.value,
                 }
             )
         filter_groups.append({"filters": filters})
@@ -1243,7 +1243,7 @@ def hubspot_search_companies(
     url = "https://api.hubapi.com/crm/v3/objects/companies/search"
 
     payload = {
-        "filterGroups": [{"filters": filters}],
+        "filterGroups": filter_groups,
         "properties": properties_to_fetch,
     }
     companies = []
@@ -1686,7 +1686,7 @@ def hubspot_search_deals(
                 {
                     "propertyName": and_condition.property_name,
                     "operator": and_condition.operator,
-                    "value": and_condition.value,
+                    "value": and_condition.value.value,
                 }
             )
         filter_groups.append({"filters": filters})
