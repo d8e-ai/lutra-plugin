@@ -457,6 +457,10 @@ def _coerce_properties_to_lutra(
             if isinstance(value, str):
                 if "." in value:
                     c_value = float(value)
+                elif (
+                    value == ""
+                ):  # The value is an empty string when the number is not set. Default to 0.
+                    c_value = 0
                 else:
                     c_value = int(value)
             elif isinstance(value, int | float):
@@ -467,7 +471,10 @@ def _coerce_properties_to_lutra(
             if isinstance(value, datetime):
                 c_value = value
             elif isinstance(value, str):
-                c_value = datetime.fromisoformat(value)
+                if value != "":  # The value is an empty string when the date is not set
+                    c_value = datetime.fromisoformat(value)
+                else:
+                    c_value = None
             else:
                 raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
         elif name in boolean_property_names:
@@ -480,7 +487,8 @@ def _coerce_properties_to_lutra(
             # TODO: Accept custom property schema and coerce accordingly.
             c_value = value
 
-        coerced_properties[name] = HubSpotPropertyValue(value=c_value)
+        if c_value is not None:
+            coerced_properties[name] = HubSpotPropertyValue(value=c_value)
 
     return coerced_properties
 
@@ -516,23 +524,24 @@ def _coerce_properties_to_hubspot(
 
     return coerced_properties
 
+
 def _list_contacts(
     return_with_custom_properties: Sequence[str] = (),
-    pagination_token: Optional[HubSpotPaginationToken] = None
+    pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotContact], Optional[HubSpotPaginationToken]]:
-    
+
     url = "https://api.hubapi.com/crm/v3/objects/contacts"
     params = {"limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
-    all_properties = (
+    properties_to_fetch = (
         list(return_with_custom_properties)
         + _CONTACT_PROPERTIES_STRING
         + _CONTACT_PROPERTIES_DATETIME
         + _CONTACT_PROPERTIES_BOOLEAN
         + _CONTACT_PROPERTIES_NUMBER
     )
-    params["properties"] = all_properties
+    params["properties"] = properties_to_fetch
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
@@ -543,7 +552,9 @@ def _list_contacts(
     contacts = []
     for item in data["results"]:
         properties = item["properties"]
-        property_values = {key: val for key, val in properties.items() if val is not None}
+        property_values = {
+            key: val for key, val in properties.items() if val is not None
+        }
         additional_properties = _coerce_properties_to_lutra(
             property_values,
             string_property_names=_CONTACT_PROPERTIES_STRING,
@@ -571,6 +582,7 @@ def _list_contacts(
     )
 
     return contacts, next_pagination_token
+
 
 @purpose("Create contacts.")
 def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
@@ -713,8 +725,7 @@ def _search_contacts(
         # The API will fail with an empty list
         return []
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
-    required_contact_properties = ["firstname", "lastname", "email", "lastmodifieddate"]
-    all_properties = (
+    properties_to_fetch = (
         list(return_with_custom_properties)
         + _CONTACT_PROPERTIES_STRING
         + _CONTACT_PROPERTIES_DATETIME
@@ -723,7 +734,7 @@ def _search_contacts(
     )
     payload = {
         "filterGroups": [{"filters": filters}],
-        "properties": all_properties + required_contact_properties,
+        "properties": properties_to_fetch,
         "limit": 100,
     }
     if pagination_token:
@@ -789,7 +800,7 @@ def hubspot_search_contacts(
     created_before: Return contacts that were created before this datetime
     """
     filters = []
-    
+
     for name, value in search_criteria.items():
         filters.append({"propertyName": name, "operator": "EQ", "value": value})
     if created_after:
@@ -811,7 +822,7 @@ def hubspot_search_contacts(
 
     if not filters:
         return _list_contacts(return_with_custom_properties, pagination_token)
-        
+
     return _search_contacts(filters, return_with_custom_properties, pagination_token)
 
 
@@ -1001,34 +1012,22 @@ class HubSpotCompany:
     archived: bool
 
 
-@purpose("List companies.")
-def hubspot_list_companies(
-    limit: int = 100,
+def _list_companies(
+    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotCompany], Optional[HubSpotPaginationToken]]:
-    """
-    Fetch the list of companies from HubSpot.
-
-    Args:
-        limit: The maximum number of results to display per page.
-        return_with_additional_properties: A sequence of property names to fetch from found
-            companies. If present, the corresponding values will be provided in the
-            HubSpotCompanyProperties field.
-        pagination_token: Cursor for pagination.
-
-    Returns:
-        A tuple of a list of HubSpotCompany objects and the next 'pagination_token' cursor, if
-            available. If the next 'pagination_token' cursor is None, there is no more data to get.
-    """
     url = "https://api.hubapi.com/crm/v3/objects/companies"
-    properties = ["name", "domain", "hs_object_id", "hs_lastmodifieddate"]
-    params = {}
-    if limit:
-        params["limit"] = limit
+    params = {"limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
-    params["properties"] = properties
-
+    properties_to_fetch = (
+        list(return_with_custom_properties)
+        + _COMPANY_PROPERTIES_STRING
+        + _COMPANY_PROPERTIES_DATETIME
+        + _COMPANY_PROPERTIES_BOOLEAN
+        + _COMPANY_PROPERTIES_NUMBER
+    )
+    params["properties"] = properties_to_fetch
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
@@ -1039,7 +1038,9 @@ def hubspot_list_companies(
     companies = []
     for item in data["results"]:
         properties = item["properties"]
-        property_values = {key: val for key, val in properties.items() if val is not None}
+        property_values = {
+            key: val for key, val in properties.items() if val is not None
+        }
         additional_properties = _coerce_properties_to_lutra(
             property_values,
             string_property_names=_COMPANY_PROPERTIES_STRING,
@@ -1060,7 +1061,7 @@ def hubspot_list_companies(
             additional_properties=additional_properties,
         )
         companies.append(company)
-    
+
     next_pagination_token = (
         HubSpotPaginationToken(token=data["paging"]["next"]["after"])
         if "paging" in data and "next" in data["paging"]
@@ -1193,32 +1194,16 @@ def hubspot_update_companies(
 def hubspot_search_companies(
     search_criteria: Mapping[str, str],
     return_with_custom_properties: Sequence[str] = (),
-) -> List[HubSpotCompany]:
+    pagination_token: Optional[HubSpotPaginationToken] = None,
+) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
     """
-    Search for companies in HubSpot CRM based on various criteria.
+    Search for companies in HubSpot CRM.
 
-    Default properties will always be fetched. However, properties with no values will not be in additional_properties
-    dict. You MUST check whether the property exists in additional_properties before using it.
-
-    Args:
-        search_criteria: A dictionary where keys are the property names (e.g.,
-          "name", "domain") and values are the search values for those properties.
-        return_with_custom_properties: A sequence of custom property names to fetch from found
-            contacts. These will be included in additional_properties if they exist.
-
-    Returns:
-        Sequence[HubSpotCompany]: A list of HubSpotCompany objects matching the search
-            criteria.
+    search_criteria: A dictionary where keys are the property names (e.g.,
+        "name", "domain") and values are the search values for those properties.
+    return_with_custom_properties: A sequence of custom property names to fetch from found
+        contacts. These will be included in additional_properties if they exist.
     """
-    return_with_custom_properties = list(return_with_custom_properties)
-    return_with_custom_properties += (
-        _COMPANY_PROPERTIES_DATETIME
-        + _COMPANY_PROPERTIES_BOOLEAN
-        + _COMPANY_PROPERTIES_NUMBER
-        + _COMPANY_PROPERTIES_STRING
-    )
-    url = "https://api.hubapi.com/crm/v3/objects/companies/search"
-
     # Construct the filters based on the search criteria
     filters = []
     for property_name, value in search_criteria.items():
@@ -1226,17 +1211,21 @@ def hubspot_search_companies(
             {"propertyName": property_name, "operator": "EQ", "value": value}
         )
     if not filters:
-        # We do this because if the search criteria values are just empty strings,
-        # the call to the search API will fail with a 400 error.
-        return []
+        return _list_companies(return_with_custom_properties, pagination_token)
 
-    properties = [
-        "name",
-        "domain",
-    ]
-    properties.extend(return_with_custom_properties)
-    payload = {"filterGroups": [{"filters": filters}], "properties": properties}
+    properties_to_fetch = (
+        list(return_with_custom_properties)
+        + _COMPANY_PROPERTIES_DATETIME
+        + _COMPANY_PROPERTIES_BOOLEAN
+        + _COMPANY_PROPERTIES_NUMBER
+        + _COMPANY_PROPERTIES_STRING
+    )
+    url = "https://api.hubapi.com/crm/v3/objects/companies/search"
 
+    payload = {
+        "filterGroups": [{"filters": filters}],
+        "properties": properties_to_fetch,
+    }
     companies = []
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
@@ -1247,11 +1236,6 @@ def hubspot_search_companies(
 
     for item in data.get("results", []):
         property_values = item.get("properties", {})
-        additional_property_values = {}
-        for property in return_with_custom_properties:
-            val = property_values.get(property, None)
-            if val:
-                additional_property_values[property] = val
         additional_property_values = _coerce_properties_to_lutra(
             additional_property_values,
             string_property_names=_COMPANY_PROPERTIES_STRING,
@@ -1278,7 +1262,12 @@ def hubspot_search_companies(
         )
         companies.append(company)
 
-    return companies
+    next_pagination_token = (
+        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
+        if "paging" in data and "next" in data["paging"]
+        else None
+    )
+    return companies, next_pagination_token
 
 
 _DEAL_PROPERTIES_STRING = [
@@ -1478,34 +1467,19 @@ class HubSpotDeal:
     archived: bool
 
 
-@purpose("List deals.")
-def hubspot_list_deals(
-    limit: int = 100,
+def _list_deals(
+    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
-) -> Tuple[Sequence[HubSpotDeal], Optional[str]]:
-    """
-    Fetch the list of deals from HubSpot.
-
-    Args:
-        limit: The maximum number of results to display per page.
-        pagination_token: Cursor for pagination.
-
-    Returns:
-        A tuple of a list of HubSpotDeal objects and the next 'pagination_token' cursor, if
-        available. If the next 'pagination_token' cursor is None, there is no more data to get.
-    """
+) -> Tuple[Sequence[HubSpotDeal], Optional[HubSpotPaginationToken]]:
     url = "https://api.hubapi.com/crm/v3/objects/deals"
-    properties = [
-        "dealname",
-        "dealstage",
-        "closedate",
-        "amount",
-        "hs_object_id",
-        "hs_lastmodifieddate",
-    ]
-    params = {"properties": properties}
-    if limit:
-        params["limit"] = limit
+    properties_to_fetch = (
+        list(return_with_custom_properties)
+        + _DEAL_PROPERTIES_DATETIME
+        + _DEAL_PROPERTIES_BOOLEAN
+        + _DEAL_PROPERTIES_NUMBER
+        + _DEAL_PROPERTIES_STRING
+    )
+    params = {"properties": properties_to_fetch, "limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
 
@@ -1519,7 +1493,9 @@ def hubspot_list_deals(
     deals = []
     for item in data["results"]:
         properties = item["properties"]
-        property_values = {key: val for key, val in properties.items() if val is not None}
+        property_values = {
+            key: val for key, val in properties.items() if val is not None
+        }
         additional_properties = _coerce_properties_to_lutra(
             property_values,
             string_property_names=_DEAL_PROPERTIES_STRING,
@@ -1671,7 +1647,8 @@ def hubspot_update_deals(
 def hubspot_search_deals(
     search_criteria: Mapping[str, str],
     return_with_custom_properties: Sequence[str] = (),
-) -> List[HubSpotDeal]:
+    pagination_token: Optional[HubSpotPaginationToken] = None,
+) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
     """
     Search for HubSpot deals based on various criteria.
 
@@ -1684,20 +1661,7 @@ def hubspot_search_deals(
         return_with_custom_properties: A sequence of custom property names to fetch from found
             deals. These will be included in additional_properties if they exist.
 
-    Returns:
-        Sequence[HubSpotDeal]: A list of HubSpotDeal objects matching the search
-            criteria.
     """
-
-    return_with_custom_properties = list(return_with_custom_properties)
-    return_with_custom_properties += (
-        _DEAL_PROPERTIES_DATETIME
-        + _DEAL_PROPERTIES_BOOLEAN
-        + _DEAL_PROPERTIES_NUMBER
-        + _DEAL_PROPERTIES_STRING
-    )
-    url = "https://api.hubapi.com/crm/v3/objects/deals/search"
-
     # Construct the filters based on the search criteria
     filters = []
     for property_name, value in search_criteria.items():
@@ -1705,13 +1669,21 @@ def hubspot_search_deals(
             {"propertyName": property_name, "operator": "EQ", "value": value}
         )
     if not filters:
-        # We do this because if the search criteria values are just empty strings,
-        # the call to the search API will fail with a 400 error.
-        return []
+        return _list_deals(return_with_custom_properties, pagination_token)
 
-    properties = ["dealname", "dealstage", "closedate", "amount", "lastmodifieddate"]
-    properties.extend(return_with_custom_properties)
-    payload = {"filterGroups": [{"filters": filters}], "properties": properties}
+    properties_to_fetch = (
+        list(return_with_custom_properties)
+        + _DEAL_PROPERTIES_DATETIME
+        + _DEAL_PROPERTIES_BOOLEAN
+        + _DEAL_PROPERTIES_NUMBER
+        + _DEAL_PROPERTIES_STRING
+    )
+    url = "https://api.hubapi.com/crm/v3/objects/deals/search"
+
+    payload = {
+        "filterGroups": [{"filters": filters}],
+        "properties": properties_to_fetch,
+    }
 
     deals = []
     with httpx.Client(
@@ -1722,15 +1694,12 @@ def hubspot_search_deals(
         data = response.json()
 
     for item in data.get("results", []):
-        property_values = item.get("properties", {})
-        additional_property_values = {}
-        for property in return_with_custom_properties:
-            val = property_values.get(property, None)
-            if val:
-                additional_property_values[property] = val
-
+        properties = item.get("properties", {})
+        property_values = {
+            key: val for key, val in properties.items() if val is not None
+        }
         additional_property_values = _coerce_properties_to_lutra(
-            additional_property_values,
+            property_values,
             string_property_names=_DEAL_PROPERTIES_STRING,
             number_property_names=_DEAL_PROPERTIES_NUMBER,
             datetime_property_names=_DEAL_PROPERTIES_DATETIME,
@@ -1763,7 +1732,13 @@ def hubspot_search_deals(
         )
         deals.append(deal)
 
-    return deals
+    next_pagination_token = (
+        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
+        if "paging" in data and "next" in data["paging"]
+        else None
+    )
+
+    return deals, next_pagination_token
 
 
 _HUBSPOT_OBJECT_TYPE_IDS = dict(
@@ -1944,8 +1919,11 @@ def hubspot_merge_companies(primary_company_id: str, company_to_merge_id: str):
     url = "https://api.hubapi.com/crm/v3/objects/companies/merge"
     _merge_objects(url, primary_company_id, company_to_merge_id)
 
+
 @purpose("Fetch HubSpot List.")
-def hubspot_fetch_list(listname: str, list_object_type: HubSpotObjectType) -> Tuple[List[str], Optional[HubSpotPaginationToken]]:
+def hubspot_fetch_list(
+    listname: str, list_object_type: HubSpotObjectType
+) -> Tuple[List[str], Optional[HubSpotPaginationToken]]:
     """Returns object_ids associated with the HubSpot List object."""
     object_type_id = _HUBSPOT_OBJECT_TYPE_IDS[list_object_type.name]
     url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{listname}"
@@ -1959,7 +1937,9 @@ def hubspot_fetch_list(listname: str, list_object_type: HubSpotObjectType) -> Tu
         response_data = response.json()
         if list_data := response_data.get("list"):
             list_id = list_data["listId"]
-            list_response = client.get(f"https://api.hubapi.com/crm/v3/lists/{list_id}/memberships")
+            list_response = client.get(
+                f"https://api.hubapi.com/crm/v3/lists/{list_id}/memberships"
+            )
             list_response.raise_for_status()
             data = list_response.json()
             next_pagination_token = (
