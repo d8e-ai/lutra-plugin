@@ -806,9 +806,6 @@ def hubspot_search_contacts(
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
     """Search for HubSpot contacts
-
-    search_criteria: A dictionary where keys are the property names (e.g., "firstname", "email"). The search values have to match exactly.
-    and values are the search values for those properties.
     created_after: Return contacts that were created after this datetime
     created_before: Return contacts that were created before this datetime
     """
@@ -1217,8 +1214,6 @@ def hubspot_search_companies(
     """
     Search for companies in HubSpot CRM.
 
-    search_criteria: A dictionary where keys are the property names (e.g.,
-        "name", "domain") and values are the search values for those properties.
     return_with_custom_properties: A sequence of custom property names to fetch from found
         contacts. These will be included in additional_properties if they exist.
     """
@@ -1679,8 +1674,6 @@ def hubspot_search_deals(
     dict. You MUST check whether the property exists in additional_properties before using it.
 
     Args:
-        search_criteria: A dictionary where keys are the property names (e.g.,
-          "dealname", "amount") and values are the search values for those properties.
         return_with_custom_properties: A sequence of custom property names to fetch from found
             deals. These will be included in additional_properties if they exist.
 
