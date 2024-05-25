@@ -1235,9 +1235,12 @@ def hubspot_search_companies(
         data = response.json()
 
     for item in data.get("results", []):
-        property_values = item.get("properties", {})
+        properties = item["properties"]
+        property_values = {
+            key: val for key, val in properties.items() if val is not None
+        }
         additional_property_values = _coerce_properties_to_lutra(
-            additional_property_values,
+            property_values,
             string_property_names=_COMPANY_PROPERTIES_STRING,
             number_property_names=_COMPANY_PROPERTIES_NUMBER,
             datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
