@@ -471,10 +471,10 @@ def _coerce_properties_to_lutra(
             if isinstance(value, datetime):
                 c_value = value
             elif isinstance(value, str):
-                if value != "":  # The value is an empty string when the date is not set
-                    c_value = datetime.fromisoformat(value)
-                else:
+                if value == "":  # The value is an empty string when the date is not set
                     c_value = None
+                else:
+                    c_value = datetime.fromisoformat(value)
             else:
                 raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
         elif name in boolean_property_names:
@@ -575,11 +575,8 @@ def _list_contacts(
         )
         contacts.append(contact)
 
-    next_pagination_token = (
-        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-        if "paging" in data and "next" in data["paging"]
-        else None
-    )
+    token = data.get("paging", {}).get("next", {}).get("after")
+    next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
     return contacts, next_pagination_token
 
@@ -776,17 +773,33 @@ def _search_contacts(
             )
             contacts.append(contact)
 
-        next_pagination_token = (
-            HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-            if "paging" in data and "next" in data["paging"]
-            else None
-        )
+        token = data.get("paging", {}).get("next", {}).get("after")
+        next_pagination_token = HubSpotPaginationToken(token=token) if token else None
         return contacts, next_pagination_token
+
+
+@dataclass
+class HubSpotSearchCondition:
+    property_name: str
+    operator: Literal[
+        "EQ",
+        "NEQ",
+        "LT",
+        "LTE",
+        "GT",
+        "GTE",
+    ]
+    value: Union[str, int, float, datetime, bool, HubSpotPropertyValue]
+
+
+@dataclass
+class HubSpotAndFilterGroup:
+    and_conditions: List[HubSpotSearchCondition]
 
 
 @purpose("Search contacts.")
 def hubspot_search_contacts(
-    search_criteria: Mapping[str, str],
+    or_filter_groups: List[HubSpotAndFilterGroup],
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
     return_with_custom_properties: Sequence[str] = (),
@@ -799,28 +812,36 @@ def hubspot_search_contacts(
     created_after: Return contacts that were created after this datetime
     created_before: Return contacts that were created before this datetime
     """
-    filters = []
+    filter_groups = []
+    for or_filter_group in or_filter_groups:
+        filters = []
+        for and_condition in or_filter_group.and_conditions:
+            filters.append(
+                {
+                    "propertyName": and_condition.property_name,
+                    "operator": and_condition.operator,
+                    "value": and_condition.value,
+                }
+            )
+        if created_after:
+            filters.append(
+                {
+                    "propertyName": "createdate",
+                    "operator": "GTE",
+                    "value": int(created_after.timestamp() * 1000),
+                }
+            )
+        if created_before:
+            filters.append(
+                {
+                    "propertyName": "createdate",
+                    "operator": "LTE",
+                    "value": int(created_before.timestamp() * 1000),
+                }
+            )
+        filter_groups.append({"filters": filters})
 
-    for name, value in search_criteria.items():
-        filters.append({"propertyName": name, "operator": "EQ", "value": value})
-    if created_after:
-        filters.append(
-            {
-                "propertyName": "createdate",
-                "operator": "GTE",
-                "value": int(created_after.timestamp() * 1000),
-            }
-        )
-    if created_before:
-        filters.append(
-            {
-                "propertyName": "createdate",
-                "operator": "LTE",
-                "value": int(created_before.timestamp() * 1000),
-            }
-        )
-
-    if not filters:
+    if not filter_groups:
         return _list_contacts(return_with_custom_properties, pagination_token)
 
     return _search_contacts(filters, return_with_custom_properties, pagination_token)
@@ -1062,11 +1083,8 @@ def _list_companies(
         )
         companies.append(company)
 
-    next_pagination_token = (
-        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-        if "paging" in data and "next" in data["paging"]
-        else None
-    )
+    token = data.get("paging", {}).get("next", {}).get("after")
+    next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
     return companies, next_pagination_token
 
@@ -1192,7 +1210,7 @@ def hubspot_update_companies(
 
 @purpose("Search companies.")
 def hubspot_search_companies(
-    search_criteria: Mapping[str, str],
+    or_filter_groups: List[HubSpotAndFilterGroup],
     return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
@@ -1205,12 +1223,19 @@ def hubspot_search_companies(
         contacts. These will be included in additional_properties if they exist.
     """
     # Construct the filters based on the search criteria
-    filters = []
-    for property_name, value in search_criteria.items():
-        filters.append(
-            {"propertyName": property_name, "operator": "EQ", "value": value}
-        )
-    if not filters:
+    filter_groups = []
+    for or_filter_group in or_filter_groups:
+        filters = []
+        for and_condition in or_filter_group.and_conditions:
+            filters.append(
+                {
+                    "propertyName": and_condition.property_name,
+                    "operator": and_condition.operator,
+                    "value": and_condition.value,
+                }
+            )
+        filter_groups.append({"filters": filters})
+    if not filter_groups:
         return _list_companies(return_with_custom_properties, pagination_token)
 
     properties_to_fetch = (
@@ -1265,11 +1290,8 @@ def hubspot_search_companies(
         )
         companies.append(company)
 
-    next_pagination_token = (
-        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-        if "paging" in data and "next" in data["paging"]
-        else None
-    )
+    token = data.get("paging", {}).get("next", {}).get("after")
+    next_pagination_token = HubSpotPaginationToken(token=token) if token else None
     return companies, next_pagination_token
 
 
@@ -1525,11 +1547,9 @@ def _list_deals(
             additional_properties=additional_properties,
         )
         deals.append(deal)
-    next_pagination_token = (
-        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-        if "paging" in data and "next" in data["paging"]
-        else None
-    )
+    token = data.get("paging", {}).get("next", {}).get("after")
+    next_pagination_token = HubSpotPaginationToken(token=token) if token else None
+
     return deals, next_pagination_token
 
 
@@ -1648,7 +1668,7 @@ def hubspot_update_deals(
 
 @purpose("Search deals.")
 def hubspot_search_deals(
-    search_criteria: Mapping[str, str],
+    or_filter_groups: List[HubSpotAndFilterGroup],
     return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
@@ -1665,13 +1685,19 @@ def hubspot_search_deals(
             deals. These will be included in additional_properties if they exist.
 
     """
-    # Construct the filters based on the search criteria
-    filters = []
-    for property_name, value in search_criteria.items():
-        filters.append(
-            {"propertyName": property_name, "operator": "EQ", "value": value}
-        )
-    if not filters:
+    filter_groups = []
+    for or_filter_group in or_filter_groups:
+        filters = []
+        for and_condition in or_filter_group.and_conditions:
+            filters.append(
+                {
+                    "propertyName": and_condition.property_name,
+                    "operator": and_condition.operator,
+                    "value": and_condition.value,
+                }
+            )
+        filter_groups.append({"filters": filters})
+    if not filter_groups:
         return _list_deals(return_with_custom_properties, pagination_token)
 
     properties_to_fetch = (
@@ -1684,7 +1710,7 @@ def hubspot_search_deals(
     url = "https://api.hubapi.com/crm/v3/objects/deals/search"
 
     payload = {
-        "filterGroups": [{"filters": filters}],
+        "filterGroups": filter_groups,
         "properties": properties_to_fetch,
     }
 
@@ -1735,11 +1761,8 @@ def hubspot_search_deals(
         )
         deals.append(deal)
 
-    next_pagination_token = (
-        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-        if "paging" in data and "next" in data["paging"]
-        else None
-    )
+    token = data.get("paging", {}).get("next", {}).get("after")
+    next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
     return deals, next_pagination_token
 
@@ -1924,12 +1947,12 @@ def hubspot_merge_companies(primary_company_id: str, company_to_merge_id: str):
 
 
 @purpose("Fetch HubSpot List.")
-def hubspot_fetch_list(
-    listname: str, list_object_type: HubSpotObjectType
+def hubspot_list_memberships(
+    list_name: str, object_type: HubSpotObjectType
 ) -> Tuple[List[str], Optional[HubSpotPaginationToken]]:
     """Returns object_ids associated with the HubSpot List object."""
-    object_type_id = _HUBSPOT_OBJECT_TYPE_IDS[list_object_type.name]
-    url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{listname}"
+    object_type_id = _HUBSPOT_OBJECT_TYPE_IDS[object_type.name]
+    url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{list_name}"
     object_ids = []
     next_pagination_token = None
     with httpx.Client(
@@ -1937,19 +1960,18 @@ def hubspot_fetch_list(
     ) as client:
         response = client.get(url)
         response.raise_for_status()
-        response_data = response.json()
-        if list_data := response_data.get("list"):
+        data = response.json()
+        if list_data := data.get("list"):
             list_id = list_data["listId"]
-            list_response = client.get(
+            memberships_response = client.get(
                 f"https://api.hubapi.com/crm/v3/lists/{list_id}/memberships"
             )
-            list_response.raise_for_status()
-            data = list_response.json()
+            memberships_response.raise_for_status()
+            membership_data = memberships_response.json()
+            token = data.get("paging", {}).get("next", {}).get("after")
             next_pagination_token = (
-                HubSpotPaginationToken(token=data["paging"]["next"]["after"])
-                if "paging" in data and "next" in data["paging"]
-                else None
+                HubSpotPaginationToken(token=token) if token else None
             )
-            if results := data.get("results"):
+            if results := membership_data.get("results"):
                 object_ids = [result.get("recordId") for result in results]
     return object_ids, next_pagination_token
