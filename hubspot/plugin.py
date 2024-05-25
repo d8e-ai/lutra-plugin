@@ -516,28 +516,23 @@ def _coerce_properties_to_hubspot(
 
     return coerced_properties
 
-@purpose("List contacts.")
-def hubspot_list_contacts(
-    limit: int = 100, pagination_token: Optional[HubSpotPaginationToken] = None
+def _list_contacts(
+    return_with_custom_properties: Sequence[str] = (),
+    pagination_token: Optional[HubSpotPaginationToken] = None
 ) -> Tuple[Sequence[HubSpotContact], Optional[HubSpotPaginationToken]]:
-    """
-    Fetch the list of contacts from HubSpot.
-
-    Args:
-        limit: The maximum number of results to display per page. The maximum value for this is 100.
-        pagination_token: Cursor for pagination.
-
-    Returns:
-        A tuple of a list of HubSpotContact objects and the next 'pagination_token' cursor, if
-            available. If the next 'pagination_token' cursor is None, there is no more data to get.
-    """
+    
     url = "https://api.hubapi.com/crm/v3/objects/contacts"
-    params = {}
-    if limit:
-        params["limit"] = limit
+    params = {"limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
-
+    all_properties = (
+        list(return_with_custom_properties)
+        + _CONTACT_PROPERTIES_STRING
+        + _CONTACT_PROPERTIES_DATETIME
+        + _CONTACT_PROPERTIES_BOOLEAN
+        + _CONTACT_PROPERTIES_NUMBER
+    )
+    params["properties"] = all_properties
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
@@ -794,6 +789,7 @@ def hubspot_search_contacts(
     created_before: Return contacts that were created before this datetime
     """
     filters = []
+    
     for name, value in search_criteria.items():
         filters.append({"propertyName": name, "operator": "EQ", "value": value})
     if created_after:
@@ -813,6 +809,9 @@ def hubspot_search_contacts(
             }
         )
 
+    if not filters:
+        return _list_contacts(return_with_custom_properties, pagination_token)
+        
     return _search_contacts(filters, return_with_custom_properties, pagination_token)
 
 
@@ -1006,7 +1005,7 @@ class HubSpotCompany:
 def hubspot_list_companies(
     limit: int = 100,
     pagination_token: Optional[HubSpotPaginationToken] = None,
-) -> Tuple[Sequence[HubSpotCompany], Optional[str]]:
+) -> Tuple[Sequence[HubSpotCompany], Optional[HubSpotPaginationToken]]:
     """
     Fetch the list of companies from HubSpot.
 
@@ -1061,6 +1060,7 @@ def hubspot_list_companies(
             additional_properties=additional_properties,
         )
         companies.append(company)
+    
     next_pagination_token = (
         HubSpotPaginationToken(token=data["paging"]["next"]["after"])
         if "paging" in data and "next" in data["paging"]
@@ -1547,11 +1547,10 @@ def hubspot_list_deals(
         )
         deals.append(deal)
     next_pagination_token = (
-        data["paging"]["next"]["after"]
+        HubSpotPaginationToken(token=data["paging"]["next"]["after"])
         if "paging" in data and "next" in data["paging"]
         else None
     )
-
     return deals, next_pagination_token
 
 
@@ -1944,3 +1943,30 @@ def hubspot_merge_companies(primary_company_id: str, company_to_merge_id: str):
     """Merge company_to_merge with primary_company, retaining primary company"""
     url = "https://api.hubapi.com/crm/v3/objects/companies/merge"
     _merge_objects(url, primary_company_id, company_to_merge_id)
+
+@purpose("Fetch HubSpot List.")
+def hubspot_fetch_list(listname: str, list_object_type: HubSpotObjectType) -> Tuple[List[str], Optional[HubSpotPaginationToken]]:
+    """Returns object_ids associated with the HubSpot List object."""
+    object_type_id = _HUBSPOT_OBJECT_TYPE_IDS[list_object_type.name]
+    url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{listname}"
+    object_ids = []
+    next_pagination_token = None
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        response_data = response.json()
+        if list_data := response_data.get("list"):
+            list_id = list_data["listId"]
+            list_response = client.get(f"https://api.hubapi.com/crm/v3/lists/{list_id}/memberships")
+            list_response.raise_for_status()
+            data = list_response.json()
+            next_pagination_token = (
+                HubSpotPaginationToken(token=data["paging"]["next"]["after"])
+                if "paging" in data and "next" in data["paging"]
+                else None
+            )
+            if results := data.get("results"):
+                object_ids = [result.get("recordId") for result in results]
+    return object_ids, next_pagination_token
