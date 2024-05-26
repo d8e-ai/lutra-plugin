@@ -792,14 +792,9 @@ class HubSpotSearchCondition:
     value: HubSpotPropertyValue
 
 
-@dataclass
-class HubSpotAndFilterGroup:
-    and_conditions: List[HubSpotSearchCondition]
-
-
 @purpose("Search contacts.")
 def hubspot_search_contacts(
-    or_filter_groups: List[HubSpotAndFilterGroup],
+    and_conditions: List[HubSpotSearchCondition],
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
     return_with_custom_properties: Sequence[str] = (),
@@ -809,37 +804,36 @@ def hubspot_search_contacts(
     created_after: Return contacts that were created after this datetime
     created_before: Return contacts that were created before this datetime
     """
-    filter_groups = []
-    for or_filter_group in or_filter_groups:
-        filters = []
-        for and_condition in or_filter_group.and_conditions:
-            filters.append(
-                {
-                    "propertyName": and_condition.property_name,
-                    "operator": and_condition.operator,
-                    "value": and_condition.value.value,
-                }
-            )
-        if created_after:
-            filters.append(
-                {
-                    "propertyName": "createdate",
-                    "operator": "GTE",
-                    "value": int(created_after.timestamp() * 1000),
-                }
-            )
-        if created_before:
-            filters.append(
-                {
-                    "propertyName": "createdate",
-                    "operator": "LTE",
-                    "value": int(created_before.timestamp() * 1000),
-                }
-            )
-        filter_groups.append({"filters": filters})
+    filters = []
+    for and_condition in and_conditions:
+        filters.append(
+            {
+                "propertyName": and_condition.property_name,
+                "operator": and_condition.operator,
+                "value": and_condition.value,
+            }
+        )
 
-    if not filter_groups:
+    if created_after:
+        filters.append(
+            {
+                "propertyName": "createdate",
+                "operator": "GTE",
+                "value": int(created_after.timestamp() * 1000),
+            }
+        )
+    if created_before:
+        filters.append(
+            {
+                "propertyName": "createdate",
+                "operator": "LTE",
+                "value": int(created_before.timestamp() * 1000),
+            }
+        )
+
+    if not filters:
         return _list_contacts(return_with_custom_properties, pagination_token)
+    filter_groups = [{"filters": filters}]
 
     return _search_contacts(
         filter_groups, return_with_custom_properties, pagination_token
@@ -1209,7 +1203,7 @@ def hubspot_update_companies(
 
 @purpose("Search companies.")
 def hubspot_search_companies(
-    or_filter_groups: List[HubSpotAndFilterGroup],
+    and_conditions: List[HubSpotSearchCondition],
     return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
@@ -1220,19 +1214,17 @@ def hubspot_search_companies(
         contacts. These will be included in additional_properties if they exist.
     """
     # Construct the filters based on the search criteria
-    filter_groups = []
-    for or_filter_group in or_filter_groups:
-        filters = []
-        for and_condition in or_filter_group.and_conditions:
-            filters.append(
-                {
-                    "propertyName": and_condition.property_name,
-                    "operator": and_condition.operator,
-                    "value": and_condition.value.value,
-                }
-            )
-        filter_groups.append({"filters": filters})
-    if not filter_groups:
+    filters = []
+    for and_condition in and_conditions:
+        filters.append(
+            {
+                "propertyName": and_condition.property_name,
+                "operator": and_condition.operator,
+                "value": and_condition.value,
+            }
+        )
+
+    if not filters:
         return _list_companies(return_with_custom_properties, pagination_token)
 
     properties_to_fetch = (
@@ -1245,7 +1237,7 @@ def hubspot_search_companies(
     url = "https://api.hubapi.com/crm/v3/objects/companies/search"
 
     payload = {
-        "filterGroups": filter_groups,
+        "filterGroups": [{"filters": filters}],
         "properties": properties_to_fetch,
     }
     companies = []
@@ -1665,7 +1657,7 @@ def hubspot_update_deals(
 
 @purpose("Search deals.")
 def hubspot_search_deals(
-    or_filter_groups: List[HubSpotAndFilterGroup],
+    and_conditions: List[HubSpotSearchCondition],
     return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
@@ -1680,19 +1672,17 @@ def hubspot_search_deals(
             deals. These will be included in additional_properties if they exist.
 
     """
-    filter_groups = []
-    for or_filter_group in or_filter_groups:
-        filters = []
-        for and_condition in or_filter_group.and_conditions:
-            filters.append(
-                {
-                    "propertyName": and_condition.property_name,
-                    "operator": and_condition.operator,
-                    "value": and_condition.value.value,
-                }
-            )
-        filter_groups.append({"filters": filters})
-    if not filter_groups:
+    filters = []
+    for and_condition in and_conditions:
+        filters.append(
+            {
+                "propertyName": and_condition.property_name,
+                "operator": and_condition.operator,
+                "value": and_condition.value,
+            }
+        )
+
+    if not filters:
         return _list_deals(return_with_custom_properties, pagination_token)
 
     properties_to_fetch = (
@@ -1705,7 +1695,7 @@ def hubspot_search_deals(
     url = "https://api.hubapi.com/crm/v3/objects/deals/search"
 
     payload = {
-        "filterGroups": filter_groups,
+        "filterGroups": [{"filters": filters}],
         "properties": properties_to_fetch,
     }
 
