@@ -821,6 +821,22 @@ def hubspot_search_contacts(
     created_after: Return contacts that were created after this datetime
     created_before: Return contacts that were created before this datetime
     """
+    if created_after:
+        and_conditions.append(
+            HubSpotSearchCondition(
+                property_name="createdate",
+                operator="GTE",
+                value=HubSpotPropertyValue(created_after),
+            )
+        )
+    if created_before:
+        and_conditions.append(
+            HubSpotSearchCondition(
+                property_name="createdate",
+                operator="LTE",
+                value=HubSpotPropertyValue(created_before),
+            )
+        )
     filters = []
     for and_condition in and_conditions:
         value = _coerce_value_to_hubspot(
@@ -836,23 +852,6 @@ def hubspot_search_contacts(
                 "propertyName": and_condition.property_name,
                 "operator": and_condition.operator,
                 "value": value,
-            }
-        )
-
-    if created_after:
-        filters.append(
-            {
-                "propertyName": "createdate",
-                "operator": "GTE",
-                "value": int(created_after.timestamp() * 1000),
-            }
-        )
-    if created_before:
-        filters.append(
-            {
-                "propertyName": "createdate",
-                "operator": "LTE",
-                "value": int(created_before.timestamp() * 1000),
             }
         )
 
