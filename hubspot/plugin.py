@@ -810,7 +810,7 @@ def hubspot_search_contacts(
             {
                 "propertyName": and_condition.property_name,
                 "operator": and_condition.operator,
-                "value": and_condition.value,
+                "value": and_condition.value.value,
             }
         )
 
@@ -1220,7 +1220,7 @@ def hubspot_search_companies(
             {
                 "propertyName": and_condition.property_name,
                 "operator": and_condition.operator,
-                "value": and_condition.value,
+                "value": and_condition.value.value,
             }
         )
 
@@ -1678,7 +1678,7 @@ def hubspot_search_deals(
             {
                 "propertyName": and_condition.property_name,
                 "operator": and_condition.operator,
-                "value": and_condition.value,
+                "value": and_condition.value.value,
             }
         )
 
