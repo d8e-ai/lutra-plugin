@@ -493,6 +493,32 @@ def _coerce_properties_to_lutra(
     return coerced_properties
 
 
+def _coerce_value_to_hubspot(
+    name: str,
+    value: Any,
+    string_property_names: List[str],
+    number_property_names: List[str],
+    datetime_property_names: List[str],
+    boolean_property_names: List[str],
+) -> Union[str, int, bool]:
+    if name in string_property_names:
+        return str(value)
+    elif name in number_property_names:
+        return str(value)
+    elif name in datetime_property_names:
+        if isinstance(value, datetime):
+            return int(value.timestamp() * 1000)
+        else:
+            raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
+    elif name in boolean_property_names:
+        # Because `value` comes from Lutra's codegen, we try to accept many representations of
+        # boolean, using Pydantic's tolerant logic. The HubSpot API seems to accept boolean
+        # values in the JSON request.
+        return pydantic.parse_obj_as(bool, value)
+    else:
+        return str(value)
+
+
 def _coerce_properties_to_hubspot(
     properties: Dict[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]],
     string_property_names: List[str],
@@ -504,23 +530,14 @@ def _coerce_properties_to_hubspot(
     for name, value in properties.items():
         if isinstance(value, HubSpotPropertyValue):
             value = value.value
-
-        if name in string_property_names:
-            coerced_properties[name] = str(value)
-        elif name in number_property_names:
-            coerced_properties[name] = str(value)
-        elif name in datetime_property_names:
-            if isinstance(value, datetime):
-                coerced_properties[name] = int(value.timestamp() * 1000)
-            else:
-                raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
-        elif name in boolean_property_names:
-            # Because `value` comes from Lutra's codegen, we try to accept many representations of
-            # boolean, using Pydantic's tolerant logic. The HubSpot API seems to accept boolean
-            # values in the JSON request.
-            coerced_properties[name] = pydantic.parse_obj_as(bool, value)
-        else:
-            coerced_properties[name] = str(value)
+        coerced_properties[name] = _coerce_value_to_hubspot(
+            name=name,
+            value=value,
+            string_property_names=string_property_names,
+            number_property_names=number_property_names,
+            datetime_property_names=datetime_property_names,
+            boolean_property_names=boolean_property_names,
+        )
 
     return coerced_properties
 
@@ -806,11 +823,19 @@ def hubspot_search_contacts(
     """
     filters = []
     for and_condition in and_conditions:
+        value = _coerce_value_to_hubspot(
+            name=and_condition.property_name,
+            value=and_condition.value.value,
+            string_property_names=_CONTACT_PROPERTIES_STRING,
+            number_property_names=_CONTACT_PROPERTIES_NUMBER,
+            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
+            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+        )
         filters.append(
             {
                 "propertyName": and_condition.property_name,
                 "operator": and_condition.operator,
-                "value": and_condition.value.value,
+                "value": value,
             }
         )
 
@@ -1216,11 +1241,19 @@ def hubspot_search_companies(
     # Construct the filters based on the search criteria
     filters = []
     for and_condition in and_conditions:
+        value = _coerce_value_to_hubspot(
+            name=and_condition.property_name,
+            value=and_condition.value.value,
+            string_property_names=_COMPANY_PROPERTIES_STRING,
+            number_property_names=_COMPANY_PROPERTIES_NUMBER,
+            datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
+            boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
+        )
         filters.append(
             {
                 "propertyName": and_condition.property_name,
                 "operator": and_condition.operator,
-                "value": and_condition.value.value,
+                "value": value,
             }
         )
 
@@ -1674,11 +1707,19 @@ def hubspot_search_deals(
     """
     filters = []
     for and_condition in and_conditions:
+        value = _coerce_value_to_hubspot(
+            name=and_condition.property_name,
+            value=and_condition.value.value,
+            string_property_names=_DEAL_PROPERTIES_STRING,
+            number_property_names=_DEAL_PROPERTIES_NUMBER,
+            datetime_property_names=_DEAL_PROPERTIES_DATETIME,
+            boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
+        )
         filters.append(
             {
                 "propertyName": and_condition.property_name,
                 "operator": and_condition.operator,
-                "value": and_condition.value.value,
+                "value": value,
             }
         )
 
