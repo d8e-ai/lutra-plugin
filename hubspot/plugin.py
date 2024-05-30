@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any, Mapping
+import urllib
 
 import pydantic
 
@@ -1977,7 +1978,8 @@ def hubspot_list_memberships(
 ) -> Tuple[List[str], Optional[HubSpotPaginationToken]]:
     """Returns object_ids associated with the HubSpot List object."""
     object_type_id = _HUBSPOT_OBJECT_TYPE_IDS[object_type.name]
-    url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{list_name}"
+    escaped_list_name = urllib.parse.quote(list_name, safe="")
+    url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{escaped_list_name}"
     object_ids = []
     next_pagination_token = None
     with httpx.Client(
