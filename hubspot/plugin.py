@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any, Mapping
 import urllib
 
@@ -9,342 +9,62 @@ import httpx
 from lutraai.augmented_request_client import AugmentedTransport
 from lutraai.decorator import purpose
 
+@dataclass
+class HubSpotObjectType:
+    """name represents the name of object in HubSpot CRM."""
 
-_CONTACT_PROPERTIES_STRING = [
-    "adopter_category",
-    "company_size",
-    "date_of_birth",
-    "degree",
-    "field_of_study",
-    "first_conversion_event_name",
-    "gender",
-    "graduation_date",
-    "hs_additional_emails",
-    "hs_all_assigned_business_unit_ids",
-    "hs_all_contact_vids",
-    "hs_analytics_first_touch_converting_campaign",
-    "hs_analytics_last_touch_converting_campaign",
-    "hs_avatar_filemanager_key",
-    "hs_buying_role",
-    "hs_calculated_form_submissions",
-    "hs_calculated_merged_vids",
-    "hs_calculated_mobile_number",
-    "hs_calculated_phone_number",
-    "hs_calculated_phone_number_area_code",
-    "hs_calculated_phone_number_country_code",
-    "hs_calculated_phone_number_region_code",
-    "hs_clicked_linkedin_ad",
-    "hs_content_membership_email",
-    "hs_content_membership_notes",
-    "hs_content_membership_registration_domain_sent_to",
-    "hs_content_membership_status",
-    "hs_conversations_visitor_email",
-    "hs_email_customer_quarantined_reason",
-    "hs_email_domain",
-    "hs_email_hard_bounce_reason",
-    "hs_email_hard_bounce_reason_enum",
-    "hs_email_quarantined_reason",
-    "hs_emailconfirmationstatus",
-    "hs_facebook_click_id",
-    "hs_facebookid",
-    "hs_feedback_last_nps_follow_up",
-    "hs_feedback_last_nps_rating",
-    "hs_google_click_id",
-    "hs_googleplusid",
-    "hs_ip_timezone",
-    "hs_journey_stage",
-    "hs_last_sales_activity_type",
-    "hs_lead_status",
-    "hs_legal_basis",
-    "hs_linkedin_ad_clicked",
-    "hs_linkedinid",
-    "hs_marketable_reason_id",
-    "hs_marketable_reason_type",
-    "hs_marketable_status",
-    "hs_marketable_until_renewal",
-    "hs_merged_object_ids",
-    "hs_mobile_sdk_push_tokens",
-    "hs_notes_next_activity_type",
-    "hs_object_source",
-    "hs_object_source_detail_1",
-    "hs_object_source_detail_2",
-    "hs_object_source_detail_3",
-    "hs_object_source_id",
-    "hs_object_source_label",
-    "hs_pipeline",
-    "hs_predictivescoringtier",
-    "hs_sa_first_engagement_descr",
-    "hs_sa_first_engagement_object_type",
-    "hs_testpurge",
-    "hs_testrollback",
-    "hs_timezone",
-    "hs_twitterid",
-    "hs_unique_creation_key",
-    "hs_user_ids_of_all_notification_followers",
-    "hs_user_ids_of_all_notification_unfollowers",
-    "hs_user_ids_of_all_owners",
-    "hs_whatsapp_phone_number",
-    "ip_city",
-    "ip_country",
-    "ip_country_code",
-    "ip_latlon",
-    "ip_state",
-    "ip_state_code",
-    "ip_zipcode",
-    "job_function",
-    "marital_status",
-    "military_status",
-    "recent_conversion_event_name",
-    "relationship_status",
-    "school",
-    "seniority",
-    "start_date",
-    "work_email",
-    "firstname",
-    "hs_analytics_first_url",
-    "twitterhandle",
-    "currentlyinworkflow",
-    "hs_analytics_last_url",
-    "lastname",
-    "salutation",
-    "twitterprofilephoto",
-    "email",
-    "hs_persona",
-    "mobilephone",
-    "phone",
-    "fax",
-    "hs_email_last_email_name",
-    "address",
-    "engagements_last_meeting_booked_campaign",
-    "engagements_last_meeting_booked_medium",
-    "engagements_last_meeting_booked_source",
-    "hubspot_owner_id",
-    "owneremail",
-    "ownername",
-    "city",
-    "hubspot_team_id",
-    "linkedinbio",
-    "twitterbio",
-    "hs_all_owner_ids",
-    "state",
-    "hs_all_team_ids",
-    "hs_analytics_source",
-    "hs_latest_source",
-    "zip",
-    "country",
-    "hs_all_accessible_team_ids",
-    "hs_analytics_source_data_1",
-    "hs_latest_source_data_1",
-    "hs_analytics_source_data_2",
-    "hs_language",
-    "hs_latest_source_data_2",
-    "hs_analytics_first_referrer",
-    "jobtitle",
-    "photo",
-    "hs_analytics_last_referrer",
-    "message",
-    "lifecyclestage",
-    "company",
-    "website",
-    "numemployees",
-    "annualrevenue",
-    "industry",
-    "hs_predictivecontactscorebucket",
-]
+    name: Literal[
+        "CONTACTS",
+        "COMPANIES",
+        "DEALS",
+        "TICKETS",
+        "CALLS",
+        "EMAILS",
+        "MEETINGS",
+        "NOTES",
+        "TASKS",
+        "PRODUCTS",
+        "INVOICES",
+        "LINE_ITEMS",
+        "PAYMENTS",
+        "QUOTES",
+        "SUBSCRIPTIONS",
+        "COMMUNICATIONS",
+        "POSTAL_MAIL",
+        "MARKETING_EVENTS",
+        "FEEDBACK_SUBMISSIONS",
+    ]
 
-_CONTACT_PROPERTIES_NUMBER = [
-    "days_to_close",
-    "hs_count_is_unworked",
-    "hs_count_is_worked",
-    "hs_created_by_user_id",
-    "hs_email_sends_since_last_engagement",
-    "hs_first_engagement_object_id",
-    "hs_has_active_subscription",
-    "hs_latest_sequence_enrolled",
-    "hs_object_id",
-    "hs_object_source_user_id",
-    "hs_pinned_engagement_id",
-    "hs_predictivecontactscore_v2",
-    "hs_sequences_actively_enrolled_count",
-    "hs_sequences_enrolled_count",
-    "hs_source_object_id",
-    "hs_source_portal_id",
-    "hs_time_between_contact_creation_and_deal_close",
-    "hs_time_between_contact_creation_and_deal_creation",
-    "hs_time_in_customer",
-    "hs_time_in_evangelist",
-    "hs_time_in_lead",
-    "hs_time_in_marketingqualifiedlead",
-    "hs_time_in_opportunity",
-    "hs_time_in_other",
-    "hs_time_in_salesqualifiedlead",
-    "hs_time_in_subscriber",
-    "hs_time_to_first_engagement",
-    "hs_time_to_move_from_lead_to_customer",
-    "hs_time_to_move_from_marketingqualifiedlead_to_customer",
-    "hs_time_to_move_from_opportunity_to_customer",
-    "hs_time_to_move_from_salesqualifiedlead_to_customer",
-    "hs_time_to_move_from_subscriber_to_customer",
-    "hs_updated_by_user_id",
-    "hs_v2_cumulative_time_in_customer",
-    "hs_v2_cumulative_time_in_evangelist",
-    "hs_v2_cumulative_time_in_lead",
-    "hs_v2_cumulative_time_in_marketingqualifiedlead",
-    "hs_v2_cumulative_time_in_opportunity",
-    "hs_v2_cumulative_time_in_other",
-    "hs_v2_cumulative_time_in_salesqualifiedlead",
-    "hs_v2_cumulative_time_in_subscriber",
-    "hs_v2_latest_time_in_customer",
-    "hs_v2_latest_time_in_evangelist",
-    "hs_v2_latest_time_in_lead",
-    "hs_v2_latest_time_in_marketingqualifiedlead",
-    "hs_v2_latest_time_in_opportunity",
-    "hs_v2_latest_time_in_other",
-    "hs_v2_latest_time_in_salesqualifiedlead",
-    "hs_v2_latest_time_in_subscriber",
-    "num_associated_deals",
-    "num_conversion_events",
-    "num_unique_conversion_events",
-    "recent_deal_amount",
-    "total_revenue",
-    "hs_email_delivered",
-    "followercount",
-    "hs_email_open",
-    "hs_analytics_num_page_views",
-    "hs_email_click",
-    "hs_analytics_num_visits",
-    "hs_email_bounce",
-    "hs_analytics_num_event_completions",
-    "hs_social_twitter_clicks",
-    "hs_social_facebook_clicks",
-    "hs_social_linkedin_clicks",
-    "num_contacted_notes",
-    "num_notes",
-    "surveymonkeyeventlastupdated",
-    "webinareventlastupdated",
-    "hs_social_google_plus_clicks",
-    "hs_social_num_broadcast_clicks",
-    "linkedinconnections",
-    "kloutscoregeneral",
-    "hs_analytics_average_page_views",
-    "hs_email_replied",
-    "hs_analytics_revenue",
-    "hubspotscore",
-    "associatedcompanyid",
-    "associatedcompanylastupdated",
-    "hs_predictivecontactscore",
-]
 
-_CONTACT_PROPERTIES_DATETIME = [
-    "first_conversion_date",
-    "first_deal_created_date",
-    "hs_content_membership_follow_up_enqueued_at",
-    "hs_content_membership_registered_at",
-    "hs_content_membership_registration_email_sent_at",
-    "hs_createdate",
-    "hs_date_entered_customer",
-    "hs_date_entered_evangelist",
-    "hs_date_entered_lead",
-    "hs_date_entered_marketingqualifiedlead",
-    "hs_date_entered_opportunity",
-    "hs_date_entered_other",
-    "hs_date_entered_salesqualifiedlead",
-    "hs_date_entered_subscriber",
-    "hs_date_exited_customer",
-    "hs_date_exited_evangelist",
-    "hs_date_exited_lead",
-    "hs_date_exited_marketingqualifiedlead",
-    "hs_date_exited_opportunity",
-    "hs_date_exited_other",
-    "hs_date_exited_salesqualifiedlead",
-    "hs_date_exited_subscriber",
-    "hs_document_last_revisited",
-    "hs_email_recipient_fatigue_recovery_time",
-    "hs_feedback_last_survey_date",
-    "hs_first_outreach_date",
-    "hs_first_subscription_create_date",
-    "hs_last_sales_activity_date",
-    "hs_last_sales_activity_timestamp",
-    "hs_lastmodifieddate",
-    "hs_latest_disqualified_lead_date",
-    "hs_latest_open_lead_date",
-    "hs_latest_qualified_lead_date",
-    "hs_latest_sequence_ended_date",
-    "hs_latest_sequence_enrolled_date",
-    "hs_latest_sequence_finished_date",
-    "hs_latest_sequence_unenrolled_date",
-    "hs_latest_source_timestamp",
-    "hs_latest_subscription_create_date",
-    "hs_sa_first_engagement_date",
-    "hs_sales_email_last_clicked",
-    "hs_sales_email_last_opened",
-    "hs_v2_date_entered_customer",
-    "hs_v2_date_entered_evangelist",
-    "hs_v2_date_entered_lead",
-    "hs_v2_date_entered_marketingqualifiedlead",
-    "hs_v2_date_entered_opportunity",
-    "hs_v2_date_entered_other",
-    "hs_v2_date_entered_salesqualifiedlead",
-    "hs_v2_date_entered_subscriber",
-    "hs_v2_date_exited_customer",
-    "hs_v2_date_exited_evangelist",
-    "hs_v2_date_exited_lead",
-    "hs_v2_date_exited_marketingqualifiedlead",
-    "hs_v2_date_exited_opportunity",
-    "hs_v2_date_exited_other",
-    "hs_v2_date_exited_salesqualifiedlead",
-    "hs_v2_date_exited_subscriber",
-    "hubspot_owner_assigneddate",
-    "lastmodifieddate",
-    "recent_conversion_date",
-    "recent_deal_close_date",
-    "hs_social_last_engagement",
-    "hs_analytics_first_timestamp",
-    "hs_email_last_send_date",
-    "engagements_last_meeting_booked",
-    "hs_analytics_first_visit_timestamp",
-    "hs_email_last_open_date",
-    "hs_latest_meeting_activity",
-    "hs_sales_email_last_replied",
-    "notes_last_contacted",
-    "notes_last_updated",
-    "notes_next_activity_date",
-    "hs_analytics_last_timestamp",
-    "hs_email_last_click_date",
-    "hs_analytics_last_visit_timestamp",
-    "hs_email_first_send_date",
-    "hs_email_first_open_date",
-    "hs_email_first_click_date",
-    "hs_email_first_reply_date",
-    "hs_email_last_reply_date",
-    "closedate",
-    "hs_lifecyclestage_lead_date",
-    "hs_lifecyclestage_marketingqualifiedlead_date",
-    "hs_lifecyclestage_opportunity_date",
-    "hs_lifecyclestage_salesqualifiedlead_date",
-    "createdate",
-    "hs_lifecyclestage_evangelist_date",
-    "hs_lifecyclestage_customer_date",
-    "hs_lifecyclestage_subscriber_date",
-    "hs_lifecyclestage_other_date",
-]
+@dataclass
+class HubSpotCustomObjectType:
+    name: str
 
-_CONTACT_PROPERTIES_BOOLEAN = [
-    "hs_content_membership_email_confirmed",
-    "hs_created_by_conversations",
-    "hs_data_privacy_ads_consent",
-    "hs_email_bad_address",
-    "hs_email_quarantined",
-    "hs_facebook_ad_clicked",
-    "hs_feedback_show_nps_web_survey",
-    "hs_is_contact",
-    "hs_is_unworked",
-    "hs_read_only",
-    "hs_sequences_is_enrolled",
-    "hs_was_imported",
-    "hs_email_optout",
-    "hs_email_is_ineligible",
-]
+
+@dataclass
+class _HubSpotPropertiesSchema:
+    """The schema for a HubSpot object's properties.
+
+    See https://developers.hubspot.com/docs/api/crm/properties#retrieve-properties
+    """
+
+    properties: dict[str, dict[str, Any]]
+    """
+    Mapping from property name to property schema. 
+    """
+
+
+def _get_hubspot_properties_schema(object_type: HubSpotObjectType) -> _HubSpotPropertiesSchema:
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    ) as client:
+        response = client.get(f"https://api.hubapi.com/crm/v3/properties/{object_type.name}")
+        response.raise_for_status()
+        return _HubSpotPropertiesSchema(properties={prop["name"]: prop for prop in response.json()["results"]})
+
+
+def _get_all_property_names(schema: _HubSpotPropertiesSchema) -> list[str]:
+    return list(schema.properties.keys())
 
 
 @dataclass
@@ -444,49 +164,59 @@ class HubSpotPaginationToken:
 
 
 def _coerce_properties_to_lutra(
-    properties: Dict[str, Union[str, int, float, datetime, bool]],
-    string_property_names: List[str],
-    number_property_names: List[str],
-    datetime_property_names: List[str],
-    boolean_property_names: List[str],
+    properties: Dict[str, Union[str, int, float, date, datetime, bool]],
+    schema: _HubSpotPropertiesSchema,
 ) -> Dict[str, HubSpotPropertyValue]:
     coerced_properties: Dict[str, HubSpotPropertyValue] = {}
     for name, value in properties.items():
-        if name in string_property_names:
+        property_schema = schema.properties.get(name)
+        if property_schema is None:
+            # Fall back to `str` if the property is unknown.
             c_value = str(value)
-        elif name in number_property_names:
-            if isinstance(value, str):
-                if "." in value:
-                    c_value = float(value)
-                elif (
-                    value == ""
-                ):  # The value is an empty string when the number is not set. Default to 0.
-                    c_value = 0
-                else:
-                    c_value = int(value)
-            elif isinstance(value, int | float):
-                c_value = value
-            else:
-                c_value = float(value)
-        elif name in datetime_property_names:
-            if isinstance(value, datetime):
-                c_value = value
-            elif isinstance(value, str):
-                if value == "":  # The value is an empty string when the date is not set
-                    c_value = None
-                else:
-                    c_value = datetime.fromisoformat(value)
-            else:
-                raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
-        elif name in boolean_property_names:
-            # HubSpot boolean properties seem to come as the strings "true" and "false," but we
-            # can't find a guarantee that they do, so use Pydantic parsing to accept many boolean
-            # representations just in case.
-            c_value = pydantic.parse_obj_as(bool, value)
         else:
-            # Custom property, assume value is of right type.
-            # TODO: Accept custom property schema and coerce accordingly.
-            c_value = value
+            match property_schema["type"].lower():
+                case "bool":
+                    # HubSpot boolean properties seem to come as the strings "true" and "false," but we
+                    # can't find a guarantee that they do, so use Pydantic parsing to accept many boolean
+                    # representations just in case.
+                    c_value = pydantic.parse_obj_as(bool, value)
+                case "date":
+                    if isinstance(value, datetime):
+                        c_value = value
+                    elif isinstance(value, str):
+                        if value == "":  # The value is an empty string when the date is not set
+                            c_value = None
+                        else:
+                            c_value = date.fromisoformat(value)
+                    else:
+                        raise ValueError(f"Unexpected date format: {value} ({type(value)})")
+                case "datetime":
+                    if isinstance(value, datetime):
+                        c_value = value
+                    elif isinstance(value, str):
+                        if value == "":  # The value is an empty string when the date is not set
+                            c_value = None
+                        else:
+                            c_value = datetime.fromisoformat(value)
+                    else:
+                        raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
+                case "number":
+                    if isinstance(value, str):
+                        if "." in value:
+                            c_value = float(value)
+                        elif (
+                            value == ""
+                        ):  # The value is an empty string when the number is not set. Default to 0.
+                            c_value = 0
+                        else:
+                            c_value = int(value)
+                    elif isinstance(value, int | float):
+                        c_value = value
+                    else:
+                        c_value = float(value)
+                case _:
+                    # Coerce to string for other/unknown types.
+                    c_value = str(value)
 
         if c_value is not None:
             coerced_properties[name] = HubSpotPropertyValue(value=c_value)
@@ -497,35 +227,36 @@ def _coerce_properties_to_lutra(
 def _coerce_value_to_hubspot(
     name: str,
     value: Any,
-    string_property_names: List[str],
-    number_property_names: List[str],
-    datetime_property_names: List[str],
-    boolean_property_names: List[str],
+    schema: _HubSpotPropertiesSchema,
 ) -> Union[str, int, bool]:
-    if name in string_property_names:
+    property_schema = schema.properties.get(name)
+    if property_schema is None:
+        # Fall back to `str` if the property is unknown.
         return str(value)
-    elif name in number_property_names:
-        return str(value)
-    elif name in datetime_property_names:
-        if isinstance(value, datetime):
-            return int(value.timestamp() * 1000)
-        else:
-            raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
-    elif name in boolean_property_names:
-        # Because `value` comes from Lutra's codegen, we try to accept many representations of
-        # boolean, using Pydantic's tolerant logic. The HubSpot API seems to accept boolean
-        # values in the JSON request.
-        return pydantic.parse_obj_as(bool, value)
-    else:
-        return str(value)
+    match property_schema["type"].lower():
+        case "bool":
+            # Because `value` comes from Lutra's codegen, we try to accept many representations of
+            # boolean, using Pydantic's tolerant logic. The HubSpot API seems to accept boolean
+            # values in the JSON request.
+            return pydantic.parse_obj_as(bool, value)
+        case "date":
+            if isinstance(value, date):
+                return value.isoformat()
+            else:
+                raise ValueError(f"Unexpected date format: {value} ({type(value)})")
+        case "datetime":
+            if isinstance(value, datetime):
+                return int(value.timestamp() * 1000)
+            else:
+                raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
+        case _:
+            # Coerce to string for other/unknown types.
+            return str(value)
 
 
 def _coerce_properties_to_hubspot(
-    properties: Dict[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]],
-    string_property_names: List[str],
-    number_property_names: List[str],
-    datetime_property_names: List[str],
-    boolean_property_names: List[str],
+    properties: Dict[str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]],
+    schema: _HubSpotPropertiesSchema,
 ) -> Dict[str, Union[str, int, bool]]:
     coerced_properties = {}
     for name, value in properties.items():
@@ -534,32 +265,21 @@ def _coerce_properties_to_hubspot(
         coerced_properties[name] = _coerce_value_to_hubspot(
             name=name,
             value=value,
-            string_property_names=string_property_names,
-            number_property_names=number_property_names,
-            datetime_property_names=datetime_property_names,
-            boolean_property_names=boolean_property_names,
+            schema=schema,
         )
 
     return coerced_properties
 
 
 def _list_contacts(
-    return_with_custom_properties: Sequence[str] = (),
+    schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotContact], Optional[HubSpotPaginationToken]]:
-
     url = "https://api.hubapi.com/crm/v3/objects/contacts"
     params = {"limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
-    properties_to_fetch = (
-        list(return_with_custom_properties)
-        + _CONTACT_PROPERTIES_STRING
-        + _CONTACT_PROPERTIES_DATETIME
-        + _CONTACT_PROPERTIES_BOOLEAN
-        + _CONTACT_PROPERTIES_NUMBER
-    )
-    params["properties"] = properties_to_fetch
+    params["properties"] = _get_all_property_names(schema)
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
@@ -575,10 +295,7 @@ def _list_contacts(
         }
         additional_properties = _coerce_properties_to_lutra(
             property_values,
-            string_property_names=_CONTACT_PROPERTIES_STRING,
-            number_property_names=_CONTACT_PROPERTIES_NUMBER,
-            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
-            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
         contact = HubSpotContact(
             created_at=datetime.fromisoformat(item["createdAt"]),
@@ -610,6 +327,8 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
     Returns:
         A list of strings, where each string is the ID of a created contact.
     """
+    schema = _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
+
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/create"
 
     # Prepare the payload from the contacts list
@@ -622,10 +341,7 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
         }
         additional_properties = _coerce_properties_to_hubspot(
             contact.additional_properties,
-            string_property_names=_CONTACT_PROPERTIES_STRING,
-            number_property_names=_CONTACT_PROPERTIES_NUMBER,
-            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
-            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
         properties.update(additional_properties)
         contact_data = {
@@ -651,7 +367,7 @@ def hubspot_update_contacts(
     contact_updates: Mapping[
         str,
         Sequence[
-            Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
+            Tuple[str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
 ) -> List[str]:
@@ -706,6 +422,8 @@ def hubspot_update_contacts(
     hs_is_unworked: Contact has not been assigned or has not been engaged after last owner assignment/re-assignment.
     hs_sequences_is_enrolled: A yes/no field that indicates whether the contact is currently in a Sequence.
     """
+    schema = _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
+
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
     payload = [
@@ -713,10 +431,7 @@ def hubspot_update_contacts(
             "id": contact_id,
             "properties": _coerce_properties_to_hubspot(
                 dict(properties),
-                string_property_names=_CONTACT_PROPERTIES_STRING,
-                number_property_names=_CONTACT_PROPERTIES_NUMBER,
-                datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
-                boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+                schema=schema,
             ),
         }
         for contact_id, properties in contact_updates.items()
@@ -733,23 +448,16 @@ def hubspot_update_contacts(
 
 def _search_contacts(
     filter_groups: List[List[Dict[str, str]]],
-    return_with_custom_properties: Sequence[str] = (),
+    schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
     if not filter_groups:
         # The API will fail with an empty list
         return []
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
-    properties_to_fetch = (
-        list(return_with_custom_properties)
-        + _CONTACT_PROPERTIES_STRING
-        + _CONTACT_PROPERTIES_DATETIME
-        + _CONTACT_PROPERTIES_BOOLEAN
-        + _CONTACT_PROPERTIES_NUMBER
-    )
     payload = {
         "filterGroups": filter_groups,
-        "properties": properties_to_fetch,
+        "properties": _get_all_property_names(schema),
         "limit": 100,
     }
     if pagination_token:
@@ -767,10 +475,7 @@ def _search_contacts(
             property_values = {key: val for key, val in properties.items() if val}
             additional_properties = _coerce_properties_to_lutra(
                 property_values,
-                string_property_names=_CONTACT_PROPERTIES_STRING,
-                number_property_names=_CONTACT_PROPERTIES_NUMBER,
-                datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
-                boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+                schema=schema,
             )
             contact = HubSpotContact(
                 created_at=datetime.fromisoformat(
@@ -815,13 +520,13 @@ def hubspot_search_contacts(
     and_conditions: List[HubSpotSearchCondition],
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
-    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
     """Search for HubSpot contacts
     created_after: Return contacts that were created after this datetime
     created_before: Return contacts that were created before this datetime
     """
+    schema = _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
     if created_after:
         and_conditions.append(
             HubSpotSearchCondition(
@@ -843,10 +548,7 @@ def hubspot_search_contacts(
         value = _coerce_value_to_hubspot(
             name=and_condition.property_name,
             value=and_condition.value.value,
-            string_property_names=_CONTACT_PROPERTIES_STRING,
-            number_property_names=_CONTACT_PROPERTIES_NUMBER,
-            datetime_property_names=_CONTACT_PROPERTIES_DATETIME,
-            boolean_property_names=_CONTACT_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
         filters.append(
             {
@@ -857,179 +559,12 @@ def hubspot_search_contacts(
         )
 
     if not filters:
-        return _list_contacts(return_with_custom_properties, pagination_token)
+        return _list_contacts(schema, pagination_token)
     filter_groups = [{"filters": filters}]
 
     return _search_contacts(
-        filter_groups, return_with_custom_properties, pagination_token
+        filter_groups, schema, pagination_token
     )
-
-
-_COMPANY_PROPERTIES_STRING = [
-    "about_us",
-    "first_conversion_event_name",
-    "founded_year",
-    "hs_additional_domains",
-    "hs_all_assigned_business_unit_ids",
-    "hs_analytics_first_touch_converting_campaign",
-    "hs_analytics_last_touch_converting_campaign",
-    "hs_analytics_latest_source",
-    "hs_analytics_latest_source_data_1",
-    "hs_analytics_latest_source_data_2",
-    "hs_analytics_source",
-    "hs_analytics_source_data_1",
-    "hs_analytics_source_data_2",
-    "hs_annual_revenue_currency_code",
-    "hs_avatar_filemanager_key",
-    "hs_ideal_customer_profile",
-    "hs_last_sales_activity_type",
-    "hs_merged_object_ids",
-    "hs_notes_next_activity_type",
-    "hs_object_source",
-    "hs_object_source_detail_1",
-    "hs_object_source_detail_2",
-    "hs_object_source_detail_3",
-    "hs_object_source_id",
-    "hs_object_source_label",
-    "hs_pipeline",
-    "hs_target_account",
-    "hs_target_account_recommendation_state",
-    "hs_unique_creation_key",
-    "hs_user_ids_of_all_notification_followers",
-    "hs_user_ids_of_all_notification_unfollowers",
-    "hs_user_ids_of_all_owners",
-    "recent_conversion_event_name",
-    "timezone",
-    "total_money_raised",
-    "name",
-    "owneremail",
-    "twitterhandle",
-    "ownername",
-    "phone",
-    "twitterbio",
-    "address",
-    "address2",
-    "facebook_company_page",
-    "city",
-    "linkedin_company_page",
-    "linkedinbio",
-    "state",
-    "googleplus_page",
-    "engagements_last_meeting_booked_campaign",
-    "engagements_last_meeting_booked_medium",
-    "engagements_last_meeting_booked_source",
-    "hubspot_owner_id",
-    "zip",
-    "country",
-    "hubspot_team_id",
-    "hs_all_owner_ids",
-    "website",
-    "domain",
-    "hs_all_team_ids",
-    "hs_all_accessible_team_ids",
-    "industry",
-    "lifecyclestage",
-    "hs_lead_status",
-    "type",
-    "description",
-    "web_technologies",
-]
-
-_COMPANY_PROPERTIES_NUMBER = [
-    "facebookfans",
-    "hs_analytics_num_page_views",
-    "hs_analytics_num_visits",
-    "hs_created_by_user_id",
-    "hs_customer_success_ticket_sentiment",
-    "hs_num_blockers",
-    "hs_num_contacts_with_buying_roles",
-    "hs_num_decision_makers",
-    "hs_num_open_deals",
-    "hs_object_id",
-    "hs_object_source_user_id",
-    "hs_pinned_engagement_id",
-    "hs_predictivecontactscore_v2",
-    "hs_source_object_id",
-    "hs_target_account_probability",
-    "hs_time_in_customer",
-    "hs_time_in_evangelist",
-    "hs_time_in_lead",
-    "hs_time_in_marketingqualifiedlead",
-    "hs_time_in_opportunity",
-    "hs_time_in_other",
-    "hs_time_in_salesqualifiedlead",
-    "hs_time_in_subscriber",
-    "hs_total_deal_value",
-    "hs_updated_by_user_id",
-    "num_associated_contacts",
-    "num_associated_deals",
-    "num_conversion_events",
-    "recent_deal_amount",
-    "total_revenue",
-    "twitterfollowers",
-    "num_contacted_notes",
-    "num_notes",
-    "numberofemployees",
-    "annualrevenue",
-    "hs_parent_company_id",
-    "hs_num_child_companies",
-    "hubspotscore",
-    "days_to_close",
-]
-
-_COMPANY_PROPERTIES_DATETIME = [
-    "first_conversion_date",
-    "first_deal_created_date",
-    "hs_analytics_first_timestamp",
-    "hs_analytics_first_visit_timestamp",
-    "hs_analytics_last_timestamp",
-    "hs_analytics_last_visit_timestamp",
-    "hs_analytics_latest_source_timestamp",
-    "hs_createdate",
-    "hs_date_entered_customer",
-    "hs_date_entered_evangelist",
-    "hs_date_entered_lead",
-    "hs_date_entered_marketingqualifiedlead",
-    "hs_date_entered_opportunity",
-    "hs_date_entered_other",
-    "hs_date_entered_salesqualifiedlead",
-    "hs_date_entered_subscriber",
-    "hs_date_exited_customer",
-    "hs_date_exited_evangelist",
-    "hs_date_exited_lead",
-    "hs_date_exited_marketingqualifiedlead",
-    "hs_date_exited_opportunity",
-    "hs_date_exited_other",
-    "hs_date_exited_salesqualifiedlead",
-    "hs_date_exited_subscriber",
-    "hs_last_booked_meeting_date",
-    "hs_last_logged_call_date",
-    "hs_last_open_task_date",
-    "hs_last_sales_activity_date",
-    "hs_last_sales_activity_timestamp",
-    "hs_lastmodifieddate",
-    "hs_latest_createdate_of_active_subscriptions",
-    "hs_target_account_recommendation_snooze_time",
-    "hubspot_owner_assigneddate",
-    "recent_conversion_date",
-    "recent_deal_close_date",
-    "engagements_last_meeting_booked",
-    "hs_latest_meeting_activity",
-    "hs_sales_email_last_replied",
-    "notes_last_contacted",
-    "notes_last_updated",
-    "notes_next_activity_date",
-    "createdate",
-    "closedate",
-    "first_contact_createdate",
-]
-
-_COMPANY_PROPERTIES_BOOLEAN = [
-    "hs_is_target_account",
-    "hs_read_only",
-    "hs_was_imported",
-    "is_public",
-]
 
 
 @dataclass
@@ -1052,21 +587,14 @@ class HubSpotCompany:
 
 
 def _list_companies(
-    return_with_custom_properties: Sequence[str] = (),
+    schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotCompany], Optional[HubSpotPaginationToken]]:
     url = "https://api.hubapi.com/crm/v3/objects/companies"
     params = {"limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
-    properties_to_fetch = (
-        list(return_with_custom_properties)
-        + _COMPANY_PROPERTIES_STRING
-        + _COMPANY_PROPERTIES_DATETIME
-        + _COMPANY_PROPERTIES_BOOLEAN
-        + _COMPANY_PROPERTIES_NUMBER
-    )
-    params["properties"] = properties_to_fetch
+    params["properties"] = _get_all_property_names(schema)
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
@@ -1082,10 +610,7 @@ def _list_companies(
         }
         additional_properties = _coerce_properties_to_lutra(
             property_values,
-            string_property_names=_COMPANY_PROPERTIES_STRING,
-            number_property_names=_COMPANY_PROPERTIES_NUMBER,
-            datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
-            boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
         company = HubSpotCompany(
             created_at=datetime.fromisoformat(item["createdAt"]),
@@ -1152,7 +677,7 @@ def hubspot_update_companies(
     company_updates: Mapping[
         str,
         Sequence[
-            Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
+            Tuple[str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
 ) -> List[str]:
@@ -1203,16 +728,14 @@ def hubspot_update_companies(
     hs_is_target_account: Identifies whether this company is being marketed and sold to as part of your account-based strategy.
     is_public: Indicates if the company is publicly traded.
     """
+    schema = _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
     url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
     payload = [
         {
             "id": company_id,
             "properties": _coerce_properties_to_hubspot(
                 dict(properties),
-                string_property_names=_COMPANY_PROPERTIES_STRING,
-                number_property_names=_COMPANY_PROPERTIES_NUMBER,
-                datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
-                boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
+                schema=schema,
             ),
         }
         for company_id, properties in company_updates.items()
@@ -1229,25 +752,20 @@ def hubspot_update_companies(
 @purpose("Search companies.")
 def hubspot_search_companies(
     and_conditions: List[HubSpotSearchCondition],
-    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
     """
     Search for companies in HubSpot CRM.
-
-    return_with_custom_properties: A sequence of custom property names to fetch from found
-        contacts. These will be included in additional_properties if they exist.
     """
+    schema = _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
+
     # Construct the filters based on the search criteria
     filters = []
     for and_condition in and_conditions:
         value = _coerce_value_to_hubspot(
             name=and_condition.property_name,
             value=and_condition.value.value,
-            string_property_names=_COMPANY_PROPERTIES_STRING,
-            number_property_names=_COMPANY_PROPERTIES_NUMBER,
-            datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
-            boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
         filters.append(
             {
@@ -1258,20 +776,13 @@ def hubspot_search_companies(
         )
 
     if not filters:
-        return _list_companies(return_with_custom_properties, pagination_token)
+        return _list_companies(schema, pagination_token)
 
-    properties_to_fetch = (
-        list(return_with_custom_properties)
-        + _COMPANY_PROPERTIES_DATETIME
-        + _COMPANY_PROPERTIES_BOOLEAN
-        + _COMPANY_PROPERTIES_NUMBER
-        + _COMPANY_PROPERTIES_STRING
-    )
     url = "https://api.hubapi.com/crm/v3/objects/companies/search"
 
     payload = {
         "filterGroups": [{"filters": filters}],
-        "properties": properties_to_fetch,
+        "properties": _get_all_property_names(schema),
     }
     companies = []
     with httpx.Client(
@@ -1288,10 +799,7 @@ def hubspot_search_companies(
         }
         additional_property_values = _coerce_properties_to_lutra(
             property_values,
-            string_property_names=_COMPANY_PROPERTIES_STRING,
-            number_property_names=_COMPANY_PROPERTIES_NUMBER,
-            datetime_property_names=_COMPANY_PROPERTIES_DATETIME,
-            boolean_property_names=_COMPANY_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
 
         company = HubSpotCompany(
@@ -1317,185 +825,6 @@ def hubspot_search_companies(
     return companies, next_pagination_token
 
 
-_DEAL_PROPERTIES_STRING = [
-    "deal_currency_code",
-    "hs_all_assigned_business_unit_ids",
-    "hs_all_collaborator_owner_ids",
-    "hs_all_deal_split_owner_ids",
-    "hs_analytics_latest_source",
-    "hs_analytics_latest_source_company",
-    "hs_analytics_latest_source_contact",
-    "hs_analytics_latest_source_data_1",
-    "hs_analytics_latest_source_data_1_company",
-    "hs_analytics_latest_source_data_1_contact",
-    "hs_analytics_latest_source_data_2",
-    "hs_analytics_latest_source_data_2_company",
-    "hs_analytics_latest_source_data_2_contact",
-    "hs_analytics_source",
-    "hs_analytics_source_data_1",
-    "hs_analytics_source_data_2",
-    "hs_campaign",
-    "hs_deal_amount_calculation_preference",
-    "hs_latest_approval_status",
-    "hs_line_item_global_term_hs_discount_percentage",
-    "hs_line_item_global_term_hs_recurring_billing_period",
-    "hs_line_item_global_term_hs_recurring_billing_start_date",
-    "hs_line_item_global_term_recurringbillingfrequency",
-    "hs_manual_forecast_category",
-    "hs_merged_object_ids",
-    "hs_next_step",
-    "hs_notes_next_activity_type",
-    "hs_object_source",
-    "hs_object_source_detail_1",
-    "hs_object_source_detail_2",
-    "hs_object_source_detail_3",
-    "hs_object_source_id",
-    "hs_object_source_label",
-    "hs_priority",
-    "hs_tag_ids",
-    "hs_unique_creation_key",
-    "hs_user_ids_of_all_notification_followers",
-    "hs_user_ids_of_all_notification_unfollowers",
-    "hs_user_ids_of_all_owners",
-    "dealname",
-    "dealstage",
-    "pipeline",
-    "engagements_last_meeting_booked_campaign",
-    "engagements_last_meeting_booked_medium",
-    "engagements_last_meeting_booked_source",
-    "hubspot_owner_id",
-    "hubspot_team_id",
-    "dealtype",
-    "hs_all_owner_ids",
-    "description",
-    "hs_all_team_ids",
-    "hs_all_accessible_team_ids",
-    "closed_lost_reason",
-    "closed_won_reason",
-]
-
-_DEAL_PROPERTIES_NUMBER = [
-    "amount_in_home_currency",
-    "days_to_close",
-    "hs_acv",
-    "hs_arr",
-    "hs_closed_amount",
-    "hs_closed_amount_in_home_currency",
-    "hs_closed_won_count",
-    "hs_created_by_user_id",
-    "hs_days_to_close_raw",
-    "hs_deal_score",
-    "hs_deal_stage_probability",
-    "hs_deal_stage_probability_shadow",
-    "hs_exchange_rate",
-    "hs_forecast_amount",
-    "hs_forecast_probability",
-    "hs_is_open_count",
-    "hs_latest_approval_status_approval_id",
-    "hs_likelihood_to_close",
-    "hs_mrr",
-    "hs_num_associated_active_deal_registrations",
-    "hs_num_associated_deal_registrations",
-    "hs_num_associated_deal_splits",
-    "hs_num_of_associated_line_items",
-    "hs_num_target_accounts",
-    "hs_object_id",
-    "hs_object_source_user_id",
-    "hs_pinned_engagement_id",
-    "hs_predicted_amount",
-    "hs_predicted_amount_in_home_currency",
-    "hs_projected_amount",
-    "hs_projected_amount_in_home_currency",
-    "hs_source_object_id",
-    "hs_tcv",
-    "hs_time_in_appointmentscheduled",
-    "hs_time_in_closedlost",
-    "hs_time_in_closedwon",
-    "hs_time_in_contractsent",
-    "hs_time_in_decisionmakerboughtin",
-    "hs_time_in_presentationscheduled",
-    "hs_time_in_qualifiedtobuy",
-    "hs_updated_by_user_id",
-    "hs_v2_cumulative_time_in_appointmentscheduled",
-    "hs_v2_cumulative_time_in_closedlost",
-    "hs_v2_cumulative_time_in_closedwon",
-    "hs_v2_cumulative_time_in_contractsent",
-    "hs_v2_cumulative_time_in_decisionmakerboughtin",
-    "hs_v2_cumulative_time_in_presentationscheduled",
-    "hs_v2_cumulative_time_in_qualifiedtobuy",
-    "hs_v2_latest_time_in_appointmentscheduled",
-    "hs_v2_latest_time_in_closedlost",
-    "hs_v2_latest_time_in_closedwon",
-    "hs_v2_latest_time_in_contractsent",
-    "hs_v2_latest_time_in_decisionmakerboughtin",
-    "hs_v2_latest_time_in_presentationscheduled",
-    "hs_v2_latest_time_in_qualifiedtobuy",
-    "amount",
-    "num_contacted_notes",
-    "num_notes",
-    "num_associated_contacts",
-]
-
-_DEAL_PROPERTIES_DATETIME = [
-    "hs_analytics_latest_source_timestamp",
-    "hs_analytics_latest_source_timestamp_company",
-    "hs_analytics_latest_source_timestamp_contact",
-    "hs_closed_won_date",
-    "hs_date_entered_appointmentscheduled",
-    "hs_date_entered_closedlost",
-    "hs_date_entered_closedwon",
-    "hs_date_entered_contractsent",
-    "hs_date_entered_decisionmakerboughtin",
-    "hs_date_entered_presentationscheduled",
-    "hs_date_entered_qualifiedtobuy",
-    "hs_date_exited_appointmentscheduled",
-    "hs_date_exited_closedlost",
-    "hs_date_exited_closedwon",
-    "hs_date_exited_contractsent",
-    "hs_date_exited_decisionmakerboughtin",
-    "hs_date_exited_presentationscheduled",
-    "hs_date_exited_qualifiedtobuy",
-    "hs_lastmodifieddate",
-    "hs_v2_date_entered_appointmentscheduled",
-    "hs_v2_date_entered_closedlost",
-    "hs_v2_date_entered_closedwon",
-    "hs_v2_date_entered_contractsent",
-    "hs_v2_date_entered_decisionmakerboughtin",
-    "hs_v2_date_entered_presentationscheduled",
-    "hs_v2_date_entered_qualifiedtobuy",
-    "hs_v2_date_exited_appointmentscheduled",
-    "hs_v2_date_exited_closedlost",
-    "hs_v2_date_exited_closedwon",
-    "hs_v2_date_exited_contractsent",
-    "hs_v2_date_exited_decisionmakerboughtin",
-    "hs_v2_date_exited_presentationscheduled",
-    "hs_v2_date_exited_qualifiedtobuy",
-    "hubspot_owner_assigneddate",
-    "closedate",
-    "createdate",
-    "engagements_last_meeting_booked",
-    "hs_latest_meeting_activity",
-    "hs_sales_email_last_replied",
-    "notes_last_contacted",
-    "notes_last_updated",
-    "notes_next_activity_date",
-    "hs_createdate",
-]
-
-_DEAL_PROPERTIES_BOOLEAN = [
-    "hs_is_active_shared_deal",
-    "hs_is_closed",
-    "hs_is_closed_won",
-    "hs_is_deal_split",
-    "hs_line_item_global_term_hs_discount_percentage_enabled",
-    "hs_line_item_global_term_hs_recurring_billing_period_enabled",
-    "hs_line_item_global_term_hs_recurring_billing_start_date_enabled",
-    "hs_line_item_global_term_recurringbillingfrequency_enabled",
-    "hs_read_only",
-    "hs_was_imported",
-]
-
-
 @dataclass
 class HubSpotDeal:
     """The `additional_properties` field stores any additional properties that are
@@ -1515,18 +844,11 @@ class HubSpotDeal:
 
 
 def _list_deals(
-    return_with_custom_properties: Sequence[str] = (),
+    schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotDeal], Optional[HubSpotPaginationToken]]:
     url = "https://api.hubapi.com/crm/v3/objects/deals"
-    properties_to_fetch = (
-        list(return_with_custom_properties)
-        + _DEAL_PROPERTIES_DATETIME
-        + _DEAL_PROPERTIES_BOOLEAN
-        + _DEAL_PROPERTIES_NUMBER
-        + _DEAL_PROPERTIES_STRING
-    )
-    params = {"properties": properties_to_fetch, "limit": 100}
+    params = {"properties": _get_all_property_names(schema), "limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
 
@@ -1545,10 +867,7 @@ def _list_deals(
         }
         additional_properties = _coerce_properties_to_lutra(
             property_values,
-            string_property_names=_DEAL_PROPERTIES_STRING,
-            number_property_names=_DEAL_PROPERTIES_NUMBER,
-            datetime_property_names=_DEAL_PROPERTIES_DATETIME,
-            boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
         deal = HubSpotDeal(
             created_at=datetime.fromisoformat(item["createdAt"]),
@@ -1621,7 +940,7 @@ def hubspot_update_deals(
     deal_updates: Mapping[
         str,
         Sequence[
-            Tuple[str, Union[str, int, float, datetime, bool, HubSpotPropertyValue]]
+            Tuple[str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]]
         ],
     ],
 ) -> List[str]:
@@ -1665,16 +984,14 @@ def hubspot_update_deals(
     hs_is_closed: True if the deal was won or lost.
     hs_is_closed_won: True if the deal is in the closed-won state.
     """
+    schema = _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
     url = "https://api.hubapi.com/crm/v3/objects/deals/batch/update"
     payload = [
         {
             "id": deal_id,
             "properties": _coerce_properties_to_hubspot(
                 dict(properties),
-                string_property_names=_DEAL_PROPERTIES_STRING,
-                number_property_names=_DEAL_PROPERTIES_NUMBER,
-                datetime_property_names=_DEAL_PROPERTIES_DATETIME,
-                boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
+                schema=schema,
             ),
         }
         for deal_id, properties in deal_updates.items()
@@ -1691,7 +1008,6 @@ def hubspot_update_deals(
 @purpose("Search deals.")
 def hubspot_search_deals(
     and_conditions: List[HubSpotSearchCondition],
-    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
     """
@@ -1699,21 +1015,14 @@ def hubspot_search_deals(
 
     Default properties will always be fetched. However, properties with no values will not be in the additional_properties
     dict. You MUST check whether the property exists in additional_properties before using it.
-
-    Args:
-        return_with_custom_properties: A sequence of custom property names to fetch from found
-            deals. These will be included in additional_properties if they exist.
-
     """
+    schema = _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
     filters = []
     for and_condition in and_conditions:
         value = _coerce_value_to_hubspot(
             name=and_condition.property_name,
             value=and_condition.value.value,
-            string_property_names=_DEAL_PROPERTIES_STRING,
-            number_property_names=_DEAL_PROPERTIES_NUMBER,
-            datetime_property_names=_DEAL_PROPERTIES_DATETIME,
-            boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
         filters.append(
             {
@@ -1724,20 +1033,13 @@ def hubspot_search_deals(
         )
 
     if not filters:
-        return _list_deals(return_with_custom_properties, pagination_token)
+        return _list_deals(schema, pagination_token)
 
-    properties_to_fetch = (
-        list(return_with_custom_properties)
-        + _DEAL_PROPERTIES_DATETIME
-        + _DEAL_PROPERTIES_BOOLEAN
-        + _DEAL_PROPERTIES_NUMBER
-        + _DEAL_PROPERTIES_STRING
-    )
     url = "https://api.hubapi.com/crm/v3/objects/deals/search"
 
     payload = {
         "filterGroups": [{"filters": filters}],
-        "properties": properties_to_fetch,
+        "properties": _get_all_property_names(schema),
     }
 
     deals = []
@@ -1755,10 +1057,7 @@ def hubspot_search_deals(
         }
         additional_property_values = _coerce_properties_to_lutra(
             property_values,
-            string_property_names=_DEAL_PROPERTIES_STRING,
-            number_property_names=_DEAL_PROPERTIES_NUMBER,
-            datetime_property_names=_DEAL_PROPERTIES_DATETIME,
-            boolean_property_names=_DEAL_PROPERTIES_BOOLEAN,
+            schema=schema,
         )
 
         deal = HubSpotDeal(
@@ -1814,38 +1113,6 @@ _HUBSPOT_OBJECT_TYPE_IDS = dict(
     MARKETING_EVENTS="0-54",
     FEEDBACK_SUBMISSIONS="0-19",
 )
-
-
-@dataclass
-class HubSpotObjectType:
-    """name represents the name of object in HubSpot CRM."""
-
-    name: Literal[
-        "CONTACTS",
-        "COMPANIES",
-        "DEALS",
-        "TICKETS",
-        "CALLS",
-        "EMAILS",
-        "MEETINGS",
-        "NOTES",
-        "TASKS",
-        "PRODUCTS",
-        "INVOICES",
-        "LINE_ITEMS",
-        "PAYMENTS",
-        "QUOTES",
-        "SUBSCRIPTIONS",
-        "COMMUNICATIONS",
-        "POSTAL_MAIL",
-        "MARKETING_EVENTS",
-        "FEEDBACK_SUBMISSIONS",
-    ]
-
-
-@dataclass
-class HubSpotCustomObjectType:
-    name: str
 
 
 @purpose("Fetch associated object IDs.")
