@@ -520,7 +520,6 @@ def hubspot_search_contacts(
     and_conditions: List[HubSpotSearchCondition],
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
-    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
     """Search for HubSpot contacts
@@ -753,13 +752,10 @@ def hubspot_update_companies(
 @purpose("Search companies.")
 def hubspot_search_companies(
     and_conditions: List[HubSpotSearchCondition],
-    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
     """
     Search for companies in HubSpot CRM.
-
-    return_with_custom_properties: Deprecated. 
     """
     schema = _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
 
@@ -1012,7 +1008,6 @@ def hubspot_update_deals(
 @purpose("Search deals.")
 def hubspot_search_deals(
     and_conditions: List[HubSpotSearchCondition],
-    return_with_custom_properties: Sequence[str] = (),
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
     """
@@ -1020,9 +1015,6 @@ def hubspot_search_deals(
 
     Default properties will always be fetched. However, properties with no values will not be in the additional_properties
     dict. You MUST check whether the property exists in additional_properties before using it.
-
-    Args:
-        return_with_custom_properties: Deprecated. 
     """
     schema = _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
     filters = []
