@@ -6,8 +6,9 @@ import urllib
 import pydantic
 
 import httpx
-from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import purpose
+from lutraai.requests import raise_error_text
 
 @dataclass
 class HubSpotObjectType:
@@ -54,12 +55,13 @@ class _HubSpotPropertiesSchema:
     """
 
 
-def _get_hubspot_properties_schema(object_type: HubSpotObjectType) -> _HubSpotPropertiesSchema:
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+async def _get_hubspot_properties_schema(object_type: HubSpotObjectType) -> _HubSpotPropertiesSchema:
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.get(f"https://api.hubapi.com/crm/v3/properties/{object_type.name}")
-        response.raise_for_status()
+        response = await client.get(f"https://api.hubapi.com/crm/v3/properties/{object_type.name}")
+        await raise_error_text(response)
+        await response.aread()
         return _HubSpotPropertiesSchema(properties={prop["name"]: prop for prop in response.json()["results"]})
 
 
@@ -271,7 +273,7 @@ def _coerce_properties_to_hubspot(
     return coerced_properties
 
 
-def _list_contacts(
+async def _list_contacts(
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotContact], Optional[HubSpotPaginationToken]]:
@@ -280,11 +282,12 @@ def _list_contacts(
     if pagination_token:
         params["after"] = pagination_token.token
     params["properties"] = _get_all_property_names(schema)
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.get(url, params=params)
-        response.raise_for_status()
+        response = await client.get(url, params=params)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
     contacts = []
@@ -317,7 +320,7 @@ def _list_contacts(
 
 
 @purpose("Create contacts.")
-def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
+async def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
     """
     Create multiple contacts in HubSpot using the batch API.
 
@@ -327,7 +330,7 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
     Returns:
         A list of strings, where each string is the ID of a created contact.
     """
-    schema = _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
+    schema = await _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
 
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/create"
 
@@ -351,11 +354,12 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
 
     payload = {"inputs": contacts_payload}
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json=payload)
-        response.raise_for_status()
+        response = await client.post(url, json=payload)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
     # Extract and return the IDs of the created contacts
@@ -363,7 +367,7 @@ def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[str]:
 
 
 @purpose("Update contacts.")
-def hubspot_update_contacts(
+async def hubspot_update_contacts(
     contact_updates: Mapping[
         str,
         Sequence[
@@ -422,7 +426,7 @@ def hubspot_update_contacts(
     hs_is_unworked: Contact has not been assigned or has not been engaged after last owner assignment/re-assignment.
     hs_sequences_is_enrolled: A yes/no field that indicates whether the contact is currently in a Sequence.
     """
-    schema = _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
+    schema = await _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
 
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
@@ -437,16 +441,17 @@ def hubspot_update_contacts(
         for contact_id, properties in contact_updates.items()
     ]
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json={"inputs": payload})
-        response.raise_for_status()
+        response = await client.post(url, json={"inputs": payload})
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
         return [result["id"] for result in data["results"]]
 
 
-def _search_contacts(
+async def _search_contacts(
     filter_groups: List[List[Dict[str, str]]],
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
@@ -462,11 +467,12 @@ def _search_contacts(
     }
     if pagination_token:
         payload["after"] = pagination_token.token
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json=payload)
-        response.raise_for_status()
+        response = await client.post(url, json=payload)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
         contacts = []
         property_values = {}
@@ -516,7 +522,7 @@ class HubSpotSearchCondition:
 
 
 @purpose("Search contacts.")
-def hubspot_search_contacts(
+async def hubspot_search_contacts(
     and_conditions: List[HubSpotSearchCondition],
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
@@ -526,7 +532,7 @@ def hubspot_search_contacts(
     created_after: Return contacts that were created after this datetime
     created_before: Return contacts that were created before this datetime
     """
-    schema = _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
+    schema = await _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
     if created_after:
         and_conditions.append(
             HubSpotSearchCondition(
@@ -559,10 +565,10 @@ def hubspot_search_contacts(
         )
 
     if not filters:
-        return _list_contacts(schema, pagination_token)
+        return await _list_contacts(schema, pagination_token)
     filter_groups = [{"filters": filters}]
 
-    return _search_contacts(
+    return await _search_contacts(
         filter_groups, schema, pagination_token
     )
 
@@ -586,7 +592,7 @@ class HubSpotCompany:
     archived: bool
 
 
-def _list_companies(
+async def _list_companies(
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotCompany], Optional[HubSpotPaginationToken]]:
@@ -595,11 +601,12 @@ def _list_companies(
     if pagination_token:
         params["after"] = pagination_token.token
     params["properties"] = _get_all_property_names(schema)
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.get(url, params=params)
-        response.raise_for_status()
+        response = await client.get(url, params=params)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
     companies = []
@@ -633,7 +640,7 @@ def _list_companies(
 
 
 @purpose("Create companies.")
-def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
+async def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
     """
     Create multiple company in HubSpot using the batch API.
 
@@ -661,11 +668,12 @@ def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
 
     payload = {"inputs": company_payload}
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json=payload)
-        response.raise_for_status()
+        response = await client.post(url, json=payload)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
     # Extract and return the IDs of the created company
@@ -673,7 +681,7 @@ def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[str]:
 
 
 @purpose("Update companies.")
-def hubspot_update_companies(
+async def hubspot_update_companies(
     company_updates: Mapping[
         str,
         Sequence[
@@ -728,7 +736,7 @@ def hubspot_update_companies(
     hs_is_target_account: Identifies whether this company is being marketed and sold to as part of your account-based strategy.
     is_public: Indicates if the company is publicly traded.
     """
-    schema = _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
+    schema = await _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
     url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
     payload = [
         {
@@ -740,24 +748,25 @@ def hubspot_update_companies(
         }
         for company_id, properties in company_updates.items()
     ]
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json={"inputs": payload})
-        response.raise_for_status()
+        response = await client.post(url, json={"inputs": payload})
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
         return [result["id"] for result in data["results"]]
 
 
 @purpose("Search companies.")
-def hubspot_search_companies(
+async def hubspot_search_companies(
     and_conditions: List[HubSpotSearchCondition],
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
     """
     Search for companies in HubSpot CRM.
     """
-    schema = _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
+    schema = await _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
 
     # Construct the filters based on the search criteria
     filters = []
@@ -776,7 +785,7 @@ def hubspot_search_companies(
         )
 
     if not filters:
-        return _list_companies(schema, pagination_token)
+        return await _list_companies(schema, pagination_token)
 
     url = "https://api.hubapi.com/crm/v3/objects/companies/search"
 
@@ -785,11 +794,12 @@ def hubspot_search_companies(
         "properties": _get_all_property_names(schema),
     }
     companies = []
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json=payload)
-        response.raise_for_status()
+        response = await client.post(url, json=payload)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
     for item in data.get("results", []):
@@ -843,7 +853,7 @@ class HubSpotDeal:
     archived: bool
 
 
-def _list_deals(
+async def _list_deals(
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[Sequence[HubSpotDeal], Optional[HubSpotPaginationToken]]:
@@ -852,11 +862,12 @@ def _list_deals(
     if pagination_token:
         params["after"] = pagination_token.token
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.get(url, params=params)
-        response.raise_for_status()
+        response = await client.get(url, params=params)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
     deals = []
@@ -895,7 +906,7 @@ def _list_deals(
 
 
 @purpose("Create deals.")
-def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
+async def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
     """
     Create multiple deals in HubSpot using the batch API.
 
@@ -925,18 +936,19 @@ def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
 
     payload = {"inputs": deal_payload}
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json=payload)
-        response.raise_for_status()
+        response = await client.post(url, json=payload)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
     return [result["id"] for result in data["results"]]
 
 
 @purpose("Update deals.")
-def hubspot_update_deals(
+async def hubspot_update_deals(
     deal_updates: Mapping[
         str,
         Sequence[
@@ -984,7 +996,7 @@ def hubspot_update_deals(
     hs_is_closed: True if the deal was won or lost.
     hs_is_closed_won: True if the deal is in the closed-won state.
     """
-    schema = _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
+    schema = await _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
     url = "https://api.hubapi.com/crm/v3/objects/deals/batch/update"
     payload = [
         {
@@ -996,17 +1008,18 @@ def hubspot_update_deals(
         }
         for deal_id, properties in deal_updates.items()
     ]
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json={"inputs": payload})
-        response.raise_for_status()
+        response = await client.post(url, json={"inputs": payload})
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
         return [result["id"] for result in data["results"]]
 
 
 @purpose("Search deals.")
-def hubspot_search_deals(
+async def hubspot_search_deals(
     and_conditions: List[HubSpotSearchCondition],
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
@@ -1016,7 +1029,7 @@ def hubspot_search_deals(
     Default properties will always be fetched. However, properties with no values will not be in the additional_properties
     dict. You MUST check whether the property exists in additional_properties before using it.
     """
-    schema = _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
+    schema = await _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
     filters = []
     for and_condition in and_conditions:
         value = _coerce_value_to_hubspot(
@@ -1033,7 +1046,7 @@ def hubspot_search_deals(
         )
 
     if not filters:
-        return _list_deals(schema, pagination_token)
+        return await _list_deals(schema, pagination_token)
 
     url = "https://api.hubapi.com/crm/v3/objects/deals/search"
 
@@ -1043,11 +1056,12 @@ def hubspot_search_deals(
     }
 
     deals = []
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = client.post(url, json=payload)
-        response.raise_for_status()
+        response = await client.post(url, json=payload)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
     for item in data.get("results", []):
@@ -1116,7 +1130,7 @@ _HUBSPOT_OBJECT_TYPE_IDS = dict(
 
 
 @purpose("Fetch associated object IDs.")
-def hubspot_fetch_associated_object_ids(
+async def hubspot_fetch_associated_object_ids(
     source_object_type: HubSpotObjectType,
     target_object_type: HubSpotObjectType,
     source_object_id: str,
@@ -1131,11 +1145,12 @@ def hubspot_fetch_associated_object_ids(
     url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/read"
     params = {"inputs": [{"id": source_object_id}]}
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot)
     ) as client:
-        response = client.post(url, json=params)
-        response.raise_for_status()
+        response = await client.post(url, json=params)
+        await raise_error_text(response)
+        await response.aread()
         data = response.json()
 
         if results := data.get("results", []):
@@ -1172,7 +1187,7 @@ class HubSpotAssociationType:
 
 
 @purpose("Create association between object IDs.")
-def hubspot_create_association_between_object_ids(
+async def hubspot_create_association_between_object_ids(
     association_type: HubSpotAssociationType,
     source_object_type: HubSpotObjectType,
     source_object_id: str,
@@ -1206,41 +1221,41 @@ def hubspot_create_association_between_object_ids(
         ]
     }
 
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot)
     ) as client:
-        response = client.post(url, json=params)
-        response.raise_for_status()
+        response = await client.post(url, json=params)
+        await raise_error_text(response)
 
 
-def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: str):
+async def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: str):
     params = {
         "objectIdToMerge": object_to_merge_id,
         "primaryObjectId": primary_object_id,
     }
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot)
     ) as client:
-        response = client.post(url, json=params)
-        response.raise_for_status()
+        response = await client.post(url, json=params)
+        await raise_error_text(response)
 
 
 @purpose("Merge contacts.")
-def hubspot_merge_contacts(primary_contact_id: str, contact_to_merge_id: str):
+async def hubspot_merge_contacts(primary_contact_id: str, contact_to_merge_id: str):
     """Merge contact_to_merge_id with primary_contact_id, retaining primary contact"""
     url = "https://api.hubapi.com/crm/v3/objects/contacts/merge"
-    _merge_objects(url, primary_contact_id, contact_to_merge_id)
+    await _merge_objects(url, primary_contact_id, contact_to_merge_id)
 
 
 @purpose("Merge companies.")
-def hubspot_merge_companies(primary_company_id: str, company_to_merge_id: str):
+async def hubspot_merge_companies(primary_company_id: str, company_to_merge_id: str):
     """Merge company_to_merge with primary_company, retaining primary company"""
     url = "https://api.hubapi.com/crm/v3/objects/companies/merge"
-    _merge_objects(url, primary_company_id, company_to_merge_id)
+    await _merge_objects(url, primary_company_id, company_to_merge_id)
 
 
 @purpose("Fetch HubSpot List.")
-def hubspot_list_memberships(
+async def hubspot_list_memberships(
     list_name: str, object_type: HubSpotObjectType
 ) -> Tuple[List[str], Optional[HubSpotPaginationToken]]:
     """Returns object_ids associated with the HubSpot List object."""
@@ -1249,18 +1264,20 @@ def hubspot_list_memberships(
     url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{escaped_list_name}"
     object_ids = []
     next_pagination_token = None
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_hubspot)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot)
     ) as client:
-        response = client.get(url)
-        response.raise_for_status()
+        response = await client.get(url)
+        await response.aread()
+        await raise_error_text(response)
         data = response.json()
         if list_data := data.get("list"):
             list_id = list_data["listId"]
-            memberships_response = client.get(
+            memberships_response = await client.get(
                 f"https://api.hubapi.com/crm/v3/lists/{list_id}/memberships"
             )
-            memberships_response.raise_for_status()
+            await raise_error_text(memberships_response)
+            await memberships_response.aread()
             membership_data = memberships_response.json()
             token = data.get("paging", {}).get("next", {}).get("after")
             next_pagination_token = (
