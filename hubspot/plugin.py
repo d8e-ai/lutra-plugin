@@ -178,10 +178,13 @@ def _coerce_properties_to_lutra(
         else:
             match property_schema["type"].lower():
                 case "bool":
-                    # HubSpot boolean properties seem to come as the strings "true" and "false," but we
-                    # can't find a guarantee that they do, so use Pydantic parsing to accept many boolean
-                    # representations just in case.
-                    c_value = pydantic.parse_obj_as(bool, value)
+                    if value == "":
+                        c_value = None  # The value is an empty string when the boolean is not set
+                    else:
+                        # HubSpot boolean properties seem to come as the strings "true" and "false," but we
+                        # can't find a guarantee that they do, so use Pydantic parsing to accept many boolean
+                        # representations just in case.
+                        c_value = pydantic.parse_obj_as(bool, value)
                 case "date":
                     if isinstance(value, datetime):
                         c_value = value
@@ -273,6 +276,33 @@ def _coerce_properties_to_hubspot(
     return coerced_properties
 
 
+def _get_datetime_with_fallback(api_item: dict, key: str) -> datetime:
+    # Note: `x.get(y) or z` is safer than `x.get(y, z)` in the case that `x[y]` is present and `None`.
+    return datetime.fromisoformat(api_item.get(key) or "1970-01-01T00:00:00Z")
+
+
+def _parse_hubspot_contact(api_item: dict, properties_schema: _HubSpotPropertiesSchema) -> HubSpotContact:
+    properties = api_item.get("properties") or {}
+    return HubSpotContact(
+        created_at=_get_datetime_with_fallback(api_item, "createdAt"),
+        updated_at=_get_datetime_with_fallback(api_item, "updatedAt"),
+        archived=api_item.get("archived") or False,
+        firstname=properties.get("firstname") or "",
+        lastname=properties.get("lastname") or "",
+        email=properties.get("email") or "",
+        hs_object_id=properties.get("hs_object_id") or "",
+        # TODO: Verify if "lastmodifieddate" is correct here.
+        # It seems that "lastmodifieddate" is defined on Contacts, but not other object types, and
+        # there is also "hs_lastmodifieddate" that is defined on other object types but not
+        # Contacts.
+        last_modified_date=_get_datetime_with_fallback(properties, "lastmodifieddate"),
+        additional_properties=_coerce_properties_to_lutra(
+            {key: val for key, val in properties.items() if val is not None},
+            schema=properties_schema,
+        )
+    )
+
+
 async def _list_contacts(
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
@@ -290,29 +320,7 @@ async def _list_contacts(
         await response.aread()
         data = response.json()
 
-    contacts = []
-    for item in data["results"]:
-        properties = item["properties"]
-        property_values = {
-            key: val for key, val in properties.items() if val is not None
-        }
-        additional_properties = _coerce_properties_to_lutra(
-            property_values,
-            schema=schema,
-        )
-        contact = HubSpotContact(
-            created_at=datetime.fromisoformat(item["createdAt"]),
-            updated_at=datetime.fromisoformat(item["updatedAt"]),
-            archived=item["archived"],
-            firstname=properties["firstname"],
-            lastname=properties["lastname"],
-            email=properties.get("email") or "",
-            hs_object_id=properties["hs_object_id"],
-            last_modified_date=datetime.fromisoformat(properties["lastmodifieddate"]),
-            additional_properties=additional_properties,
-        )
-        contacts.append(contact)
-
+    contacts = [_parse_hubspot_contact(item, schema) for item in data.get("results") or []]
     token = data.get("paging", {}).get("next", {}).get("after")
     next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
@@ -474,34 +482,7 @@ async def _search_contacts(
         await raise_error_text(response)
         await response.aread()
         data = response.json()
-        contacts = []
-        property_values = {}
-        for item in data.get("results", []):
-            properties = item.get("properties", {})
-            property_values = {key: val for key, val in properties.items() if val}
-            additional_properties = _coerce_properties_to_lutra(
-                property_values,
-                schema=schema,
-            )
-            contact = HubSpotContact(
-                created_at=datetime.fromisoformat(
-                    item.get("createdAt", "1970-01-01T00:00:00Z")
-                ),
-                updated_at=datetime.fromisoformat(
-                    item.get("updatedAt", "1970-01-01T00:00:00Z")
-                ),
-                archived=item.get("archived", False),
-                firstname=property_values.get("firstname", ""),
-                lastname=property_values.get("lastname", ""),
-                email=property_values.get("email", ""),
-                hs_object_id=item["id"],
-                last_modified_date=datetime.fromisoformat(
-                    property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
-                ),
-                additional_properties=additional_properties,
-            )
-            contacts.append(contact)
-
+        contacts = [_parse_hubspot_contact(item, schema) for item in data.get("results") or []]
         token = data.get("paging", {}).get("next", {}).get("after")
         next_pagination_token = HubSpotPaginationToken(token=token) if token else None
         return contacts, next_pagination_token
@@ -591,6 +572,22 @@ class HubSpotCompany:
     updated_at: datetime
     archived: bool
 
+def _parse_hubspot_company(api_item: dict, schema: _HubSpotPropertiesSchema) -> HubSpotCompany:
+    properties = api_item.get("properties") or {}
+    return HubSpotCompany(
+        created_at=_get_datetime_with_fallback(api_item, "createdAt"),
+        updated_at=_get_datetime_with_fallback(api_item, "updatedAt"),
+        archived=api_item.get("archived") or False,
+        name=properties.get("name") or "",
+        domain=properties.get("domain") or "",
+        hs_object_id=properties.get("hs_object_id") or "",
+        last_modified_date=_get_datetime_with_fallback(properties, "hs_lastmodifieddate"),
+        additional_properties=_coerce_properties_to_lutra(
+            {key: val for key, val in properties.items() if val is not None},
+            schema=schema,
+        )
+    )
+
 
 async def _list_companies(
     schema: _HubSpotPropertiesSchema,
@@ -609,30 +606,7 @@ async def _list_companies(
         await response.aread()
         data = response.json()
 
-    companies = []
-    for item in data["results"]:
-        properties = item["properties"]
-        property_values = {
-            key: val for key, val in properties.items() if val is not None
-        }
-        additional_properties = _coerce_properties_to_lutra(
-            property_values,
-            schema=schema,
-        )
-        company = HubSpotCompany(
-            created_at=datetime.fromisoformat(item["createdAt"]),
-            updated_at=datetime.fromisoformat(item["updatedAt"]),
-            archived=item["archived"] or False,
-            name=properties.get("name") or "",
-            domain=properties.get("domain") or "",
-            hs_object_id=properties.get("hs_object_id"),
-            last_modified_date=datetime.fromisoformat(
-                properties["hs_lastmodifieddate"]
-            ),
-            additional_properties=additional_properties,
-        )
-        companies.append(company)
-
+    companies = [_parse_hubspot_company(item, schema) for item in data.get("results") or []]
     token = data.get("paging", {}).get("next", {}).get("after")
     next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
@@ -793,7 +767,6 @@ async def hubspot_search_companies(
         "filterGroups": [{"filters": filters}],
         "properties": _get_all_property_names(schema),
     }
-    companies = []
     async with httpx.AsyncClient(
         transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
@@ -802,34 +775,7 @@ async def hubspot_search_companies(
         await response.aread()
         data = response.json()
 
-    for item in data.get("results", []):
-        properties = item["properties"]
-        property_values = {
-            key: val for key, val in properties.items() if val is not None
-        }
-        additional_property_values = _coerce_properties_to_lutra(
-            property_values,
-            schema=schema,
-        )
-
-        company = HubSpotCompany(
-            created_at=datetime.fromisoformat(
-                item.get("createdAt", "1970-01-01T00:00:00Z")
-            ),
-            updated_at=datetime.fromisoformat(
-                item.get("updatedAt", "1970-01-01T00:00:00Z")
-            ),
-            archived=item.get("archived", False),
-            name=property_values.get("name", ""),
-            domain=property_values.get("domain", ""),
-            hs_object_id=item["id"],
-            last_modified_date=datetime.fromisoformat(
-                property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
-            ),
-            additional_properties=additional_property_values,
-        )
-        companies.append(company)
-
+    companies = [_parse_hubspot_company(item, schema) for item in data.get("results") or []]
     token = data.get("paging", {}).get("next", {}).get("after")
     next_pagination_token = HubSpotPaginationToken(token=token) if token else None
     return companies, next_pagination_token
@@ -853,6 +799,29 @@ class HubSpotDeal:
     archived: bool
 
 
+def _parse_hubspot_deal(api_item: dict, schema: _HubSpotPropertiesSchema) -> HubSpotDeal:
+    properties = api_item.get("properties") or {}
+    return HubSpotDeal(
+        created_at=_get_datetime_with_fallback(api_item, "createdAt"),
+        updated_at=_get_datetime_with_fallback(api_item, "updatedAt"),
+        archived=api_item.get("archived") or False,
+        dealname=properties.get("dealname") or "",
+        dealstage=properties.get("dealstage") or "",
+        closedate=(
+            datetime.fromisoformat(properties["closedate"])
+            if properties.get("closedate")
+            else None
+        ),
+        amount=float(properties.get("amount") or 0),
+        hs_object_id=properties.get("hs_object_id") or "",
+        last_modified_date=_get_datetime_with_fallback(properties, "hs_lastmodifieddate"),
+        additional_properties=_coerce_properties_to_lutra(
+            {key: val for key, val in properties.items() if val is not None},
+            schema=schema,
+        ),
+    ) 
+
+
 async def _list_deals(
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
@@ -870,35 +839,7 @@ async def _list_deals(
         await response.aread()
         data = response.json()
 
-    deals = []
-    for item in data["results"]:
-        properties = item["properties"]
-        property_values = {
-            key: val for key, val in properties.items() if val is not None
-        }
-        additional_properties = _coerce_properties_to_lutra(
-            property_values,
-            schema=schema,
-        )
-        deal = HubSpotDeal(
-            created_at=datetime.fromisoformat(item["createdAt"]),
-            updated_at=datetime.fromisoformat(item["updatedAt"]),
-            archived=item["archived"],
-            dealname=properties.get("dealname"),
-            dealstage=properties.get("dealstage"),
-            closedate=(
-                datetime.fromisoformat(properties["closedate"])
-                if "closeddate" in properties
-                else None
-            ),
-            amount=float(properties.get("amount", 0)),
-            hs_object_id=properties.get("hs_object_id"),
-            last_modified_date=datetime.fromisoformat(
-                properties["hs_lastmodifieddate"]
-            ),
-            additional_properties=additional_properties,
-        )
-        deals.append(deal)
+    deals = [_parse_hubspot_deal(item, schema) for item in data.get("results") or []]
     token = data.get("paging", {}).get("next", {}).get("after")
     next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
@@ -1055,7 +996,6 @@ async def hubspot_search_deals(
         "properties": _get_all_property_names(schema),
     }
 
-    deals = []
     async with httpx.AsyncClient(
         transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
@@ -1064,42 +1004,7 @@ async def hubspot_search_deals(
         await response.aread()
         data = response.json()
 
-    for item in data.get("results", []):
-        properties = item.get("properties", {})
-        property_values = {
-            key: val for key, val in properties.items() if val is not None
-        }
-        additional_property_values = _coerce_properties_to_lutra(
-            property_values,
-            schema=schema,
-        )
-
-        deal = HubSpotDeal(
-            created_at=datetime.fromisoformat(
-                item.get("createdAt", "1970-01-01T00:00:00Z")
-            ),
-            updated_at=datetime.fromisoformat(
-                item.get("updatedAt", "1970-01-01T00:00:00Z")
-            ),
-            archived=item.get("archived", False),
-            dealname=property_values.get("dealname", ""),
-            dealstage=property_values.get("dealstage", ""),
-            closedate=(
-                datetime.fromisoformat(
-                    property_values.get("closedate", "1970-01-01T00:00:00Z")
-                )
-                if property_values.get("closedate")
-                else None
-            ),
-            amount=float(property_values.get("amount", 0)),
-            hs_object_id=item["id"],
-            last_modified_date=datetime.fromisoformat(
-                property_values.get("lastmodifieddate", "1970-01-01T00:00:00Z")
-            ),
-            additional_properties=additional_property_values,
-        )
-        deals.append(deal)
-
+    deals = [_parse_hubspot_deal(item, schema) for item in data.get("results") or []]
     token = data.get("paging", {}).get("next", {}).get("after")
     next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
