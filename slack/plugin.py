@@ -405,6 +405,6 @@ def slack_user_lookup(users: Sequence[str]) -> dict[str, SlackUser | None]:
 
         for slack_user in all_users:
             if slack_user.id in user_set:
-                name_to_user[slack_user.display_name] = slack_user
+                name_to_user[slack_user.id] = slack_user
 
         return name_to_user
