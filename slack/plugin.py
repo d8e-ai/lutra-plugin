@@ -378,17 +378,14 @@ def slack_conversation_replies(
     return messages, next_cursor
 
 
-@purpose("Converts Slack user ID strings to display names")
+@purpose("Associate Slack user ID strings with information about the user.")
 def slack_user_lookup(users: Sequence[str]) -> dict[str, SlackUser | None]:
     """
     Convert the sequence of slack user ID strings to a SlackUser object.
 
-    Args:
-      users: A sequence of strings corresponding to Slack user identifiers
+    :param users: A sequence of strings corresponding to Slack user identifiers
         like "U143B8CPZS5" (e.g., SlackMessage.user field).
-
-    Returns:
-      A mapping from the Slack user identifiers to the SlackUser object for
+    :return: A mapping from the Slack user identifiers to the SlackUser object for
         each input member, or None if not found.
     """
     with httpx.Client(
