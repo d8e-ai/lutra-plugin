@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Sequence
+from typing import AbstractSet, Optional
 
 import httpx
 
@@ -379,11 +379,11 @@ def slack_conversation_replies(
 
 
 @purpose("Associate Slack user ID strings with information about the user.")
-def slack_user_lookup(users: Sequence[str]) -> dict[str, SlackUser | None]:
+def slack_user_lookup(users: AbstractSet[str]) -> dict[str, SlackUser | None]:
     """
-    Convert the sequence of slack user ID strings to a SlackUser object.
+    Convert the set of slack user ID strings to a SlackUser object.
 
-    :param users: A sequence of strings corresponding to Slack user identifiers
+    :param users: A set of strings corresponding to Slack user identifiers
         like "U143B8CPZS5" (e.g., SlackMessage.user field).
     :return: A mapping from the Slack user identifiers to the SlackUser object for
         each input member, or None if not found.
@@ -394,14 +394,13 @@ def slack_user_lookup(users: Sequence[str]) -> dict[str, SlackUser | None]:
         # Get all users
         all_users = _list_users(client)
 
-        user_set = set(users)
         name_to_user: dict[str, SlackUser | None] = {}
         # Initialize output to None for every user in the input.
-        for input_user in user_set:
+        for input_user in users:
             name_to_user[input_user] = None
 
         for slack_user in all_users:
-            if slack_user.id in user_set:
+            if slack_user.id in users:
                 name_to_user[slack_user.id] = slack_user
 
         return name_to_user
