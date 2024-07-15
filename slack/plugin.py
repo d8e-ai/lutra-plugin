@@ -1,24 +1,23 @@
+import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
-import re
+from typing import AbstractSet, Optional
 
 import httpx
 
 from lutraai.augmented_request_client import AugmentedTransport
 from lutraai.decorator import purpose
 
-
 _BOT_NAME = "Lutra Slack Bot"
 
 
 @dataclass
-class _SlackUser:
+class SlackUser:
     id: str
     display_name: str
 
 
-def _with_mentions(users: list[_SlackUser], message: str) -> str:
+def _with_mentions(users: list[SlackUser], message: str) -> str:
     display_name_to_id = {}
     for user in users:
         if user.display_name not in display_name_to_id:
@@ -157,7 +156,7 @@ def slack_send_message_to_self(message: str) -> None:
             raise RuntimeError(f"sending message: {data}")
 
 
-def _list_users(client: httpx.Client) -> list[_SlackUser]:
+def _list_users(client: httpx.Client) -> list[SlackUser]:
     users = []
     cursor = None
     while True:
@@ -176,7 +175,7 @@ def _list_users(client: httpx.Client) -> list[_SlackUser]:
             raise RuntimeError(f"listing users: {data}")
         for member in data["members"]:
             users.append(
-                _SlackUser(
+                SlackUser(
                     id=member["id"],
                     display_name=member["profile"]["display_name"],
                 )
@@ -239,7 +238,7 @@ def slack_conversations_history(
     limit: int = 100,
 ) -> tuple[list[SlackMessage], str]:
     """
-    Fetches a page of conversation history from a Slack channel.
+    Fetch a page of conversation history from a Slack channel.
 
     :param channel: The name or ID of the Slack channel.
     :param oldest: Only messages after this datetime will be included in results.
@@ -281,7 +280,7 @@ def slack_conversations_history(
         )
     if not data.get("ok", False):
         if data.get("error") == "channel_not_found":
-            available_channels = f"{sorted(list(conversation_ids.keys()))}"
+            available_channels = f"{sorted(conversation_ids.keys())}"
             # Avoid making the error message absurdly long.
             max_length = 1024
             if len(available_channels) > max_length:
@@ -306,3 +305,102 @@ def slack_conversations_history(
     ]
     next_cursor = data.get("response_metadata", {}).get("next_cursor", "")
     return messages, next_cursor
+
+
+@purpose("Get conversation replies.")
+def slack_conversation_replies(
+    channel: str,
+    ts: str,
+    cursor: Optional[str] = None,
+    limit: int = 100,
+) -> tuple[list[SlackMessage], str]:
+    """
+    Fetch a page of replies from a specific Slack conversation.
+
+    :param channel: The name or ID of the Slack channel.
+    :param ts: The timestamp of the parent message.
+    :param cursor: Cursor for pagination.
+    :param limit: The maximum number of items to return. May return fewer than the
+        limit, even if there are more items.
+    :return: A tuple containing a list of SlackMessage dataclass instances and the next
+        cursor for pagination. If the next cursor is the empty string, all of the
+        requested items have been returned.
+    """
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
+    ) as client:
+        conversation_ids = _conversation_ids_by_name(client)
+        conversation_id = _find_conversation_by_name(conversation_ids, channel)
+        if conversation_id is None:
+            # `channel` does not match any name, so assume that it is an ID.
+            conversation_id = channel
+        params = {
+            "channel": conversation_id,
+            "ts": ts,
+            "limit": limit,
+        }
+        if cursor:
+            params["cursor"] = cursor
+        data = (
+            client.get(
+                "https://slack.com/api/conversations.replies",
+                params=params,
+            )
+            .raise_for_status()
+            .json()
+        )
+    if not data.get("ok", False):
+        if data.get("error") == "channel_not_found":
+            available_channels = f"{sorted(conversation_ids.keys())}"
+            # Avoid making the error message absurdly long.
+            max_length = 1024
+            if len(available_channels) > max_length:
+                truncated = "...(truncated)"
+                available_channels = (
+                    f"{available_channels[:max_length - len(truncated)]}{truncated}"
+                )
+            raise RuntimeError(
+                f"channel '{channel}' not found; "
+                f"available_channels: {available_channels}; "
+                "double-check that you have authorized the correct workspace"
+            )
+        raise RuntimeError(f"fetching replies: {data}")
+    messages = [
+        SlackMessage(
+            type=msg["type"],
+            user=msg.get("user"),
+            text=msg.get("text"),
+            ts=msg["ts"],
+        )
+        for msg in data.get("messages", [])
+    ]
+    next_cursor = data.get("response_metadata", {}).get("next_cursor", "")
+    return messages, next_cursor
+
+
+@purpose("Associate Slack user ID strings with information about the user.")
+def slack_user_lookup(users: AbstractSet[str]) -> dict[str, SlackUser | None]:
+    """
+    Convert the set of slack user ID strings to a SlackUser object.
+
+    :param users: A set of strings corresponding to Slack user identifiers
+        like "U143B8CPZS5" (e.g., SlackMessage.user field).
+    :return: A mapping from the Slack user identifiers to the SlackUser object for
+        each input member, or None if not found.
+    """
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_slack)
+    ) as client:
+        # Get all users
+        all_users = _list_users(client)
+
+        name_to_user: dict[str, SlackUser | None] = {}
+        # Initialize output to None for every user in the input.
+        for input_user in users:
+            name_to_user[input_user] = None
+
+        for slack_user in all_users:
+            if slack_user.id in users:
+                name_to_user[slack_user.id] = slack_user
+
+        return name_to_user
