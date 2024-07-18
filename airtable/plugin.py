@@ -1,12 +1,12 @@
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional, Tuple
 from urllib.parse import unquote, urlparse
 
 import httpx
-
+import tenacity
 from lutraai.augmented_request_client import AugmentedTransport
 from lutraai.decorator import purpose
 
@@ -38,6 +38,33 @@ class AirtableViewID:
 @dataclass
 class AirtableRecordID:
     id: str
+
+
+@tenacity.retry(
+    # See https://web.archive.org/web/20240604172435/https://support.airtable.com/docs/airtable-api-common-troubleshooting
+    retry=tenacity.retry_if_result(
+        lambda r: r.status_code
+        in {
+            # Too many requests.
+            429,
+            # > Airtable's servers are restarting or an unexpected outage is in
+            # > progress.  You should generally not receive this error, and requests are
+            # > safe to retry.
+            502,
+            # > The server could not process your request in time. The server could be
+            # > temporarily unavailable, or it could have timed out processing your
+            # > request.  You should retry the request with backoffs.
+            503,
+        }
+    ),
+    # Do the same as Airtable's own client:
+    # - https://github.com/Airtable/airtable.js/blob/899adb414ebc789aa3b0dcfe6c19113377315564/src/exponential_backoff_with_jitter.ts#L3-L13
+    # - https://github.com/Airtable/airtable.js/blob/899adb414ebc789aa3b0dcfe6c19113377315564/src/internal_config.json#L2-L3
+    wait=tenacity.wait_random_exponential(multiplier=5, max=timedelta(minutes=10)),
+)
+def _maybe_retry_send(client: httpx.Client, request: httpx.Request) -> httpx.Response:
+    """Send a request using the client, retrying if appropriate."""
+    return client.send(request)
 
 
 @purpose("Parse IDs from Airtable website URLs.")
@@ -121,7 +148,12 @@ def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, 
 
 def _fetch_schema(client: httpx.Client, base_id: str, table_id_or_name: str) -> Any:
     data = (
-        client.get(f"https://api.airtable.com/v0/meta/bases/{base_id}/tables")
+        _maybe_retry_send(
+            client,
+            client.build_request(
+                "GET", f"https://api.airtable.com/v0/meta/bases/{base_id}/tables"
+            ),
+        )
         .raise_for_status()
         .json()
     )
@@ -206,7 +238,7 @@ def airtable_record_list(
       - A pagination token to be used in subsequent calls to retrieve additional records.
     """
     post_body = {}
-    
+
     if pagination_token is not None:
         post_body["offset"] = pagination_token.token
     if include_fields is not None:
@@ -229,9 +261,17 @@ def airtable_record_list(
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
-        response = client.post(
-            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/listRecords",
-            json=post_body,
+        # TODO: Consider only using a POST if the query parameters are actually too
+        # large. This will allow caching, because GET.
+
+        # Listing records is safe to retry, despite being a POST.
+        response = _maybe_retry_send(
+            client,
+            client.build_request(
+                "POST",
+                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/listRecords",
+                json=post_body,
+            ),
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
@@ -272,9 +312,15 @@ def airtable_record_create(
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
-        response = client.post(
-            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
-            json={"fields": fields, "typecast": typecast},
+        # Airtable documentation seems to suggest that it is likely that errors retried
+        # by _maybe_retry_send mean that the record was not created.
+        response = _maybe_retry_send(
+            client,
+            client.build_request(
+                "POST",
+                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
+                json={"fields": fields, "typecast": typecast},
+            ),
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
@@ -311,9 +357,13 @@ def airtable_record_update_patch(
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
-        response = client.patch(
-            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/{record_id.id}",
-            json={"fields": fields, "typecast": typecast},
+        response = _maybe_retry_send(
+            client,
+            client.build_request(
+                "PATCH",
+                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/{record_id.id}",
+                json={"fields": fields, "typecast": typecast},
+            ),
         )
         if response.status_code != httpx.codes.OK:
             raise RuntimeError(
