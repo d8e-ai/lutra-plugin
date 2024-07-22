@@ -155,6 +155,7 @@ class Page:
 
 
 async def chronicling_america_page_search(query: str) -> list[Page]:
+    """Search Chronicling America by page."""
     async with httpx.AsyncClient() as client:
         response = await client.get(
             "https://chroniclingamerica.loc.gov/search/pages/results/",
@@ -194,6 +195,8 @@ code.
 
 Each function that does not begin with an underscore, `_`, defines an action.
 Functions that begin with an underscore will not be used (directly) by Lutra.
+
+Functions must have [docstrings](#docstrings).
 
 ## <a name="types"/>Types
 
@@ -259,10 +262,10 @@ class Cons:
     cdr: Cons # Disallowed!
 ```
 
-## Docstrings
+## <a name="docstrings"/>Docstrings
 
-Action function docstrings can be used to help guide Lutra to use your action
-as intended, e.g.:
+Action function docstrings help guide Lutra to use your action as intended,
+e.g.:
 
 ```python
 def max_int(is: list[int]) -> int:
