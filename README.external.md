@@ -106,7 +106,7 @@ We use Python types and dataclasses to express this structure:
 
 ```python
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 
@@ -114,7 +114,7 @@ import httpx
 @dataclass
 class Newspaper:
     id: str
-    publisher: str
+    publisher: Optional[str]
     title: str
 
 
