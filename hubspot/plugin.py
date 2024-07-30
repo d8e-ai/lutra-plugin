@@ -1,14 +1,15 @@
+import urllib
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, Any, Mapping
-import urllib
-
-import pydantic
+from typing import Any, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Union
 
 import httpx
+import pydantic
+
 from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import purpose
 from lutraai.requests import raise_error_text
+
 
 @dataclass
 class HubSpotObjectType:
@@ -55,14 +56,20 @@ class _HubSpotPropertiesSchema:
     """
 
 
-async def _get_hubspot_properties_schema(object_type: HubSpotObjectType) -> _HubSpotPropertiesSchema:
+async def _get_hubspot_properties_schema(
+    object_type: HubSpotObjectType,
+) -> _HubSpotPropertiesSchema:
     async with httpx.AsyncClient(
         transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
     ) as client:
-        response = await client.get(f"https://api.hubapi.com/crm/v3/properties/{object_type.name}")
+        response = await client.get(
+            f"https://api.hubapi.com/crm/v3/properties/{object_type.name}"
+        )
         await raise_error_text(response)
         await response.aread()
-        return _HubSpotPropertiesSchema(properties={prop["name"]: prop for prop in response.json()["results"]})
+        return _HubSpotPropertiesSchema(
+            properties={prop["name"]: prop for prop in response.json()["results"]}
+        )
 
 
 def _get_all_property_names(schema: _HubSpotPropertiesSchema) -> list[str]:
@@ -166,7 +173,7 @@ class HubSpotPaginationToken:
 
 
 def _coerce_properties_to_lutra(
-    properties: Dict[str, Union[str, int, float, date, datetime, bool]],
+    properties: Mapping[str, Union[str, int, float, date, datetime, bool]],
     schema: _HubSpotPropertiesSchema,
 ) -> Dict[str, HubSpotPropertyValue]:
     coerced_properties: Dict[str, HubSpotPropertyValue] = {}
@@ -189,22 +196,22 @@ def _coerce_properties_to_lutra(
                     if isinstance(value, datetime):
                         c_value = value
                     elif isinstance(value, str):
-                        if value == "":  # The value is an empty string when the date is not set
-                            c_value = None
-                        else:
-                            c_value = date.fromisoformat(value)
+                        # The value is an empty string when the date is not set
+                        c_value = date.fromisoformat(value) if value else None
                     else:
-                        raise ValueError(f"Unexpected date format: {value} ({type(value)})")
+                        raise ValueError(
+                            f"Unexpected date format: {value} ({type(value)})"
+                        )
                 case "datetime":
                     if isinstance(value, datetime):
                         c_value = value
                     elif isinstance(value, str):
-                        if value == "":  # The value is an empty string when the date is not set
-                            c_value = None
-                        else:
-                            c_value = datetime.fromisoformat(value)
+                        # The value is an empty string when the date is not set
+                        c_value = datetime.fromisoformat(value) if value else None
                     else:
-                        raise ValueError(f"Unexpected datetime format: {value} ({type(value)})")
+                        raise ValueError(
+                            f"Unexpected datetime format: {value} ({type(value)})"
+                        )
                 case "number":
                     if isinstance(value, str):
                         if "." in value:
@@ -260,7 +267,9 @@ def _coerce_value_to_hubspot(
 
 
 def _coerce_properties_to_hubspot(
-    properties: Dict[str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]],
+    properties: Mapping[
+        str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]
+    ],
     schema: _HubSpotPropertiesSchema,
 ) -> Dict[str, Union[str, int, bool]]:
     coerced_properties = {}
@@ -276,12 +285,14 @@ def _coerce_properties_to_hubspot(
     return coerced_properties
 
 
-def _get_datetime_with_fallback(api_item: dict, key: str) -> datetime:
+def _get_datetime_with_fallback(api_item: Dict[str, Any], key: str) -> datetime:
     # Note: `x.get(y) or z` is safer than `x.get(y, z)` in the case that `x[y]` is present and `None`.
     return datetime.fromisoformat(api_item.get(key) or "1970-01-01T00:00:00Z")
 
 
-def _parse_hubspot_contact(api_item: dict, properties_schema: _HubSpotPropertiesSchema) -> HubSpotContact:
+def _parse_hubspot_contact(
+    api_item: Dict[str, Any], properties_schema: _HubSpotPropertiesSchema
+) -> HubSpotContact:
     properties = api_item.get("properties") or {}
     return HubSpotContact(
         created_at=_get_datetime_with_fallback(api_item, "createdAt"),
@@ -299,16 +310,16 @@ def _parse_hubspot_contact(api_item: dict, properties_schema: _HubSpotProperties
         additional_properties=_coerce_properties_to_lutra(
             {key: val for key, val in properties.items() if val is not None},
             schema=properties_schema,
-        )
+        ),
     )
 
 
 async def _list_contacts(
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
-) -> Tuple[Sequence[HubSpotContact], Optional[HubSpotPaginationToken]]:
+) -> Tuple[List[HubSpotContact], Optional[HubSpotPaginationToken]]:
     url = "https://api.hubapi.com/crm/v3/objects/contacts"
-    params = {"limit": 100}
+    params: Dict[str, Any] = {"limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
     params["properties"] = _get_all_property_names(schema)
@@ -320,7 +331,9 @@ async def _list_contacts(
         await response.aread()
         data = response.json()
 
-    contacts = [_parse_hubspot_contact(item, schema) for item in data.get("results") or []]
+    contacts = [
+        _parse_hubspot_contact(item, schema) for item in data.get("results") or []
+    ]
     token = data.get("paging", {}).get("next", {}).get("after")
     next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
@@ -345,7 +358,7 @@ async def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[st
     # Prepare the payload from the contacts list
     contacts_payload = []
     for contact in contacts:
-        properties = {
+        properties: Dict[str, Any] = {
             "firstname": contact.firstname,
             "lastname": contact.lastname,
             "email": contact.email,
@@ -379,7 +392,9 @@ async def hubspot_update_contacts(
     contact_updates: Mapping[
         str,
         Sequence[
-            Tuple[str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]]
+            Tuple[
+                str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]
+            ]
         ],
     ],
 ) -> List[str]:
@@ -460,13 +475,13 @@ async def hubspot_update_contacts(
 
 
 async def _search_contacts(
-    filter_groups: List[List[Dict[str, str]]],
+    filter_groups: List[Dict[str, List[Dict[str, Any]]]],
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
-) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
+) -> Tuple[List[HubSpotContact], Optional[HubSpotPaginationToken]]:
     if not filter_groups:
         # The API will fail with an empty list
-        return []
+        return [], None
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
     payload = {
         "filterGroups": filter_groups,
@@ -482,7 +497,9 @@ async def _search_contacts(
         await raise_error_text(response)
         await response.aread()
         data = response.json()
-        contacts = [_parse_hubspot_contact(item, schema) for item in data.get("results") or []]
+        contacts = [
+            _parse_hubspot_contact(item, schema) for item in data.get("results") or []
+        ]
         token = data.get("paging", {}).get("next", {}).get("after")
         next_pagination_token = HubSpotPaginationToken(token=token) if token else None
         return contacts, next_pagination_token
@@ -508,7 +525,7 @@ async def hubspot_search_contacts(
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
     pagination_token: Optional[HubSpotPaginationToken] = None,
-) -> Tuple[List[HubSpotContact], HubSpotPaginationToken]:
+) -> Tuple[List[HubSpotContact], Optional[HubSpotPaginationToken]]:
     """Search for HubSpot contacts
     created_after: Return contacts that were created after this datetime
     created_before: Return contacts that were created before this datetime
@@ -530,7 +547,7 @@ async def hubspot_search_contacts(
                 value=HubSpotPropertyValue(created_before),
             )
         )
-    filters = []
+    filters: list[dict[str, Any]] = []
     for and_condition in and_conditions:
         value = _coerce_value_to_hubspot(
             name=and_condition.property_name,
@@ -549,9 +566,7 @@ async def hubspot_search_contacts(
         return await _list_contacts(schema, pagination_token)
     filter_groups = [{"filters": filters}]
 
-    return await _search_contacts(
-        filter_groups, schema, pagination_token
-    )
+    return await _search_contacts(filter_groups, schema, pagination_token)
 
 
 @dataclass
@@ -572,7 +587,10 @@ class HubSpotCompany:
     updated_at: datetime
     archived: bool
 
-def _parse_hubspot_company(api_item: dict, schema: _HubSpotPropertiesSchema) -> HubSpotCompany:
+
+def _parse_hubspot_company(
+    api_item: dict, schema: _HubSpotPropertiesSchema
+) -> HubSpotCompany:
     properties = api_item.get("properties") or {}
     return HubSpotCompany(
         created_at=_get_datetime_with_fallback(api_item, "createdAt"),
@@ -581,20 +599,22 @@ def _parse_hubspot_company(api_item: dict, schema: _HubSpotPropertiesSchema) -> 
         name=properties.get("name") or "",
         domain=properties.get("domain") or "",
         hs_object_id=properties.get("hs_object_id") or "",
-        last_modified_date=_get_datetime_with_fallback(properties, "hs_lastmodifieddate"),
+        last_modified_date=_get_datetime_with_fallback(
+            properties, "hs_lastmodifieddate"
+        ),
         additional_properties=_coerce_properties_to_lutra(
             {key: val for key, val in properties.items() if val is not None},
             schema=schema,
-        )
+        ),
     )
 
 
 async def _list_companies(
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
-) -> Tuple[Sequence[HubSpotCompany], Optional[HubSpotPaginationToken]]:
+) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
     url = "https://api.hubapi.com/crm/v3/objects/companies"
-    params = {"limit": 100}
+    params: Dict[str, Any] = {"limit": 100}
     if pagination_token:
         params["after"] = pagination_token.token
     params["properties"] = _get_all_property_names(schema)
@@ -606,7 +626,9 @@ async def _list_companies(
         await response.aread()
         data = response.json()
 
-    companies = [_parse_hubspot_company(item, schema) for item in data.get("results") or []]
+    companies = [
+        _parse_hubspot_company(item, schema) for item in data.get("results") or []
+    ]
     token = data.get("paging", {}).get("next", {}).get("after")
     next_pagination_token = HubSpotPaginationToken(token=token) if token else None
 
@@ -659,7 +681,9 @@ async def hubspot_update_companies(
     company_updates: Mapping[
         str,
         Sequence[
-            Tuple[str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]]
+            Tuple[
+                str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]
+            ]
         ],
     ],
 ) -> List[str]:
@@ -775,7 +799,9 @@ async def hubspot_search_companies(
         await response.aread()
         data = response.json()
 
-    companies = [_parse_hubspot_company(item, schema) for item in data.get("results") or []]
+    companies = [
+        _parse_hubspot_company(item, schema) for item in data.get("results") or []
+    ]
     token = data.get("paging", {}).get("next", {}).get("after")
     next_pagination_token = HubSpotPaginationToken(token=token) if token else None
     return companies, next_pagination_token
@@ -799,7 +825,9 @@ class HubSpotDeal:
     archived: bool
 
 
-def _parse_hubspot_deal(api_item: dict, schema: _HubSpotPropertiesSchema) -> HubSpotDeal:
+def _parse_hubspot_deal(
+    api_item: dict, schema: _HubSpotPropertiesSchema
+) -> HubSpotDeal:
     properties = api_item.get("properties") or {}
     return HubSpotDeal(
         created_at=_get_datetime_with_fallback(api_item, "createdAt"),
@@ -814,18 +842,20 @@ def _parse_hubspot_deal(api_item: dict, schema: _HubSpotPropertiesSchema) -> Hub
         ),
         amount=float(properties.get("amount") or 0),
         hs_object_id=properties.get("hs_object_id") or "",
-        last_modified_date=_get_datetime_with_fallback(properties, "hs_lastmodifieddate"),
+        last_modified_date=_get_datetime_with_fallback(
+            properties, "hs_lastmodifieddate"
+        ),
         additional_properties=_coerce_properties_to_lutra(
             {key: val for key, val in properties.items() if val is not None},
             schema=schema,
         ),
-    ) 
+    )
 
 
 async def _list_deals(
     schema: _HubSpotPropertiesSchema,
     pagination_token: Optional[HubSpotPaginationToken] = None,
-) -> Tuple[Sequence[HubSpotDeal], Optional[HubSpotPaginationToken]]:
+) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
     url = "https://api.hubapi.com/crm/v3/objects/deals"
     params = {"properties": _get_all_property_names(schema), "limit": 100}
     if pagination_token:
@@ -893,7 +923,9 @@ async def hubspot_update_deals(
     deal_updates: Mapping[
         str,
         Sequence[
-            Tuple[str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]]
+            Tuple[
+                str, Union[str, int, float, date, datetime, bool, HubSpotPropertyValue]
+            ]
         ],
     ],
 ) -> List[str]:
