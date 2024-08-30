@@ -297,7 +297,7 @@ def slack_conversations_history(
     messages = [
         SlackMessage(
             type=msg["type"],
-            user=msg.get("user"),
+            user=msg.get("user") or msg.get("bot_id"),
             text=msg.get("text"),
             ts=msg["ts"],
         )
@@ -368,7 +368,7 @@ def slack_conversation_replies(
     messages = [
         SlackMessage(
             type=msg["type"],
-            user=msg.get("user"),
+            user=msg.get("user") or msg.get("bot_id"),
             text=msg.get("text"),
             ts=msg["ts"],
         )
