@@ -1,0 +1,7 @@
+name = "Reddit"
+description = "Helps you manage Reddit interactions."
+logo_url = "/assets/logos/reddit.svg"
+
+[[required_actions]]
+action_reference_type = "augmented_request"
+augmented_request_configuration_id = "a98fac9c-a17f-4291-9f99-b283d0f36804"
