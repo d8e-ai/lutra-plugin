@@ -42,7 +42,7 @@ def _with_mentions(users: list[SlackUser], message: str) -> str:
 
 @purpose("Send a message to a channel.")
 def slack_send_message_to_channel(
-    channel: str, message: str, thread_ts: Optional[str]
+    channel: str, message: str, thread_ts: Optional[str] = None
 ) -> None:
     """
     Send a message to a channel by channel name or ID.
