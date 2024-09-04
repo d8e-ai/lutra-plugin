@@ -119,6 +119,7 @@ class Newspaper:
 
 
 async def chronicling_america_title_search(terms: str) -> list[Newspaper]:
+    """Search Chronicling America by title."""
     async with httpx.AsyncClient() as client:
         response = await client.get(
             "https://chroniclingamerica.loc.gov/search/titles/results/",
