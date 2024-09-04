@@ -1,3 +1,5 @@
+import copy
+from contextlib import suppress
 import json
 import re
 from dataclasses import dataclass
@@ -146,7 +148,51 @@ def _resolve_error_message_no_schema(status_code: int, text: str) -> tuple[str, 
             return f"{prefix}{text}", include_schema
 
 
-def _fetch_schema(client: httpx.Client, base_id: str, table_id_or_name: str) -> Any:
+def _safedel(v: dict[str, Any], k: str):
+    with suppress(KeyError):
+        del v[k]
+
+@dataclass
+class AirtableFieldSchema:
+    name: str
+    type: str
+    options: dict[str, Any]
+
+
+def _parse_field_schema(data: dict[str, Any]) -> AirtableFieldSchema:
+    options = copy.deepcopy(data.get("options", {}))
+
+    # Delete some less-useful fields to save LLM tokens.
+    for key in ("color", "dateFormat", "icon", "precision"):
+        _safedel(options, key)
+    if (choices := options.get("choices")) is not None:
+        for option in choices:
+            for key in ("id", "color"):
+                _safedel(option, key)
+
+    return AirtableFieldSchema(
+        name=data.get("name", ""),
+        type=data.get("type", ""),
+        options=options,
+    )
+
+
+@dataclass
+class AirtableTableSchema:
+    id: AirtableTableID
+    name: str
+    fields: list[AirtableFieldSchema]
+
+
+def _parse_table_schema(data: dict[str, Any]):
+    return AirtableTableSchema(
+        id=AirtableTableID(data.get("id", "")),
+        name=data.get("name", ""),
+        fields=[_parse_field_schema(f) for f in data.get("fields", ())]
+    )
+
+
+def _fetch_base_schema(client: httpx.Client, base_id: str) -> list[AirtableTableSchema]:
     data = (
         _maybe_retry_send(
             client,
@@ -157,17 +203,24 @@ def _fetch_schema(client: httpx.Client, base_id: str, table_id_or_name: str) -> 
         .raise_for_status()
         .json()
     )
+    return [
+        _parse_table_schema(t) for t in data.get("tables", ())
+    ]
+
+
+def _fetch_table_schema(client: httpx.Client, base_id: str, table_id_or_name: str) -> dict[str, Any]:
+    tables = _fetch_base_schema(client, base_id)
     table_id_names = []
-    for table in data["tables"]:
-        table_id_names.append(f"{table['id']}({table['name']})")
+    for table in tables:
+        table_id_names.append(f"{table.id.id}({table.name})")
     schema = None
-    for table in data["tables"]:
-        if table["id"] == table_id_or_name:
-            schema = table["fields"]
+    for table in tables:
+        if table.id.id == table_id_or_name:
+            schema = table
     if not schema:
-        for table in data["tables"]:
-            if table["name"] == table_id_or_name:
-                schema = table["fields"]
+        for table in tables:
+            if table.name == table_id_or_name:
+                schema = table
     if not schema:
         raise ValueError(
             f"{table_id_or_name} not found in tables: {sorted(table_id_names)}"
@@ -192,11 +245,22 @@ def _resolve_error_message(
     msg, include_schema = _resolve_error_message_no_schema(status_code, text)
     if include_schema:
         try:
-            schema = _fetch_schema(client, base_id, table_id_or_name)
-            return f"{msg}; schema of table `{table_id_or_name}`: {json.dumps(schema)}"
+            schema = _fetch_table_schema(client, base_id, table_id_or_name)
+            return f"{msg}; schema of table `{table_id_or_name}`: {schema}"
         except Exception as e:
             return f"{msg}; (error fetching schema of {table_id_or_name}: {e})"
     return msg
+
+
+@purpose("Read base metadata.")
+def airtable_get_base_schema(
+    base_id: AirtableBaseID,
+) -> list[AirtableTableSchema]:
+    """Return the schemas of the tables in the specified base."""
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
+    ) as client:
+        return _fetch_base_schema(client, base_id.id)
 
 
 @dataclass
