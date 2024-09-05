@@ -152,6 +152,7 @@ def _safedel(v: dict[str, Any], k: str):
     with suppress(KeyError):
         del v[k]
 
+
 @dataclass
 class AirtableFieldSchema:
     name: str
