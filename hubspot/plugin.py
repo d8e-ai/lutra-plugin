@@ -80,10 +80,6 @@ def _get_all_property_names(schema: _HubSpotPropertiesSchema) -> list[str]:
 class HubSpotPropertyValue:
     """A property value from HubSpot.
 
-    as_* methods can raise a ValueError if the value cannot be safely converted to the appropriate type.
-
-    Empty strings are treated as 0 for int and float conversions.
-
     `value` property can only be a string, int, float, or datetime.
     """
 
