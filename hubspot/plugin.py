@@ -80,71 +80,10 @@ def _get_all_property_names(schema: _HubSpotPropertiesSchema) -> list[str]:
 class HubSpotPropertyValue:
     """A property value from HubSpot.
 
-    as_* methods can raise a ValueError if the value cannot be safely converted to the appropriate type.
-
-    Empty strings are treated as 0 for int and float conversions.
-
     `value` property can only be a string, int, float, or datetime.
     """
 
     value: Any
-
-    # Define dunder conversion methods in case casting is used.
-    def __str__(self) -> str:
-        return self.as_str()
-
-    def __int__(self) -> int:
-        return self.as_int()
-
-    def __float__(self) -> float:
-        return self.as_float()
-
-    def as_datetime(self) -> datetime:
-        match self.value:
-            case datetime():
-                return self.value
-            case str():
-                return datetime.fromisoformat(self.value)
-            case _:
-                raise
-
-    def as_str(self) -> str:
-        match self.value:
-            case str():
-                return self.value
-            case _:
-                # int and float are also valid strings
-                return str(self.value)
-
-    def as_int(self) -> int:
-        match self.value:
-            case int():
-                return self.value
-            case float():
-                return int(self.value)
-            case str():
-                try:
-                    # Parse the string as an int
-                    return int(self.value)
-                except ValueError:
-                    if self.value.strip() == "":
-                        return 0
-                    raise
-
-    def as_float(self) -> float:
-        match self.value:
-            case float():
-                return self.value
-            case int():
-                return float(self.value)
-            case str():
-                try:
-                    # Parse the string as a float
-                    return float(self.value)
-                except ValueError:
-                    if self.value.strip() == "":
-                        return 0.0
-                    raise
 
 
 @dataclass
