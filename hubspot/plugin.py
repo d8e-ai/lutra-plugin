@@ -454,57 +454,95 @@ class HubSpotSearchCondition:
         "LTE",
         "GT",
         "GTE",
+        "HAS_PROPERTY",
+        "NOT_HAS_PROPERTY",
     ]
     value: HubSpotPropertyValue
 
 
-@purpose("Search contacts.")
+@dataclass
+class AndGroup:
+    """A group of conditions that must ALL be true (AND logic). Maximum of 6 conditions"""
+
+    conditions: List[HubSpotSearchCondition]
+
+
+@dataclass
+class SearchQuery:
+    """
+    Top-level search query that combines multiple AND groups with OR logic.
+    Any ONE of the AndGroups must match for a result to be returned.
+
+    Limitations:
+    - Maximum of 5 or_groups.
+    - Maximum 18 total conditions across all groups.
+    """
+
+    or_groups: List[AndGroup]
+
+
+def _convert_and_groups_to_filter_groups(
+    and_groups: List[AndGroup], schema: _HubSpotPropertiesSchema
+) -> List[dict[str, Any]]:
+    """
+    Convert our internal AND groups structure to HubSpot's filter groups format.
+    Each AND group becomes a filter group where all conditions must match.
+    """
+    filter_groups: List[dict[str, Any]] = []
+
+    for and_group in and_groups:
+        filters = []
+        for condition in and_group.conditions:
+            filter = {
+                "propertyName": condition.property_name,
+                "operator": condition.operator,
+            }
+            if condition.operator not in ("HAS_PROPERTY", "NOT_HAS_PROPERTY"):
+                value = _coerce_value_to_hubspot(
+                    name=condition.property_name,
+                    value=condition.value.value,
+                    schema=schema,
+                )
+                filter["value"] = value
+            filters.append(filter)
+
+        filter_groups.append({"filters": filters})
+    return filter_groups
+
+
 async def hubspot_search_contacts(
-    and_conditions: List[HubSpotSearchCondition],
-    created_after: Optional[datetime] = None,
-    created_before: Optional[datetime] = None,
+    query: SearchQuery,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotContact], Optional[HubSpotPaginationToken]]:
-    """Search for HubSpot contacts
-    created_after: Return contacts that were created after this datetime
-    created_before: Return contacts that were created before this datetime
+    """Search for HubSpot contacts using OR-of-ANDs boolean logic.
+
+    The query follows OR-of-ANDs form: (A AND B AND C) OR (D AND E AND F) OR ...
+    where A, B, C, D, E, F are individual search conditions.
+
+    IMPORTANT: Each individual comparison should be in its own AND group when you want
+    to find matches for any of those comparisons (OR logic). Do NOT put multiple
+    OR conditions in the same AND group.
+
+    Examples:
+    1. Find contacts with (ID1 OR ID2 OR ID3):
+    query = SearchQuery(or_groups=[
+        AndGroup(conditions=[
+            HubSpotSearchCondition("hs_object_id", "EQ", HubSpotPropertyValue("ID1"))
+        ]),
+        AndGroup(conditions=[
+            HubSpotSearchCondition("hs_object_id", "EQ", HubSpotPropertyValue("ID2"))
+        ]),
+        AndGroup(conditions=[
+            HubSpotSearchCondition("hs_object_id", "EQ", HubSpotPropertyValue("ID3"))
+        ])
+    ])
     """
     schema = await _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
-    if created_after:
-        and_conditions.append(
-            HubSpotSearchCondition(
-                property_name="createdate",
-                operator="GTE",
-                value=HubSpotPropertyValue(created_after),
-            )
-        )
-    if created_before:
-        and_conditions.append(
-            HubSpotSearchCondition(
-                property_name="createdate",
-                operator="LTE",
-                value=HubSpotPropertyValue(created_before),
-            )
-        )
-    filters: list[dict[str, Any]] = []
-    for and_condition in and_conditions:
-        value = _coerce_value_to_hubspot(
-            name=and_condition.property_name,
-            value=and_condition.value.value,
-            schema=schema,
-        )
-        filters.append(
-            {
-                "propertyName": and_condition.property_name,
-                "operator": and_condition.operator,
-                "value": value,
-            }
-        )
 
-    if not filters:
+    if not query.or_groups:
         return await _list_contacts(schema, pagination_token)
-    filter_groups = [{"filters": filters}]
 
+    filter_groups = _convert_and_groups_to_filter_groups(query.or_groups, schema)
     return await _search_contacts(filter_groups, schema, pagination_token)
 
 
@@ -697,37 +735,22 @@ async def hubspot_update_companies(
 
 @purpose("Search companies.")
 async def hubspot_search_companies(
-    and_conditions: List[HubSpotSearchCondition],
+    query: SearchQuery,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
-    """
-    Search for companies in HubSpot CRM.
-    """
+    """Search for HubSpot companies using OR-of-ANDs boolean logic."""
     schema = await _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
 
-    # Construct the filters based on the search criteria
-    filters = []
-    for and_condition in and_conditions:
-        value = _coerce_value_to_hubspot(
-            name=and_condition.property_name,
-            value=and_condition.value.value,
-            schema=schema,
-        )
-        filters.append(
-            {
-                "propertyName": and_condition.property_name,
-                "operator": and_condition.operator,
-                "value": value,
-            }
-        )
-
-    if not filters:
+    if not query.or_groups:
         return await _list_companies(schema, pagination_token)
+
+    # Convert our filter structure to HubSpot's format
+    filter_groups = _convert_and_groups_to_filter_groups(query.or_groups, schema)
 
     url = "https://api.hubapi.com/crm/v3/objects/companies/search"
 
     payload = {
-        "filterGroups": [{"filters": filters}],
+        "filterGroups": filter_groups,
         "properties": _get_all_property_names(schema),
     }
     async with httpx.AsyncClient(
@@ -932,38 +955,20 @@ async def hubspot_update_deals(
 
 @purpose("Search deals.")
 async def hubspot_search_deals(
-    and_conditions: List[HubSpotSearchCondition],
+    query: SearchQuery,
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
-    """
-    Search for HubSpot deals based on various criteria.
-
-    Default properties will always be fetched. However, properties with no values will not be in the additional_properties
-    dict. You MUST check whether the property exists in additional_properties before using it.
-    """
+    """Search for HubSpot deals using OR-of-ANDs boolean logic."""
     schema = await _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
-    filters = []
-    for and_condition in and_conditions:
-        value = _coerce_value_to_hubspot(
-            name=and_condition.property_name,
-            value=and_condition.value.value,
-            schema=schema,
-        )
-        filters.append(
-            {
-                "propertyName": and_condition.property_name,
-                "operator": and_condition.operator,
-                "value": value,
-            }
-        )
-
-    if not filters:
+    if not query.or_groups:
         return await _list_deals(schema, pagination_token)
+
+    filter_groups = _convert_and_groups_to_filter_groups(query.or_groups, schema)
 
     url = "https://api.hubapi.com/crm/v3/objects/deals/search"
 
     payload = {
-        "filterGroups": [{"filters": filters}],
+        "filterGroups": filter_groups,
         "properties": _get_all_property_names(schema),
     }
 
