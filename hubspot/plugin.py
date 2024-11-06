@@ -510,6 +510,7 @@ def _convert_and_groups_to_filter_groups(
     return filter_groups
 
 
+@purpose("Search contacts")
 async def hubspot_search_contacts(
     query: SearchQuery,
     pagination_token: Optional[HubSpotPaginationToken] = None,
