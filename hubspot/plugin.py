@@ -1,7 +1,18 @@
 import urllib
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    TypedDict,
+)
 
 import httpx
 import pydantic
@@ -481,6 +492,16 @@ class SearchQuery:
     or_groups: List[AndGroup]
 
 
+class Filter(TypedDict):
+    propertyName: str
+    operator: str
+    value: Union[str, int, float, bool, None]
+
+
+class FilterGroup(TypedDict):
+    filters: List[Filter]
+
+
 def _convert_and_groups_to_filter_groups(
     and_groups: List[AndGroup], schema: _HubSpotPropertiesSchema
 ) -> List[dict[str, Any]]:
@@ -488,12 +509,12 @@ def _convert_and_groups_to_filter_groups(
     Convert our internal AND groups structure to HubSpot's filter groups format.
     Each AND group becomes a filter group where all conditions must match.
     """
-    filter_groups: List[dict[str, Any]] = []
+    filter_groups: List[FilterGroup] = []
 
     for and_group in and_groups:
-        filters = []
+        filters: List[Filter] = []
         for condition in and_group.conditions:
-            filter = {
+            filter: Filter = {
                 "propertyName": condition.property_name,
                 "operator": condition.operator,
             }
@@ -511,9 +532,13 @@ def _convert_and_groups_to_filter_groups(
     # Running validation
     validation_err_msgs = []
 
-    total_count = sum(len(filter_group.get("filters")) for filter_group in filter_groups)
+    total_count = sum(
+        len(filter_group.get("filters")) for filter_group in filter_groups
+    )
     if total_count > 18:
-        validation_err_msgs.append(f"Too many conditions across all or_groups (count: {total_count}, max allowed: 18).")
+        validation_err_msgs.append(
+            f"Too many conditions across all or_groups (count: {total_count}, max allowed: 18)."
+        )
 
     if any(len(filter_group.get("filters")) > 6 for filter_group in filter_groups):
         validation_err_msgs.append("Too many conditions in AndGroup (max allowed: 6).")
