@@ -504,7 +504,7 @@ class FilterGroup(TypedDict):
 
 def _convert_and_groups_to_filter_groups(
     and_groups: List[AndGroup], schema: _HubSpotPropertiesSchema
-) -> List[dict[str, Any]]:
+) -> List[FilterGroup]:
     """
     Convert our internal AND groups structure to HubSpot's filter groups format.
     Each AND group becomes a filter group where all conditions must match.
