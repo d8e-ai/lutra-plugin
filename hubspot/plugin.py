@@ -507,6 +507,25 @@ def _convert_and_groups_to_filter_groups(
             filters.append(filter)
 
         filter_groups.append({"filters": filters})
+
+    # Running validation
+    validation_err_msgs = []
+
+    total_count = sum(len(filter_group.get("filters")) for filter_group in filter_groups)
+    if total_count > 18:
+        validation_err_msgs.append(f"Too many conditions across all or_groups (count: {total_count}, max allowed: 18).")
+
+    if any(len(filter_group.get("filters")) > 6 for filter_group in filter_groups):
+        validation_err_msgs.append("Too many conditions in AndGroup (max allowed: 6).")
+
+    if len(filter_groups) > 5:
+        validation_err_msgs.append(
+            f"Too many or_groups (count: {len(filter_groups)}, max allowed: 5)"
+        )
+
+    if validation_err_msgs:
+        raise RuntimeError(" ".join(validation_err_msgs))
+
     return filter_groups
 
 
