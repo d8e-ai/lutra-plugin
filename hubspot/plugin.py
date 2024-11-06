@@ -549,7 +549,7 @@ def _convert_and_groups_to_filter_groups(
         )
 
     if validation_err_msgs:
-        raise RuntimeError(" ".join(validation_err_msgs))
+        raise RuntimeError("\n\n".join(validation_err_msgs))
 
     return filter_groups
 
