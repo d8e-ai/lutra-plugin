@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import (Dict, List, Optional)
 
 from webapp.job_runner_container.shared import pmap
+from webapp.job_runner_container.work_unit_context import map_work_unit
 
 
 @dataclass
@@ -173,4 +174,8 @@ async def google_sheets_parallel_update_rows(
                 data=[[new_value]],
             )
 
-    await pmap.DEFAULT.pmap(update_row, range(1, min(1 + limit, len(sheet_data))))
+    async def update_row_with_context(row_index: int) -> None:
+        with map_work_unit(str(row_index)):
+            await update_row(row_index)
+
+    await pmap.DEFAULT.pmap(update_row_with_context, range(1, min(1 + limit, len(sheet_data))))
