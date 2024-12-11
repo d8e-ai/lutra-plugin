@@ -1,6 +1,6 @@
 name = "Apollo"
 description = "Fetch enrichment data from Apollo."
-logo_url = "/asserts/logos/apollo-io.svg"
+logo_url = "https://storage.googleapis.com/lutra-2407-public/26d957a9dad8cb12ee51ef686fe4d38f64e924c4cfd8dd94818fa0d5070d9617.svg"
 
 [[required_actions]]
 action_reference_type = "augmented_request"

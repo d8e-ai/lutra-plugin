@@ -1,6 +1,6 @@
 name = "Zoom"
 description = "Call Zoom API."
-logo_url = "/assets/logos/zoom.svg"
+logo_url = "https://storage.googleapis.com/lutra-2407-public/400ce0579863533a48d310b35811638393dbc50d4fbed9e5045ee43ceaa3f8ac.svg"
 
 [[required_actions]]
 action_reference_type = "augmented_request"

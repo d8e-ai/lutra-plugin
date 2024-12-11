@@ -3,7 +3,7 @@ description = """
 Send messages in Slack to yourself, other users, or channels.  Get 
 conversation history.
 """
-logo_url = "/assets/logos/slack.svg"
+logo_url = "https://storage.googleapis.com/lutra-2407-public/847d981628d283c576840274eb7631f331a06d398329eb17755967017bb4595f.svg"
 
 [[required_actions]]
 action_reference_type = "augmented_request"

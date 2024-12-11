@@ -1,6 +1,6 @@
 name = "Airtable"
 description = "List and update records in Airtable."
-logo_url = "/assets/logos/airtable.svg"
+logo_url = "https://storage.googleapis.com/lutra-2407-public/797288d8ecec44ba8ecd08823d8ccce1f18290f7a4968a982d8f2bfcfa6294a0.svg"
 observable_source_types = ["airtable_view"]
 
 [[required_actions]]
