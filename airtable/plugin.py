@@ -1,16 +1,17 @@
 import copy
-from contextlib import suppress
 import json
 import re
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Sequence, Tuple
 from urllib.parse import unquote, urlparse
 
 import httpx
 import tenacity
+
 from lutraai.augmented_request_client import AugmentedTransport
-from lutraai.decorator import purpose
+from lutraai.decorator import deprecated, purpose
 
 
 @dataclass
@@ -189,7 +190,7 @@ def _parse_table_schema(data: dict[str, Any]):
     return AirtableTableSchema(
         id=AirtableTableID(data.get("id", "")),
         name=data.get("name", ""),
-        fields=[_parse_field_schema(f) for f in data.get("fields", ())]
+        fields=[_parse_field_schema(f) for f in data.get("fields", ())],
     )
 
 
@@ -204,12 +205,12 @@ def _fetch_base_schema(client: httpx.Client, base_id: str) -> list[AirtableTable
         .raise_for_status()
         .json()
     )
-    return [
-        _parse_table_schema(t) for t in data.get("tables", ())
-    ]
+    return [_parse_table_schema(t) for t in data.get("tables", ())]
 
 
-def _fetch_table_schema(client: httpx.Client, base_id: str, table_id_or_name: str) -> dict[str, Any]:
+def _fetch_table_schema(
+    client: httpx.Client, base_id: str, table_id_or_name: str
+) -> dict[str, Any]:
     tables = _fetch_base_schema(client, base_id)
     table_id_names = []
     for table in tables:
@@ -362,6 +363,7 @@ def airtable_record_list(
     ], next_token
 
 
+@deprecated("Subsumed by `airtable_records_create`.")
 @purpose("Create a record.")
 def airtable_record_create(
     base_id: AirtableBaseID,
@@ -403,6 +405,66 @@ def airtable_record_create(
         created_time=datetime.fromisoformat(data["createdTime"]),
         fields=data["fields"],
     )
+
+
+@purpose("Create multiple records in batch.")
+def airtable_records_create(
+    base_id: AirtableBaseID,
+    table_id: AirtableTableID,
+    records: Sequence[dict[str, Any]],
+    typecast: bool = True,
+) -> list[AirtableRecord]:
+    """
+    Create multiple records using the Airtable `create records` API call with a POST.
+    Takes a list of field dictionaries and creates a record for each one.
+
+    If typecast is True, Airtable will try to convert the values to the appropriate cell values.
+    """
+    created_records = []
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
+    ) as client:
+        # Process records in batches of 10
+        for i in range(0, len(records), 10):
+            batch = records[i : i + 10]
+
+            # Airtable documentation seems to suggest that it is likely that errors retried
+            # by _maybe_retry_send mean that the records were not created.
+            response = _maybe_retry_send(
+                client,
+                client.build_request(
+                    "POST",
+                    f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
+                    json={
+                        "records": [{"fields": record} for record in batch],
+                        "typecast": typecast,
+                    },
+                ),
+            )
+            if response.status_code != httpx.codes.OK:
+                raise RuntimeError(
+                    _resolve_error_message(
+                        client,
+                        base_id.id,
+                        table_id.id,
+                        response.status_code,
+                        response.text,
+                    )
+                )
+            data = response.json()
+
+            batch_records = [
+                AirtableRecord(
+                    record_id=AirtableRecordID(record["id"]),
+                    created_time=datetime.fromisoformat(record["createdTime"]),
+                    fields=record["fields"],
+                )
+                for record in data["records"]
+            ]
+            created_records.extend(batch_records)
+
+    return created_records
 
 
 @purpose("Update a record.")
