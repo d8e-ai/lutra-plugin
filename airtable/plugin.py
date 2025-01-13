@@ -417,55 +417,56 @@ def airtable_records_create(
     Create multiple records using the Airtable `create records` API call with a POST.
     Takes a list of field dictionaries and creates a record for each one.
 
-    IMPORTANT: Airtable only allows a maximum of 10 records to be created in a single
-    batch API call.
-
     Prefer to use this over `airtable_record_create` since this takes batches of records
     and is more efficient.
 
     If typecast is True, Airtable will try to convert the values to the appropriate cell values.
     """
-    # A max of 10 records can be created in a single batch.
-    if len(records) > 10:
-        raise ValueError(
-            "Cannot create more than 10 records in a single batch API call."
-        )
+    created_records = []
 
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
     ) as client:
-        # Airtable documentation seems to suggest that it is likely that errors retried
-        # by _maybe_retry_send mean that the records were not created.
-        response = _maybe_retry_send(
-            client,
-            client.build_request(
-                "POST",
-                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
-                json={
-                    "records": [{"fields": record} for record in records],
-                    "typecast": typecast,
-                },
-            ),
-        )
-        if response.status_code != httpx.codes.OK:
-            raise RuntimeError(
-                _resolve_error_message(
-                    client,
-                    base_id.id,
-                    table_id.id,
-                    response.status_code,
-                    response.text,
-                )
+        # Process records in batches of 10
+        for i in range(0, len(records), 10):
+            batch = records[i : i + 10]
+
+            # Airtable documentation seems to suggest that it is likely that errors retried
+            # by _maybe_retry_send mean that the records were not created.
+            response = _maybe_retry_send(
+                client,
+                client.build_request(
+                    "POST",
+                    f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
+                    json={
+                        "records": [{"fields": record} for record in batch],
+                        "typecast": typecast,
+                    },
+                ),
             )
-        data = response.json()
-    return [
-        AirtableRecord(
-            record_id=AirtableRecordID(record["id"]),
-            created_time=datetime.fromisoformat(record["createdTime"]),
-            fields=record["fields"],
-        )
-        for record in data["records"]
-    ]
+            if response.status_code != httpx.codes.OK:
+                raise RuntimeError(
+                    _resolve_error_message(
+                        client,
+                        base_id.id,
+                        table_id.id,
+                        response.status_code,
+                        response.text,
+                    )
+                )
+            data = response.json()
+
+            batch_records = [
+                AirtableRecord(
+                    record_id=AirtableRecordID(record["id"]),
+                    created_time=datetime.fromisoformat(record["createdTime"]),
+                    fields=record["fields"],
+                )
+                for record in data["records"]
+            ]
+            created_records.extend(batch_records)
+
+    return created_records
 
 
 @purpose("Update a record.")
