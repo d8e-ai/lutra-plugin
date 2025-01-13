@@ -11,7 +11,7 @@ import httpx
 import tenacity
 
 from lutraai.augmented_request_client import AugmentedTransport
-from lutraai.decorator import purpose
+from lutraai.decorator import deprecated, purpose
 
 
 @dataclass
@@ -363,6 +363,7 @@ def airtable_record_list(
     ], next_token
 
 
+@deprecated("Subsumed by `airtable_records_create`.")
 @purpose("Create a record.")
 def airtable_record_create(
     base_id: AirtableBaseID,
@@ -416,9 +417,6 @@ def airtable_records_create(
     """
     Create multiple records using the Airtable `create records` API call with a POST.
     Takes a list of field dictionaries and creates a record for each one.
-
-    Prefer to use this over `airtable_record_create` since this takes batches of records
-    and is more efficient.
 
     If typecast is True, Airtable will try to convert the values to the appropriate cell values.
     """
