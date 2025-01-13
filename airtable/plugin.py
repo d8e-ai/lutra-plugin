@@ -1,14 +1,15 @@
 import copy
-from contextlib import suppress
 import json
 import re
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Sequence, Tuple
 from urllib.parse import unquote, urlparse
 
 import httpx
 import tenacity
+
 from lutraai.augmented_request_client import AugmentedTransport
 from lutraai.decorator import purpose
 
@@ -189,7 +190,7 @@ def _parse_table_schema(data: dict[str, Any]):
     return AirtableTableSchema(
         id=AirtableTableID(data.get("id", "")),
         name=data.get("name", ""),
-        fields=[_parse_field_schema(f) for f in data.get("fields", ())]
+        fields=[_parse_field_schema(f) for f in data.get("fields", ())],
     )
 
 
@@ -204,12 +205,12 @@ def _fetch_base_schema(client: httpx.Client, base_id: str) -> list[AirtableTable
         .raise_for_status()
         .json()
     )
-    return [
-        _parse_table_schema(t) for t in data.get("tables", ())
-    ]
+    return [_parse_table_schema(t) for t in data.get("tables", ())]
 
 
-def _fetch_table_schema(client: httpx.Client, base_id: str, table_id_or_name: str) -> dict[str, Any]:
+def _fetch_table_schema(
+    client: httpx.Client, base_id: str, table_id_or_name: str
+) -> dict[str, Any]:
     tables = _fetch_base_schema(client, base_id)
     table_id_names = []
     for table in tables:
@@ -403,6 +404,68 @@ def airtable_record_create(
         created_time=datetime.fromisoformat(data["createdTime"]),
         fields=data["fields"],
     )
+
+
+@purpose("Create multiple records in batch.")
+def airtable_records_create(
+    base_id: AirtableBaseID,
+    table_id: AirtableTableID,
+    records: Sequence[dict[str, Any]],
+    typecast: bool = True,
+) -> list[AirtableRecord]:
+    """
+    Create multiple records using the Airtable `create records` API call with a POST.
+    Takes a list of field dictionaries and creates a record for each one.
+
+    IMPORTANT: Airtable only allows a maximum of 10 records to be created in a single
+    batch API call.
+
+    Prefer to use this over `airtable_record_create` since this takes batches of records
+    and is more efficient.
+
+    If typecast is True, Airtable will try to convert the values to the appropriate cell values.
+    """
+    # A max of 10 records can be created in a single batch.
+    if len(records) > 10:
+        raise ValueError(
+            "Cannot create more than 10 records in a single batch API call."
+        )
+
+    with httpx.Client(
+        transport=AugmentedTransport(actions_v0.authenticated_request_airtable)
+    ) as client:
+        # Airtable documentation seems to suggest that it is likely that errors retried
+        # by _maybe_retry_send mean that the records were not created.
+        response = _maybe_retry_send(
+            client,
+            client.build_request(
+                "POST",
+                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
+                json={
+                    "records": [{"fields": record} for record in records],
+                    "typecast": typecast,
+                },
+            ),
+        )
+        if response.status_code != httpx.codes.OK:
+            raise RuntimeError(
+                _resolve_error_message(
+                    client,
+                    base_id.id,
+                    table_id.id,
+                    response.status_code,
+                    response.text,
+                )
+            )
+        data = response.json()
+    return [
+        AirtableRecord(
+            record_id=AirtableRecordID(record["id"]),
+            created_time=datetime.fromisoformat(record["createdTime"]),
+            fields=record["fields"],
+        )
+        for record in data["records"]
+    ]
 
 
 @purpose("Update a record.")
