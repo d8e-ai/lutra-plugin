@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import AbstractSet, Optional
+from typing import AbstractSet, Callable, Optional
 
 import httpx
 
@@ -17,9 +17,26 @@ class SlackUser:
     display_name: str
 
 
-def _with_mentions(users: list[SlackUser], message: str) -> str:
+def _with_mentions(
+    users: list[SlackUser] | Callable[[], list[SlackUser]],
+    message: str,
+) -> str:
+    """
+    Return message with @-mentions using display names replaced by Slack IDs.
+
+    Args:
+        users: The list of SlackUsers to consider.  This can also be a function that
+            returns the list.  It is only called if there are any @-mentions in message.
+        message: The message to transform.
+
+    Returns:
+        message with @-mentions using display names replaced by Slack IDs.
+    """
+    if re.search(r"<@([^>]+)>", message) is None:
+        return message
+    resolved_users = users if isinstance(users, list) else users()
     display_name_to_id = {}
-    for user in users:
+    for user in resolved_users:
         if user.display_name not in display_name_to_id:
             display_name_to_id[user.display_name] = []
         display_name_to_id[user.display_name].append(user.id)
@@ -55,10 +72,9 @@ def slack_send_message_to_channel(
     with httpx.Client(
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
-        users = _list_users(client)
         body = {
             "channel": channel,
-            "text": _with_mentions(users, message),
+            "text": _with_mentions(lambda: _list_users(client), message),
         }
         if thread_ts is not None:
             body["thread_ts"] = thread_ts
@@ -140,13 +156,12 @@ def slack_send_message_to_self(message: str) -> None:
         transport=AugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
         user_id = _get_self_user_id()
-        users = _list_users(client)
         data = (
             client.post(
                 "https://slack.com/api/chat.postMessage",
                 json={
                     "channel": user_id,
-                    "text": _with_mentions(users, message),
+                    "text": _with_mentions(lambda: _list_users(client), message),
                 },
             )
             .raise_for_status()
