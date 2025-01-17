@@ -8,7 +8,7 @@ import httpx
 from lutraai.augmented_request_client import AugmentedTransport
 from lutraai.decorator import purpose
 
-_BOT_NAME = "Lutra Slack Bot"
+_BOT_NAME = "Lutra"
 
 
 @dataclass
