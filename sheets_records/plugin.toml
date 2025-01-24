@@ -1,0 +1,19 @@
+name = "Sheets Records"
+description = "Record-based API for updating Google Sheets."
+logo_url = "/assets/logos/google_sheets.svg"
+
+[[required_actions]]
+action_reference_type = "builtin"
+name = "google_sheets_read_spreadsheet"
+
+[[required_actions]]
+action_reference_type = "builtin"
+name = "google_sheets_update_values"
+
+[[required_actions]]
+action_reference_type = "builtin"
+name = "google_sheets_insert_rows"
+
+[[required_actions]]
+action_reference_type = "builtin"
+name = "google_sheet_cell_compute_offset"
