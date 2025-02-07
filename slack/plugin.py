@@ -238,8 +238,9 @@ def _find_conversation_by_name(
 
 def _extract_text_from_attachments(attachments: list[dict[str, str]]) -> str:
     """
-    Extracts text from attachments by trying the 'text' field,
-    then falling back to 'fallback' or 'title'.
+    Extract text from attachments by trying the 'text' field.
+
+    Fall back to 'fallback' or 'title' if not present.
     """
     parts = []
     for attachment in attachments:
@@ -336,16 +337,15 @@ def slack_conversations_history(
     for msg in data.get("messages", []):
         ts = msg.get("ts", "")
         user = msg.get("user") or msg.get("bot_id")
+        typ = msg.get("type", "")
 
         # Try to get the plain text; if missing, try to extract from attachments.
         # TODO: There's also `blocks`, which we'll add support for later.
-        text = msg.get("text")
+        text = msg.get("text", "")
         if not text and msg.get("attachments"):
             text = _extract_text_from_attachments(msg["attachments"])
 
-        messages.append(
-            SlackMessage(type=msg.get("type", ""), user=user, text=text, ts=ts)
-        )
+        messages.append(SlackMessage(type=typ, user=user, text=text, ts=ts))
     next_cursor = data.get("response_metadata", {}).get("next_cursor", "")
     return messages, next_cursor
 
