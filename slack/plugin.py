@@ -236,6 +236,28 @@ def _find_conversation_by_name(
     return conversation_ids.get(canonical_name)
 
 
+def _extract_text_from_attachments(attachments: list[dict[str, str]]) -> str:
+    """
+    Extracts text from attachments by trying the 'text' field,
+    then falling back to 'fallback' or 'title'.
+    """
+    parts = []
+    for attachment in attachments:
+        text = attachment.get("text")
+        if text:
+            parts.append(text)
+        else:
+            # Try fallback if text is empty.
+            fallback = attachment.get("fallback")
+            if fallback:
+                parts.append(fallback)
+            else:
+                title = attachment.get("title")
+                if title:
+                    parts.append(title)
+    return "\n".join(parts)
+
+
 @dataclass
 class SlackMessage:
     type: str
@@ -309,15 +331,21 @@ def slack_conversations_history(
                 "double-check that you have authorized the correct workspace"
             )
         raise RuntimeError(f"fetching history: {data}")
-    messages = [
-        SlackMessage(
-            type=msg["type"],
-            user=msg.get("user") or msg.get("bot_id"),
-            text=msg.get("text"),
-            ts=msg["ts"],
+
+    messages: list[SlackMessage] = []
+    for msg in data.get("messages", []):
+        ts = msg.get("ts", "")
+        user = msg.get("user") or msg.get("bot_id")
+
+        # Try to get the plain text; if missing, try to extract from attachments.
+        # TODO: There's also `blocks`, which we'll add support for later.
+        text = msg.get("text")
+        if not text and msg.get("attachments"):
+            text = _extract_text_from_attachments(msg["attachments"])
+
+        messages.append(
+            SlackMessage(type=msg.get("type", ""), user=user, text=text, ts=ts)
         )
-        for msg in data.get("messages", [])
-    ]
     next_cursor = data.get("response_metadata", {}).get("next_cursor", "")
     return messages, next_cursor
 
