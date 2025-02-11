@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import AbstractSet, Callable, Optional
+from typing import AbstractSet, Any, Callable, Optional
 
 import httpx
 
@@ -244,6 +244,30 @@ class SlackMessage:
     ts: str
 
 
+def _extract_text(msg: Any) -> str:
+    """
+    Extract text from a message returned by the Slack API.
+
+    Try to extract text that represents the message well from the various available
+    fields.
+    """
+    if text := msg.get("text"):
+        return text
+    parts = []
+    for attachment in msg.get("attachments", []):
+        if text := attachment.get("text"):
+            parts.append(text)
+            continue
+        if fallback := attachment.get("fallback"):
+            parts.append(fallback)
+            continue
+        if title := attachment.get("title"):
+            parts.append(title)
+            continue
+    return "\n".join(parts)
+    # TODO: There's also `blocks`, which we'll add support for later.
+
+
 @purpose("Get conversation history.")
 def slack_conversations_history(
     channel: str,
@@ -313,7 +337,7 @@ def slack_conversations_history(
         SlackMessage(
             type=msg["type"],
             user=msg.get("user") or msg.get("bot_id"),
-            text=msg.get("text"),
+            text=_extract_text(msg),
             ts=msg["ts"],
         )
         for msg in data.get("messages", [])
