@@ -333,7 +333,6 @@ def slack_conversations_history(
                 "double-check that you have authorized the correct workspace"
             )
         raise RuntimeError(f"fetching history: {data}")
-
     messages = [
         SlackMessage(
             type=msg["type"],
