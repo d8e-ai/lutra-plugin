@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import AbstractSet, Callable, Optional
+from typing import AbstractSet, Any, Callable, Optional
 
 import httpx
 
@@ -236,35 +236,36 @@ def _find_conversation_by_name(
     return conversation_ids.get(canonical_name)
 
 
-def _extract_text_from_attachments(attachments: list[dict[str, str]]) -> str:
-    """
-    Extract text from attachments by trying the 'text' field.
-
-    Fall back to 'fallback' or 'title' if not present.
-    """
-    parts = []
-    for attachment in attachments:
-        text = attachment.get("text")
-        if text:
-            parts.append(text)
-        else:
-            # Try fallback if text is empty.
-            fallback = attachment.get("fallback")
-            if fallback:
-                parts.append(fallback)
-            else:
-                title = attachment.get("title")
-                if title:
-                    parts.append(title)
-    return "\n".join(parts)
-
-
 @dataclass
 class SlackMessage:
     type: str
     user: str
     text: str
     ts: str
+
+
+def _extract_text(msg: Any) -> str:
+    """
+    Extract text from a message returned by the Slack API.
+
+    Try to extract text that represents the message well from the various available
+    fields.
+    """
+    if text := msg.get("text"):
+        return text
+    parts = []
+    for attachment in msg.get("attachments", []):
+        if text := attachment.get("text"):
+            parts.append(text)
+            continue
+        if fallback := attachment.get("fallback"):
+            parts.append(fallback)
+            continue
+        if title := attachment.get("title"):
+            parts.append(title)
+            continue
+    return "\n".join(parts)
+    # TODO: There's also `blocks`, which we'll add support for later.
 
 
 @purpose("Get conversation history.")
@@ -333,19 +334,15 @@ def slack_conversations_history(
             )
         raise RuntimeError(f"fetching history: {data}")
 
-    messages: list[SlackMessage] = []
-    for msg in data.get("messages", []):
-        ts = msg.get("ts", "")
-        user = msg.get("user") or msg.get("bot_id")
-        typ = msg.get("type", "")
-
-        # Try to get the plain text; if missing, try to extract from attachments.
-        # TODO: There's also `blocks`, which we'll add support for later.
-        text = msg.get("text", "")
-        if not text and msg.get("attachments"):
-            text = _extract_text_from_attachments(msg["attachments"])
-
-        messages.append(SlackMessage(type=typ, user=user, text=text, ts=ts))
+    messages = [
+        SlackMessage(
+            type=msg["type"],
+            user=msg.get("user") or msg.get("bot_id"),
+            text=_extract_text(msg),
+            ts=msg["ts"],
+        )
+        for msg in data.get("messages", [])
+    ]
     next_cursor = data.get("response_metadata", {}).get("next_cursor", "")
     return messages, next_cursor
 
