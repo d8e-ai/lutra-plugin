@@ -4,7 +4,7 @@ from typing import Literal, Optional
 
 import httpx
 
-from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import purpose
 
 
@@ -25,7 +25,7 @@ class GitHubPullRequest:
 
 
 @purpose("Get pull requests.")
-def github_pulls(
+async def github_pulls(
     owner: str,
     repo: str,
     state: Literal["open", "closed", "all"] = "open",
@@ -49,22 +49,20 @@ def github_pulls(
         page: the page of results to return. Each page has at most 30 results.
 
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_github),
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_github),
     ) as client:
-        response_json = (
-            client.get(
-                f"https://api.github.com/repos/{owner}/{repo}/pulls",
-                params={
-                    "state": state,
-                    "page": page,
-                    "sort": sort,
-                    "direction": sort_direction,
-                },
-            )
-            .raise_for_status()
-            .json()
+        response = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/pulls",
+            params={
+                "state": state,
+                "page": page,
+                "sort": sort,
+                "direction": sort_direction,
+            },
         )
+        await response.aread()
+        response_json = response.raise_for_status().json()
     pull_requests = [
         GitHubPullRequest(
             id=obj["id"],
@@ -113,7 +111,7 @@ class GitHubIssue:
 
 
 @purpose("Get issues.")
-def github_issues(
+async def github_issues(
     owner: str,
     repo: str,
     state: Literal["open", "closed", "all"] = "open",
@@ -138,22 +136,20 @@ def github_issues(
         sort_direction: the direction of the sort.
         page: the page of results to return. Each page has at most 30 results.
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_github)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_github)
     ) as client:
-        response_json = (
-            client.get(
-                f"https://api.github.com/repos/{owner}/{repo}/issues",
-                params={
-                    "state": state,
-                    "page": page,
-                    "sort": sort,
-                    "direction": sort_direction,
-                },
-            )
-            .raise_for_status()
-            .json()
+        response = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/issues",
+            params={
+                "state": state,
+                "page": page,
+                "sort": sort,
+                "direction": sort_direction,
+            },
         )
+        await response.aread()
+        response_json = response.raise_for_status().json()
     issues = [
         GitHubIssue(
             id=obj["id"],
@@ -198,7 +194,7 @@ class GitHubComment:
 
 
 @purpose("Get comments.")
-def github_comments(
+async def github_comments(
     owner: str,
     repo: str,
     issue_number: int,
@@ -220,21 +216,19 @@ def github_comments(
         sort_direction: the direction of the sort.
         page: the page of results to return. Each page has at most 30 results.
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_github)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_github)
     ) as client:
-        response_json = (
-            client.get(
-                f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments",
-                params={
-                    "page": page,
-                    "sort": sort,
-                    "direction": sort_direction,
-                },
-            )
-            .raise_for_status()
-            .json()
+        response = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments",
+            params={
+                "page": page,
+                "sort": sort,
+                "direction": sort_direction,
+            },
         )
+        await response.aread()
+        response_json = response.raise_for_status().json()
 
     comments = [
         GitHubComment(
@@ -247,5 +241,4 @@ def github_comments(
         )
         for comment in response_json
     ]
-
     return comments
