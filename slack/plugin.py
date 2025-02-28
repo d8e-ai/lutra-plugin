@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import AbstractSet, Any, Callable, Coroutine, Optional, Union
+from typing import AbstractSet, Any, Awaitable, Coroutine, Optional, Union
 
 import httpx
 
@@ -20,8 +20,7 @@ class SlackUser:
 async def _with_mentions(
     users: Union[
         list[SlackUser],
-        Callable[[], list[SlackUser]],
-        Callable[[], Coroutine[Any, Any, list[SlackUser]]],
+        Awaitable[list[SlackUser]],
     ],
     message: str,
 ) -> str:
@@ -42,12 +41,7 @@ async def _with_mentions(
     if isinstance(users, list):
         resolved_users = users
     else:
-        # Call the function and await if it's async
-        result = users()
-        if isinstance(result, Coroutine):
-            resolved_users = await result
-        else:
-            resolved_users = result
+        resolved_users = await users
 
     display_name_to_id = {}
     for user in resolved_users:
@@ -88,7 +82,7 @@ async def slack_send_message_to_channel(
     ) as client:
         body = {
             "channel": channel,
-            "text": await _with_mentions(lambda: _list_users(client), message),
+            "text": await _with_mentions(_list_users(client), message),
         }
         if thread_ts is not None:
             body["thread_ts"] = thread_ts
@@ -177,7 +171,7 @@ async def slack_send_message_to_self(message: str) -> None:
             "https://slack.com/api/chat.postMessage",
             json={
                 "channel": user_id,
-                "text": await _with_mentions(lambda: _list_users(client), message),
+                "text": await _with_mentions(_list_users(client), message),
             },
         )
         response.raise_for_status()
