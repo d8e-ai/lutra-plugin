@@ -28,8 +28,8 @@ async def _with_mentions(
     Return message with @-mentions using display names replaced by Slack IDs.
 
     Args:
-        users: The list of SlackUsers to consider. This can also be a function that
-            returns the list, or an async function that returns the list.
+        users: The list of SlackUsers to consider. This can also be an awaitable that
+            will only be awaited if there are any @-mentions in the message.
         message: The message to transform.
 
     Returns:
