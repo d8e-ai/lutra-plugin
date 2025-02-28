@@ -61,8 +61,9 @@ async def github_pulls(
                 "direction": sort_direction,
             },
         )
+        response.raise_for_status()
         await response.aread()
-        response_json = response.raise_for_status().json()
+        response_json = response.json()
     pull_requests = [
         GitHubPullRequest(
             id=obj["id"],
@@ -148,8 +149,9 @@ async def github_issues(
                 "direction": sort_direction,
             },
         )
+        response.raise_for_status()
         await response.aread()
-        response_json = response.raise_for_status().json()
+        response_json = response.json()
     issues = [
         GitHubIssue(
             id=obj["id"],
@@ -227,9 +229,9 @@ async def github_comments(
                 "direction": sort_direction,
             },
         )
+        response.raise_for_status()
         await response.aread()
-        response_json = response.raise_for_status().json()
-
+        response_json = response.json()
     comments = [
         GitHubComment(
             id=comment["id"],

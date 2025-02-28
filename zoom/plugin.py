@@ -48,8 +48,9 @@ async def zoom_list_meetings() -> list[ZoomMeeting]:
     ) as client:
         # TODO: Add pagination support.
         response = await client.get("https://api.zoom.us/v2/users/me/meetings")
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
     return [_to_zoom_meeting(meeting) for meeting in data["meetings"]]
 
 
@@ -62,6 +63,7 @@ async def zoom_create_meeting(topic: str, start_time: datetime) -> ZoomMeeting:
             "https://api.zoom.us/v2/users/me/meetings",
             json={"topic": topic, "start_time": start_time.isoformat()},
         )
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
     return _to_zoom_meeting(data)

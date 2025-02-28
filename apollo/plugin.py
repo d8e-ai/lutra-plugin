@@ -197,6 +197,7 @@ async def apollo_people_enrichment(
         ),
     ) as client:
         response = await client.post(url, json=data, headers=headers)
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
         return _parse_people_enrichment_data(data.get("person", {}))

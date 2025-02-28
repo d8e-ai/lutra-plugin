@@ -96,8 +96,9 @@ async def slack_send_message_to_channel(
             "https://slack.com/api/chat.postMessage",
             json=body,
         )
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
         if not data.get("ok", False):
             if data.get("error", "") == "not_in_channel":
                 raise RuntimeError(
@@ -138,8 +139,9 @@ async def slack_send_message_to_user(user_display_name: str, message: str) -> No
                 "text": await _with_mentions(all_users, message),
             },
         )
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"sending message: {data}")
 
@@ -151,8 +153,9 @@ async def _get_self_user_id() -> str:
         )
     ) as client:
         response = await client.get("https://slack.com/api/auth.test")
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"getting user ID: {data}")
         return data["user_id"]
@@ -177,8 +180,9 @@ async def slack_send_message_to_self(message: str) -> None:
                 "text": await _with_mentions(lambda: _list_users(client), message),
             },
         )
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"sending message: {data}")
 
@@ -194,8 +198,9 @@ async def _list_users(client: httpx.AsyncClient) -> list[SlackUser]:
             "https://slack.com/api/users.list",
             params=params,
         )
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"listing users: {data}")
         for member in data["members"]:
@@ -221,8 +226,9 @@ async def _conversation_ids_by_name(client: httpx.AsyncClient) -> dict[str, str]
             "https://slack.com/api/conversations.list",
             params=params,
         )
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"listing channels: {data}")
         ids.update(
@@ -323,8 +329,9 @@ async def slack_conversations_history(
             "https://slack.com/api/conversations.history",
             params=params,
         )
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
     if not data.get("ok", False):
         if data.get("error") == "channel_not_found":
             available_channels = f"{sorted(conversation_ids.keys())}"
@@ -394,8 +401,9 @@ async def slack_conversation_replies(
             "https://slack.com/api/conversations.replies",
             params=params,
         )
+        response.raise_for_status()
         await response.aread()
-        data = response.raise_for_status().json()
+        data = response.json()
     if not data.get("ok", False):
         if data.get("error") == "channel_not_found":
             available_channels = f"{sorted(conversation_ids.keys())}"
