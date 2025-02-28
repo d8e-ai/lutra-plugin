@@ -1,9 +1,10 @@
-from datetime import datetime
 from dataclasses import dataclass
-import httpx
-from typing import Optional, List
+from datetime import datetime
+from typing import List, Optional
 
-from lutraai.augmented_request_client import AugmentedTransport
+import httpx
+
+from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import purpose
 
 
@@ -156,7 +157,7 @@ def _parse_people_enrichment_data(enrichment_data: dict) -> ApolloPersonProfile:
 
 
 @purpose("Get a person's enriched profile.")
-def apollo_people_enrichment(
+async def apollo_people_enrichment(
     first_name: Optional[str] = None,
     last_name: Optional[str] = None,
     email: Optional[str] = None,
@@ -171,7 +172,9 @@ def apollo_people_enrichment(
     You MUST provide either an email, domain, or an organization name.
     """
     if not (email or organization_name or domain):
-        raise ValueError("You must provide either an email, organization name, or domain.")
+        raise ValueError(
+            "You must provide either an email, organization name, or domain."
+        )
     url = "https://api.apollo.io/v1/people/match"
     headers = {
         "Content-Type": "application/json",
@@ -188,12 +191,13 @@ def apollo_people_enrichment(
 
     data = {key: value for key, value in data.items() if value is not None}
 
-    with httpx.Client(
-        transport=AugmentedTransport(
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(
             actions_v0.authenticated_request_apollo_request_body_auth
         ),
     ) as client:
-        response = client.post(url, json=data, headers=headers)
+        response = await client.post(url, json=data, headers=headers)
         response.raise_for_status()
-        result = response.json()
-        return _parse_people_enrichment_data(result.get("person", {}))
+        await response.aread()
+        data = response.json()
+        return _parse_people_enrichment_data(data.get("person", {}))

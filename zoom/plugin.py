@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 import httpx
 
-
-from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.augmented_request_client import AsyncAugmentedTransport
 
 
 @dataclass
@@ -42,31 +41,29 @@ def _to_zoom_meeting(meeting: dict[str, Any]) -> ZoomMeeting:
     )
 
 
-def zoom_list_meetings() -> list[ZoomMeeting]:
+async def zoom_list_meetings() -> list[ZoomMeeting]:
     """List all Zoom meetings."""
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_zoom)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_zoom)
     ) as client:
         # TODO: Add pagination support.
-        data = (
-            client.get("https://api.zoom.us/v2/users/me/meetings")
-            .raise_for_status()
-            .json()
-        )
+        response = await client.get("https://api.zoom.us/v2/users/me/meetings")
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
     return [_to_zoom_meeting(meeting) for meeting in data["meetings"]]
 
 
-def zoom_create_meeting(topic: str, start_time: datetime) -> ZoomMeeting:
+async def zoom_create_meeting(topic: str, start_time: datetime) -> ZoomMeeting:
     """Create a Zoom meeting and return it."""
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_zoom)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_zoom)
     ) as client:
-        data = (
-            client.post(
-                "https://api.zoom.us/v2/users/me/meetings",
-                json={"topic": topic, "start_time": start_time.isoformat()},
-            )
-            .raise_for_status()
-            .json()
+        response = await client.post(
+            "https://api.zoom.us/v2/users/me/meetings",
+            json={"topic": topic, "start_time": start_time.isoformat()},
         )
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
     return _to_zoom_meeting(data)

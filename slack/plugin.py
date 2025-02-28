@@ -1,11 +1,11 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import AbstractSet, Any, Callable, Optional
+from typing import AbstractSet, Any, Awaitable, Coroutine, Optional, Union
 
 import httpx
 
-from lutraai.augmented_request_client import AugmentedTransport
+from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import purpose
 
 _BOT_NAME = "Lutra"
@@ -17,16 +17,19 @@ class SlackUser:
     display_name: str
 
 
-def _with_mentions(
-    users: list[SlackUser] | Callable[[], list[SlackUser]],
+async def _with_mentions(
+    users: Union[
+        list[SlackUser],
+        Awaitable[list[SlackUser]],
+    ],
     message: str,
 ) -> str:
     """
     Return message with @-mentions using display names replaced by Slack IDs.
 
     Args:
-        users: The list of SlackUsers to consider.  This can also be a function that
-            returns the list.  It is only called if there are any @-mentions in message.
+        users: The list of SlackUsers to consider. This can also be an awaitable that
+            will only be awaited if there are any @-mentions in the message.
         message: The message to transform.
 
     Returns:
@@ -34,7 +37,12 @@ def _with_mentions(
     """
     if re.search(r"<@([^>]+)>", message) is None:
         return message
-    resolved_users = users if isinstance(users, list) else users()
+
+    if isinstance(users, list):
+        resolved_users = users
+    else:
+        resolved_users = await users
+
     display_name_to_id = {}
     for user in resolved_users:
         if user.display_name not in display_name_to_id:
@@ -58,7 +66,7 @@ def _with_mentions(
 
 
 @purpose("Send a message to a channel.")
-def slack_send_message_to_channel(
+async def slack_send_message_to_channel(
     channel: str, message: str, thread_ts: Optional[str] = None
 ) -> None:
     """
@@ -69,23 +77,22 @@ def slack_send_message_to_channel(
 
     Set thread_ts to the timestamp of a message to reply to that message's thread.
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_slack)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
         body = {
             "channel": channel,
-            "text": _with_mentions(lambda: _list_users(client), message),
+            "text": await _with_mentions(_list_users(client), message),
         }
         if thread_ts is not None:
             body["thread_ts"] = thread_ts
-        data = (
-            client.post(
-                "https://slack.com/api/chat.postMessage",
-                json=body,
-            )
-            .raise_for_status()
-            .json()
+        response = await client.post(
+            "https://slack.com/api/chat.postMessage",
+            json=body,
         )
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
         if not data.get("ok", False):
             if data.get("error", "") == "not_in_channel":
                 raise RuntimeError(
@@ -97,17 +104,17 @@ def slack_send_message_to_channel(
 
 
 @purpose("Send a message to a user.")
-def slack_send_message_to_user(user_display_name: str, message: str) -> None:
+async def slack_send_message_to_user(user_display_name: str, message: str) -> None:
     """
     Send a message to a user by user name or ID.
 
     The message may mention users by their display name by wrapping it in "<@" and ">".
     For example, to mention a user named "Alice", use "<@Alice>".
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_slack)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
-        all_users = _list_users(client)
+        all_users = await _list_users(client)
         users = [user for user in all_users if user.display_name == user_display_name]
         match len(users):
             case 0:
@@ -119,73 +126,75 @@ def slack_send_message_to_user(user_display_name: str, message: str) -> None:
                     f"found multiple users named {user_display_name}: "
                     f"{[user.id for user in users]}"
                 )
-        data = (
-            client.post(
-                "https://slack.com/api/chat.postMessage",
-                json={
-                    "channel": channel_id,
-                    "text": _with_mentions(all_users, message),
-                },
-            )
-            .raise_for_status()
-            .json()
+        response = await client.post(
+            "https://slack.com/api/chat.postMessage",
+            json={
+                "channel": channel_id,
+                "text": await _with_mentions(all_users, message),
+            },
         )
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"sending message: {data}")
 
 
-def _get_self_user_id() -> str:
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
+async def _get_self_user_id() -> str:
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(
+            actions_v0.authenticated_request_slack_as_user
+        )
     ) as client:
-        data = client.get("https://slack.com/api/auth.test").raise_for_status().json()
+        response = await client.get("https://slack.com/api/auth.test")
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"getting user ID: {data}")
         return data["user_id"]
 
 
 @purpose("Send a message to yourself.")
-def slack_send_message_to_self(message: str) -> None:
+async def slack_send_message_to_self(message: str) -> None:
     """
     Send a message to my own user.
 
     The message may mention users by their display name by wrapping it in "<@" and ">".
     For example, to mention a user named "Alice", use "<@Alice>".
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_slack)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
-        user_id = _get_self_user_id()
-        data = (
-            client.post(
-                "https://slack.com/api/chat.postMessage",
-                json={
-                    "channel": user_id,
-                    "text": _with_mentions(lambda: _list_users(client), message),
-                },
-            )
-            .raise_for_status()
-            .json()
+        user_id = await _get_self_user_id()
+        response = await client.post(
+            "https://slack.com/api/chat.postMessage",
+            json={
+                "channel": user_id,
+                "text": await _with_mentions(_list_users(client), message),
+            },
         )
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"sending message: {data}")
 
 
-def _list_users(client: httpx.Client) -> list[SlackUser]:
+async def _list_users(client: httpx.AsyncClient) -> list[SlackUser]:
     users = []
     cursor = None
     while True:
         params = {}
         if cursor is not None:
             params["cursor"] = cursor
-        data = (
-            client.get(
-                "https://slack.com/api/users.list",
-                params=params,
-            )
-            .raise_for_status()
-            .json()
+        response = await client.get(
+            "https://slack.com/api/users.list",
+            params=params,
         )
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"listing users: {data}")
         for member in data["members"]:
@@ -200,21 +209,20 @@ def _list_users(client: httpx.Client) -> list[SlackUser]:
             return users
 
 
-def _conversation_ids_by_name(client: httpx.Client) -> dict[str, str]:
+async def _conversation_ids_by_name(client: httpx.AsyncClient) -> dict[str, str]:
     ids = {}
     cursor = None
     while True:
         params = {}
         if cursor is not None:
             params["cursor"] = cursor
-        data = (
-            client.get(
-                "https://slack.com/api/conversations.list",
-                params=params,
-            )
-            .raise_for_status()
-            .json()
+        response = await client.get(
+            "https://slack.com/api/conversations.list",
+            params=params,
         )
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
         if not data.get("ok", False):
             raise RuntimeError(f"listing channels: {data}")
         ids.update(
@@ -269,7 +277,7 @@ def _extract_text(msg: Any) -> str:
 
 
 @purpose("Get conversation history.")
-def slack_conversations_history(
+async def slack_conversations_history(
     channel: str,
     oldest: Optional[datetime] = None,
     latest: Optional[datetime] = None,
@@ -291,10 +299,12 @@ def slack_conversations_history(
         cursor for pagination. If the next cursor is the empty string, all of the
         requested items have been returned.
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(
+            actions_v0.authenticated_request_slack_as_user
+        )
     ) as client:
-        conversation_ids = _conversation_ids_by_name(client)
+        conversation_ids = await _conversation_ids_by_name(client)
         conversation_id = _find_conversation_by_name(conversation_ids, channel)
         if conversation_id is None:
             # `channel` does not match any name, so assume that it is an ID.
@@ -309,14 +319,13 @@ def slack_conversations_history(
             params["latest"] = str(latest.timestamp())
         if cursor:
             params["cursor"] = cursor
-        data = (
-            client.get(
-                "https://slack.com/api/conversations.history",
-                params=params,
-            )
-            .raise_for_status()
-            .json()
+        response = await client.get(
+            "https://slack.com/api/conversations.history",
+            params=params,
         )
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
     if not data.get("ok", False):
         if data.get("error") == "channel_not_found":
             available_channels = f"{sorted(conversation_ids.keys())}"
@@ -347,7 +356,7 @@ def slack_conversations_history(
 
 
 @purpose("Get conversation replies.")
-def slack_conversation_replies(
+async def slack_conversation_replies(
     channel: str,
     ts: str,
     cursor: Optional[str] = None,
@@ -365,10 +374,12 @@ def slack_conversation_replies(
         cursor for pagination. If the next cursor is the empty string, all of the
         requested items have been returned.
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_slack_as_user)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(
+            actions_v0.authenticated_request_slack_as_user
+        )
     ) as client:
-        conversation_ids = _conversation_ids_by_name(client)
+        conversation_ids = await _conversation_ids_by_name(client)
         conversation_id = _find_conversation_by_name(conversation_ids, channel)
         if conversation_id is None:
             # `channel` does not match any name, so assume that it is an ID.
@@ -380,14 +391,13 @@ def slack_conversation_replies(
         }
         if cursor:
             params["cursor"] = cursor
-        data = (
-            client.get(
-                "https://slack.com/api/conversations.replies",
-                params=params,
-            )
-            .raise_for_status()
-            .json()
+        response = await client.get(
+            "https://slack.com/api/conversations.replies",
+            params=params,
         )
+        response.raise_for_status()
+        await response.aread()
+        data = response.json()
     if not data.get("ok", False):
         if data.get("error") == "channel_not_found":
             available_channels = f"{sorted(conversation_ids.keys())}"
@@ -418,7 +428,7 @@ def slack_conversation_replies(
 
 
 @purpose("Associate Slack user ID strings with information about the user.")
-def slack_user_lookup(users: AbstractSet[str]) -> dict[str, SlackUser | None]:
+async def slack_user_lookup(users: AbstractSet[str]) -> dict[str, SlackUser | None]:
     """
     Convert the set of slack user ID strings to a SlackUser object.
 
@@ -427,11 +437,11 @@ def slack_user_lookup(users: AbstractSet[str]) -> dict[str, SlackUser | None]:
     :return: A mapping from the Slack user identifiers to the SlackUser object for
         each input member, or None if not found.
     """
-    with httpx.Client(
-        transport=AugmentedTransport(actions_v0.authenticated_request_slack)
+    async with httpx.AsyncClient(
+        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_slack)
     ) as client:
         # Get all users
-        all_users = _list_users(client)
+        all_users = await _list_users(client)
 
         name_to_user: dict[str, SlackUser | None] = {}
         # Initialize output to None for every user in the input.
