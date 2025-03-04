@@ -16,98 +16,98 @@ _BOT_NAME = "Lutra"
 
 bot_client = AuthenticatedAsyncClient(
     InternalAuthenticatedClientConfig(
-            allowed_urls=(
-                InternalAllowedURL(
-                    scheme="https",
-                    domain_suffix="slack.com",
-                    add_auth=True,
-                ),
-            ),
-            auth_spec=InternalOAuthSpec(
-                auth_name="Slack (Bot)",
-                auth_group="Slack",
-                auth_type="oauth2",
-                access_token_url="https://slack.com/api/oauth.v2.access",
-                authorize_url="https://slack.com/oauth/v2/authorize",
-                api_base_url="https://slack.com/api",
-                userinfo_endpoint="https://slack.com/api/auth.test",
-                userinfo_force_token_type="Bearer",
-                scopes_spec={
-                    "chat:write": "Send messages.",
-                    "users:read": "Get any user's slack ID.",
-                },
-                scope_separator=",",
-                jwks_uri="",  # None available
-                prompt="consent",
-                server_metadata_url="",  # None available
-                access_type="offline",
-                profile_id_field="bot_id",
-                logo="https://storage.googleapis.com/lutra-2407-public/847d981628d283c576840274eb7631f331a06d398329eb17755967017bb4595f.svg",
-                auth_header_key="Authorization",
-                auth_header_value="Bearer {api_key}",
-                refresh_token_config=InternalRefreshTokenConfig(
-                    auth_refresh_type="form",
-                    body_fields={
-                        "client_id": "{client_id}",
-                        "client_secret": "{client_secret}",
-                        "refresh_token": "{refresh_token}",
-                        "grant_type": "refresh_token",
-                    },
-                ),
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme="https",
+                domain_suffix="slack.com",
+                add_auth=True,
             ),
         ),
-        provider_id="a9baf2a9-f8a4-41d2-805f-6c65e040ceee",
+        auth_spec=InternalOAuthSpec(
+            auth_name="Slack (Bot)",
+            auth_group="Slack",
+            auth_type="oauth2",
+            access_token_url="https://slack.com/api/oauth.v2.access",
+            authorize_url="https://slack.com/oauth/v2/authorize",
+            api_base_url="https://slack.com/api",
+            userinfo_endpoint="https://slack.com/api/auth.test",
+            userinfo_force_token_type="Bearer",
+            scopes_spec={
+                "chat:write": "Send messages.",
+                "users:read": "Get any user's slack ID.",
+            },
+            scope_separator=",",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="bot_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/847d981628d283c576840274eb7631f331a06d398329eb17755967017bb4595f.svg",
+            auth_header_key="Authorization",
+            auth_header_value="Bearer {api_key}",
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="a9baf2a9-f8a4-41d2-805f-6c65e040ceee",
 )
 
 user_client = AuthenticatedAsyncClient(
     InternalAuthenticatedClientConfig(
-            action_name="authenticated_request_slack_as_user",
-            allowed_urls=(
-                InternalAllowedURL(
-                    scheme=b"https",
-                    domain_suffix=b"slack.com",
-                    add_auth=True,
-                ),
-            ),
-            base_url=None,
-            auth_spec=InternalOAuthSpec(
-                auth_name="Slack (User)",
-                auth_group="Slack",
-                auth_type="oauth2",
-                access_token_url="https://slack.com/api/oauth.v2.access",
-                authorize_url="https://slack.com/oauth/v2/authorize",
-                api_base_url="https://slack.com/api",
-                userinfo_endpoint="https://slack.com/api/auth.test",
-                userinfo_force_token_type="Bearer",
-                scopes_spec={
-                    "chat:write": "Send messages.",
-                    "channels:history": "Read messages in public channels.",
-                    "channels:read": "Get any channel's ID.",
-                    "groups:history": "Read messages in private channels.",
-                    "im:history": "Read messages in direct messages.",
-                },
-                scope_separator=",",
-                slack_user_token=True,
-                jwks_uri="",  # None available
-                prompt="consent",
-                server_metadata_url="",  # None available
-                access_type="offline",
-                profile_id_field="user_id",
-                logo="https://storage.googleapis.com/lutra-2407-public/847d981628d283c576840274eb7631f331a06d398329eb17755967017bb4595f.svg",
-                auth_header_key="Authorization",
-                auth_header_value="Bearer {api_key}",
-                refresh_token_config=InternalRefreshTokenConfig(
-                    auth_refresh_type="form",
-                    body_fields={
-                        "client_id": "{client_id}",
-                        "client_secret": "{client_secret}",
-                        "refresh_token": "{refresh_token}",
-                        "grant_type": "refresh_token",
-                    },
-                ),
+        action_name="authenticated_request_slack_as_user",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"slack.com",
+                add_auth=True,
             ),
         ),
-        provider_id="867562bf-2d47-437c-b8f7-df1649051f22",
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="Slack (User)",
+            auth_group="Slack",
+            auth_type="oauth2",
+            access_token_url="https://slack.com/api/oauth.v2.access",
+            authorize_url="https://slack.com/oauth/v2/authorize",
+            api_base_url="https://slack.com/api",
+            userinfo_endpoint="https://slack.com/api/auth.test",
+            userinfo_force_token_type="Bearer",
+            scopes_spec={
+                "chat:write": "Send messages.",
+                "channels:history": "Read messages in public channels.",
+                "channels:read": "Get any channel's ID.",
+                "groups:history": "Read messages in private channels.",
+                "im:history": "Read messages in direct messages.",
+            },
+            scope_separator=",",
+            slack_user_token=True,
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="user_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/847d981628d283c576840274eb7631f331a06d398329eb17755967017bb4595f.svg",
+            auth_header_key="Authorization",
+            auth_header_value="Bearer {api_key}",
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="867562bf-2d47-437c-b8f7-df1649051f22",
 )
 
 
@@ -415,7 +415,7 @@ async def slack_conversations_history(
             if len(available_channels) > max_length:
                 truncated = "...(truncated)"
                 available_channels = (
-                    f"{available_channels[:max_length - len(truncated)]}{truncated}"
+                    f"{available_channels[: max_length - len(truncated)]}{truncated}"
                 )
             raise RuntimeError(
                 f"channel '{channel}' not found; "
@@ -482,7 +482,7 @@ async def slack_conversation_replies(
             if len(available_channels) > max_length:
                 truncated = "...(truncated)"
                 available_channels = (
-                    f"{available_channels[:max_length - len(truncated)]}{truncated}"
+                    f"{available_channels[: max_length - len(truncated)]}{truncated}"
                 )
             raise RuntimeError(
                 f"channel '{channel}' not found; "
