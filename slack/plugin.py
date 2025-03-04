@@ -179,7 +179,7 @@ async def slack_send_message_to_channel(
     """
     body = {
         "channel": channel,
-        "text": await _with_mentions(_list_users, message),
+        "text": await _with_mentions(_list_users(), message),
     }
     if thread_ts is not None:
         body["thread_ts"] = thread_ts
