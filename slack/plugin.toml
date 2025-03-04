@@ -4,12 +4,3 @@ Send messages in Slack to yourself, other users, or channels.  Get
 conversation history.
 """
 logo_url = "https://storage.googleapis.com/lutra-2407-public/847d981628d283c576840274eb7631f331a06d398329eb17755967017bb4595f.svg"
-
-[[required_actions]]
-action_reference_type = "augmented_request"
-augmented_request_configuration_id = "7a70db83-6403-4885-877f-187372551bea"
-
-[[required_actions]]
-action_reference_type = "augmented_request"
-augmented_request_configuration_id = "e8014576-5bb3-4cba-839f-df5b1176055c"
-
