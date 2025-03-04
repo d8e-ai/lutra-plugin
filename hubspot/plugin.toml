@@ -1,7 +1,3 @@
 name = "HubSpot"
 description = "Manage your HubSpot Contacts."
 logo_url = "https://storage.googleapis.com/lutra-2407-public/14e0f204508b6be2d14f53aef66c6915f2be79263a5f6e4bc16883f0da7c3464.svg"
-
-[[required_actions]]
-action_reference_type = "augmented_request"
-augmented_request_configuration_id = "aa74e3ef-c3c4-4fa0-b407-343608c431aa"

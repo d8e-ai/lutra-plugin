@@ -2,10 +2,67 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, Optional
 
-import httpx
 
-from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import purpose
+from lutraai.dependencies import AuthenticatedAsyncClient
+from lutraai.dependencies.authentication import (
+    InternalAllowedURL,
+    InternalOAuthSpec,
+    InternalRefreshTokenConfig,
+    InternalAuthenticatedClientConfig,
+)
+
+github_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_github",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.github.com",
+                add_auth=True,
+            ),
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"githubusercontent.com",
+                add_auth=False,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="GitHub",
+            auth_group="GitHub",
+            auth_type="oauth2",
+            access_token_url="https://github.com/login/oauth/access_token",
+            authorize_url="https://github.com/login/oauth/authorize",
+            api_base_url="https://api.github.com/",
+            userinfo_endpoint="https://api.github.com/user",
+            userinfo_force_token_type="Bearer",
+            scopes_spec={
+                "repo": "Full control of repositories.",
+            },
+            scope_separator=",",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="login",
+            logo="https://storage.googleapis.com/lutra-2407-public/7a0dd11e373830a51a565de9fed4a985707c67ccd390f9ae4946a152303ea676.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="7eb9377f-b770-4cdb-ba7b-31a459de57d3",
+)
 
 
 @dataclass
@@ -49,21 +106,18 @@ async def github_pulls(
         page: the page of results to return. Each page has at most 30 results.
 
     """
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_github),
-    ) as client:
-        response = await client.get(
-            f"https://api.github.com/repos/{owner}/{repo}/pulls",
-            params={
-                "state": state,
-                "page": page,
-                "sort": sort,
-                "direction": sort_direction,
-            },
-        )
-        response.raise_for_status()
-        await response.aread()
-        response_json = response.json()
+    response = await github_client.get(
+        f"https://api.github.com/repos/{owner}/{repo}/pulls",
+        params={
+            "state": state,
+            "page": page,
+            "sort": sort,
+            "direction": sort_direction,
+        },
+    )
+    response.raise_for_status()
+    await response.aread()
+    response_json = response.json()
     pull_requests = [
         GitHubPullRequest(
             id=obj["id"],
@@ -137,21 +191,18 @@ async def github_issues(
         sort_direction: the direction of the sort.
         page: the page of results to return. Each page has at most 30 results.
     """
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_github)
-    ) as client:
-        response = await client.get(
-            f"https://api.github.com/repos/{owner}/{repo}/issues",
-            params={
-                "state": state,
-                "page": page,
-                "sort": sort,
-                "direction": sort_direction,
-            },
-        )
-        response.raise_for_status()
-        await response.aread()
-        response_json = response.json()
+    response = await github_client.get(
+        f"https://api.github.com/repos/{owner}/{repo}/issues",
+        params={
+            "state": state,
+            "page": page,
+            "sort": sort,
+            "direction": sort_direction,
+        },
+    )
+    response.raise_for_status()
+    await response.aread()
+    response_json = response.json()
     issues = [
         GitHubIssue(
             id=obj["id"],
@@ -218,20 +269,17 @@ async def github_comments(
         sort_direction: the direction of the sort.
         page: the page of results to return. Each page has at most 30 results.
     """
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_github)
-    ) as client:
-        response = await client.get(
-            f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments",
-            params={
-                "page": page,
-                "sort": sort,
-                "direction": sort_direction,
-            },
-        )
-        response.raise_for_status()
-        await response.aread()
-        response_json = response.json()
+    response = await github_client.get(
+        f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments",
+        params={
+            "page": page,
+            "sort": sort,
+            "direction": sort_direction,
+        },
+    )
+    response.raise_for_status()
+    await response.aread()
+    response_json = response.json()
     comments = [
         GitHubComment(
             id=comment["id"],

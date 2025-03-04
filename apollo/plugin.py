@@ -2,10 +2,34 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
 
-import httpx
 
-from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import purpose
+from lutraai.dependencies import AuthenticatedAsyncClient
+from lutraai.dependencies.authentication import (
+    InternalAllowedURL,
+    InternalAPIKeySpec,
+    InternalAuthenticatedClientConfig,
+)
+
+apollo_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.apollo.io",
+                add_auth=True,
+            ),
+        ),
+        auth_spec=InternalAPIKeySpec(
+            auth_name="Apollo",
+            auth_group="Apollo",
+            request_body_auth={
+                "api_key": "{api_key}",
+            },
+        ),
+    ),
+    provider_id="30df60e9-d180-4bf4-abad-b68363717763",
+)
 
 
 @dataclass
@@ -191,13 +215,8 @@ async def apollo_people_enrichment(
 
     data = {key: value for key, value in data.items() if value is not None}
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(
-            actions_v0.authenticated_request_apollo_request_body_auth
-        ),
-    ) as client:
-        response = await client.post(url, json=data, headers=headers)
-        response.raise_for_status()
-        await response.aread()
-        data = response.json()
-        return _parse_people_enrichment_data(data.get("person", {}))
+    response = await apollo_client.post(url, json=data, headers=headers)
+    response.raise_for_status()
+    await response.aread()
+    data = response.json()
+    return _parse_people_enrichment_data(data.get("person", {}))

@@ -14,12 +14,75 @@ from typing import (
     TypedDict,
 )
 
-import httpx
 import pydantic
 
-from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import purpose
+from lutraai.dependencies import AuthenticatedAsyncClient
+from lutraai.dependencies.authentication import (
+    InternalAllowedURL,
+    InternalOAuthSpec,
+    InternalRefreshTokenConfig,
+    InternalAuthenticatedClientConfig,
+    InternalUserInfoConfig,
+)
 from lutraai.requests import raise_error_text
+
+hubspot_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_hubspot",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.hubapi.com",
+                add_auth=True,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="HubSpot",
+            auth_group="HubSpot",
+            auth_type="oauth2",
+            access_token_url="https://api.hubapi.com/oauth/v1/token",
+            authorize_url="https://app.hubspot.com/oauth/authorize",
+            api_base_url="https://api.hubapi.com",
+            checks=["pkce", "state"],
+            token_endpoint_auth_method="client_secret_post",
+            userinfo_endpoint="https://api.hubapi.com/oauth/v1/access-tokens/{access_token}",
+            userinfo_config=InternalUserInfoConfig(
+                auth_userinfo_type="basic",
+            ),
+            scopes_spec={
+                "crm.lists.read": "Read Lists.",
+                "crm.objects.contacts.read": "View properties and other details about contacts.",
+                "crm.objects.contacts.write": "Create, update, and delete contacts.",
+                "crm.objects.companies.read": "View properties and other details about companies.",
+                "crm.objects.companies.write": "Create, update, and delete companies.",
+                "crm.objects.deals.read": "View properties and other details about deals.",
+                "crm.objects.deals.write": "Write properties and other details about deals.",
+            },
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="user_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/14e0f204508b6be2d14f53aef66c6915f2be79263a5f6e4bc16883f0da7c3464.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="d1ba8f9a-c9bb-4524-b456-3d72662a306a",
+)
 
 
 @dataclass
@@ -70,17 +133,14 @@ class _HubSpotPropertiesSchema:
 async def _get_hubspot_properties_schema(
     object_type: HubSpotObjectType,
 ) -> _HubSpotPropertiesSchema:
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.get(
-            f"https://api.hubapi.com/crm/v3/properties/{object_type.name}"
-        )
-        await raise_error_text(response)
-        await response.aread()
-        return _HubSpotPropertiesSchema(
-            properties={prop["name"]: prop for prop in response.json()["results"]}
-        )
+    response = await hubspot_client.get(
+        f"https://api.hubapi.com/crm/v3/properties/{object_type.name}"
+    )
+    await raise_error_text(response)
+    await response.aread()
+    return _HubSpotPropertiesSchema(
+        properties={prop["name"]: prop for prop in response.json()["results"]}
+    )
 
 
 def _get_all_property_names(schema: _HubSpotPropertiesSchema) -> list[str]:
@@ -273,13 +333,10 @@ async def _list_contacts(
     if pagination_token:
         params["after"] = pagination_token.token
     params["properties"] = _get_all_property_names(schema)
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.get(url, params=params)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.get(url, params=params)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
     contacts = [
         _parse_hubspot_contact(item, schema) for item in data.get("results") or []
@@ -325,13 +382,10 @@ async def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[st
 
     payload = {"inputs": contacts_payload}
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json=payload)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.post(url, json=payload)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
     # Extract and return the IDs of the created contacts
     return [result["id"] for result in data["results"]]
@@ -414,14 +468,11 @@ async def hubspot_update_contacts(
         for contact_id, properties in contact_updates.items()
     ]
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json={"inputs": payload})
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
-        return [result["id"] for result in data["results"]]
+    response = await hubspot_client.post(url, json={"inputs": payload})
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+    return [result["id"] for result in data["results"]]
 
 
 async def _search_contacts(
@@ -440,19 +491,16 @@ async def _search_contacts(
     }
     if pagination_token:
         payload["after"] = pagination_token.token
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json=payload)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
-        contacts = [
-            _parse_hubspot_contact(item, schema) for item in data.get("results") or []
-        ]
-        token = data.get("paging", {}).get("next", {}).get("after")
-        next_pagination_token = HubSpotPaginationToken(token=token) if token else None
-        return contacts, next_pagination_token
+    response = await hubspot_client.post(url, json=payload)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+    contacts = [
+        _parse_hubspot_contact(item, schema) for item in data.get("results") or []
+    ]
+    token = data.get("paging", {}).get("next", {}).get("after")
+    next_pagination_token = HubSpotPaginationToken(token=token) if token else None
+    return contacts, next_pagination_token
 
 
 @dataclass
@@ -640,13 +688,10 @@ async def _list_companies(
     if pagination_token:
         params["after"] = pagination_token.token
     params["properties"] = _get_all_property_names(schema)
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.get(url, params=params)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.get(url, params=params)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
     companies = [
         _parse_hubspot_company(item, schema) for item in data.get("results") or []
@@ -686,13 +731,10 @@ async def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[
 
     payload = {"inputs": company_payload}
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json=payload)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.post(url, json=payload)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
     # Extract and return the IDs of the created company
     return [result["id"] for result in data["results"]]
@@ -768,14 +810,11 @@ async def hubspot_update_companies(
         }
         for company_id, properties in company_updates.items()
     ]
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json={"inputs": payload})
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
-        return [result["id"] for result in data["results"]]
+    response = await hubspot_client.post(url, json={"inputs": payload})
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+    return [result["id"] for result in data["results"]]
 
 
 @purpose("Search companies.")
@@ -798,13 +837,10 @@ async def hubspot_search_companies(
         "filterGroups": filter_groups,
         "properties": _get_all_property_names(schema),
     }
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json=payload)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.post(url, json=payload)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
     companies = [
         _parse_hubspot_company(item, schema) for item in data.get("results") or []
@@ -868,13 +904,10 @@ async def _list_deals(
     if pagination_token:
         params["after"] = pagination_token.token
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.get(url, params=params)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.get(url, params=params)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
     deals = [_parse_hubspot_deal(item, schema) for item in data.get("results") or []]
     token = data.get("paging", {}).get("next", {}).get("after")
@@ -914,13 +947,10 @@ async def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
 
     payload = {"inputs": deal_payload}
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json=payload)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.post(url, json=payload)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
     return [result["id"] for result in data["results"]]
 
@@ -988,14 +1018,11 @@ async def hubspot_update_deals(
         }
         for deal_id, properties in deal_updates.items()
     ]
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json={"inputs": payload})
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
-        return [result["id"] for result in data["results"]]
+    response = await hubspot_client.post(url, json={"inputs": payload})
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+    return [result["id"] for result in data["results"]]
 
 
 @purpose("Search deals.")
@@ -1017,13 +1044,10 @@ async def hubspot_search_deals(
         "properties": _get_all_property_names(schema),
     }
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot),
-    ) as client:
-        response = await client.post(url, json=payload)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.post(url, json=payload)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
     deals = [_parse_hubspot_deal(item, schema) for item in data.get("results") or []]
     token = data.get("paging", {}).get("next", {}).get("after")
@@ -1071,19 +1095,16 @@ async def hubspot_fetch_associated_object_ids(
     url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/read"
     params = {"inputs": [{"id": source_object_id}]}
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot)
-    ) as client:
-        response = await client.post(url, json=params)
-        await raise_error_text(response)
-        await response.aread()
-        data = response.json()
+    response = await hubspot_client.post(url, json=params)
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
 
-        if results := data.get("results", []):
-            return [
-                associated_object["toObjectId"]
-                for associated_object in results[0].get("to", [])
-            ]
+    if results := data.get("results", []):
+        return [
+            associated_object["toObjectId"]
+            for associated_object in results[0].get("to", [])
+        ]
 
     return []
 
@@ -1147,11 +1168,8 @@ async def hubspot_create_association_between_object_ids(
         ]
     }
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot)
-    ) as client:
-        response = await client.post(url, json=params)
-        await raise_error_text(response)
+    response = await hubspot_client.post(url, json=params)
+    await raise_error_text(response)
 
 
 async def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: str):
@@ -1159,11 +1177,8 @@ async def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: s
         "objectIdToMerge": object_to_merge_id,
         "primaryObjectId": primary_object_id,
     }
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot)
-    ) as client:
-        response = await client.post(url, json=params)
-        await raise_error_text(response)
+    response = await hubspot_client.post(url, json=params)
+    await raise_error_text(response)
 
 
 @purpose("Merge contacts.")
@@ -1190,25 +1205,22 @@ async def hubspot_list_memberships(
     url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{escaped_list_name}"
     object_ids = []
     next_pagination_token = None
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_hubspot)
-    ) as client:
-        response = await client.get(url)
-        await response.aread()
-        await raise_error_text(response)
-        data = response.json()
-        if list_data := data.get("list"):
-            list_id = list_data["listId"]
-            memberships_response = await client.get(
-                f"https://api.hubapi.com/crm/v3/lists/{list_id}/memberships"
-            )
-            await raise_error_text(memberships_response)
-            await memberships_response.aread()
-            membership_data = memberships_response.json()
-            token = data.get("paging", {}).get("next", {}).get("after")
-            next_pagination_token = (
-                HubSpotPaginationToken(token=token) if token else None
-            )
-            if results := membership_data.get("results"):
-                object_ids = [result.get("recordId") for result in results]
+    response = await hubspot_client.get(url)
+    await response.aread()
+    await raise_error_text(response)
+    data = response.json()
+    if list_data := data.get("list"):
+        list_id = list_data["listId"]
+        memberships_response = await hubspot_client.get(
+            f"https://api.hubapi.com/crm/v3/lists/{list_id}/memberships"
+        )
+        await raise_error_text(memberships_response)
+        await memberships_response.aread()
+        membership_data = memberships_response.json()
+        token = data.get("paging", {}).get("next", {}).get("after")
+        next_pagination_token = (
+            HubSpotPaginationToken(token=token) if token else None
+        )
+        if results := membership_data.get("results"):
+            object_ids = [result.get("recordId") for result in results]
     return object_ids, next_pagination_token

@@ -43,8 +43,9 @@ bot_client = AuthenticatedAsyncClient(
             access_type="offline",
             profile_id_field="bot_id",
             logo="https://storage.googleapis.com/lutra-2407-public/847d981628d283c576840274eb7631f331a06d398329eb17755967017bb4595f.svg",
-            auth_header_key="Authorization",
-            auth_header_value="Bearer {api_key}",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
             refresh_token_config=InternalRefreshTokenConfig(
                 auth_refresh_type="form",
                 body_fields={
@@ -94,8 +95,9 @@ user_client = AuthenticatedAsyncClient(
             access_type="offline",
             profile_id_field="user_id",
             logo="https://storage.googleapis.com/lutra-2407-public/847d981628d283c576840274eb7631f331a06d398329eb17755967017bb4595f.svg",
-            auth_header_key="Authorization",
-            auth_header_value="Bearer {api_key}",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
             refresh_token_config=InternalRefreshTokenConfig(
                 auth_refresh_type="form",
                 body_fields={
