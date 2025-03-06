@@ -2,9 +2,3 @@ name = "Airtable"
 description = "List and update records in Airtable."
 logo_url = "https://storage.googleapis.com/lutra-2407-public/797288d8ecec44ba8ecd08823d8ccce1f18290f7a4968a982d8f2bfcfa6294a0.svg"
 observable_source_types = ["airtable_view"]
-
-[[required_actions]]
-action_reference_type = "augmented_request"
-augmented_request_configuration_id = "b21a4545-20dc-4672-9418-8a5c220f13b9"
-# local environment
-# augmented_request_configuration_id = "25cd3564-d9c7-4828-a2cc-48320f0375ea"

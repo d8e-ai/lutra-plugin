@@ -10,8 +10,62 @@ from urllib.parse import unquote, urlparse
 import httpx
 import tenacity
 
-from lutraai.augmented_request_client import AsyncAugmentedTransport
 from lutraai.decorator import deprecated, purpose
+from lutraai.dependencies import AuthenticatedAsyncClient
+from lutraai.dependencies.authentication import (
+    InternalAllowedURL,
+    InternalOAuthSpec,
+    InternalRefreshTokenConfig,
+    InternalAuthenticatedClientConfig,
+)
+
+airtable_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.airtable.com",
+                add_auth=True,
+            ),
+        ),
+        auth_spec=InternalOAuthSpec(
+            auth_name="Airtable",
+            auth_group="Airtable",
+            auth_type="oauth2",
+            access_token_url="https://airtable.com/oauth2/v1/token",
+            authorize_url="https://airtable.com/oauth2/v1/authorize",
+            api_base_url="https://airtable.com/oauth2/v1/",
+            checks=["pkce", "state"],
+            userinfo_endpoint="https://api.airtable.com/v0/meta/whoami",
+            scopes_spec={
+                "data.records:read": "To see the data in records.",
+                "data.records:write": "To create, edit, and delete records.",
+                "schema.bases:read": "To see the schema of bases.",
+            },
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="id",
+            logo="https://storage.googleapis.com/lutra-2407-public/797288d8ecec44ba8ecd08823d8ccce1f18290f7a4968a982d8f2bfcfa6294a0.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="basic",
+                header_fields={
+                    "Host": "airtable.com",
+                },
+                body_fields={
+                    "grant_type": "refresh_token",
+                    "refresh_token": "{refresh_token}",
+                },
+            ),
+        ),
+    ),
+    provider_id="883636ad-62dc-44dd-8381-654deed814b4",
+)
 
 
 @dataclass
@@ -65,11 +119,9 @@ class AirtableRecordID:
     # - https://github.com/Airtable/airtable.js/blob/899adb414ebc789aa3b0dcfe6c19113377315564/src/internal_config.json#L2-L3
     wait=tenacity.wait_random_exponential(multiplier=5, max=timedelta(minutes=10)),
 )
-async def _maybe_retry_send(
-    client: httpx.AsyncClient, request: httpx.Request
-) -> httpx.Response:
+async def _maybe_retry_send(request: httpx.Request) -> httpx.Response:
     """Send a request using the client, retrying if appropriate."""
-    return await client.send(request)
+    return await airtable_client.send(request)
 
 
 @purpose("Parse IDs from Airtable website URLs.")
@@ -196,12 +248,9 @@ def _parse_table_schema(data: dict[str, Any]):
     )
 
 
-async def _fetch_base_schema(
-    client: httpx.AsyncClient, base_id: str
-) -> list[AirtableTableSchema]:
+async def _fetch_base_schema(base_id: str) -> list[AirtableTableSchema]:
     response = await _maybe_retry_send(
-        client,
-        client.build_request(
+        airtable_client.build_request(
             "GET", f"https://api.airtable.com/v0/meta/bases/{base_id}/tables"
         ),
     )
@@ -212,9 +261,9 @@ async def _fetch_base_schema(
 
 
 async def _fetch_table_schema(
-    client: httpx.AsyncClient, base_id: str, table_id_or_name: str
+    base_id: str, table_id_or_name: str
 ) -> dict[str, Any]:
-    tables = await _fetch_base_schema(client, base_id)
+    tables = await _fetch_base_schema(base_id)
     table_id_names = []
     for table in tables:
         table_id_names.append(f"{table.id.id}({table.name})")
@@ -234,7 +283,6 @@ async def _fetch_table_schema(
 
 
 async def _resolve_error_message(
-    client: httpx.AsyncClient,
     base_id: str,
     table_id_or_name: str,
     status_code: int,
@@ -250,7 +298,7 @@ async def _resolve_error_message(
     msg, include_schema = _resolve_error_message_no_schema(status_code, text)
     if include_schema:
         try:
-            schema = _fetch_table_schema(client, base_id, table_id_or_name)
+            schema = _fetch_table_schema(base_id, table_id_or_name)
             return f"{msg}; schema of table `{table_id_or_name}`: {schema}"
         except Exception as e:
             return f"{msg}; (error fetching schema of {table_id_or_name}: {e})"
@@ -262,10 +310,7 @@ async def airtable_get_base_schema(
     base_id: AirtableBaseID,
 ) -> list[AirtableTableSchema]:
     """Return the schemas of the tables in the specified base."""
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_airtable)
-    ) as client:
-        return await _fetch_base_schema(client, base_id.id)
+    return await _fetch_base_schema(base_id.id)
 
 
 @dataclass
@@ -327,35 +372,30 @@ async def airtable_record_list(
     if filter_by_formula is not None:
         post_body["filterByFormula"] = filter_by_formula
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_airtable)
-    ) as client:
-        # TODO: Consider only using a POST if the query parameters are actually too
-        # large. This will allow caching, because GET.
+    # TODO: Consider only using a POST if the query parameters are actually too
+    # large. This will allow caching, because GET.
 
-        # Listing records is safe to retry, despite being a POST.
-        response = await _maybe_retry_send(
-            client,
-            client.build_request(
-                "POST",
-                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/listRecords",
-                json=post_body,
-            ),
-        )
-        if response.status_code != httpx.codes.OK:
-            raise RuntimeError(
-                await _resolve_error_message(
-                    client,
-                    base_id.id,
-                    table_id.id,
-                    response.status_code,
-                    response.text,
-                )
+    # Listing records is safe to retry, despite being a POST.
+    response = await _maybe_retry_send(
+        airtable_client.build_request(
+            "POST",
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/listRecords",
+            json=post_body,
+        ),
+    )
+    if response.status_code != httpx.codes.OK:
+        raise RuntimeError(
+            await _resolve_error_message(
+                base_id.id,
+                table_id.id,
+                response.status_code,
+                response.text,
             )
-        await response.aread()
-        data = response.json()
-        next_offset = data.get("offset", None)
-        next_token = AirtablePaginationToken(token=next_offset) if next_offset else None
+        )
+    await response.aread()
+    data = response.json()
+    next_offset = data.get("offset", None)
+    next_token = AirtablePaginationToken(token=next_offset) if next_offset else None
 
     return [
         AirtableRecord(
@@ -380,31 +420,26 @@ async def airtable_record_create(
 
     If typecast is True, Airtable will try to convert the value to the appropriate cell value.
     """
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_airtable)
-    ) as client:
-        # Airtable documentation seems to suggest that it is likely that errors retried
-        # by _maybe_retry_send mean that the record was not created.
-        response = await _maybe_retry_send(
-            client,
-            client.build_request(
-                "POST",
-                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
-                json={"fields": fields, "typecast": typecast},
-            ),
-        )
-        if response.status_code != httpx.codes.OK:
-            raise RuntimeError(
-                await _resolve_error_message(
-                    client,
-                    base_id.id,
-                    table_id.id,
-                    response.status_code,
-                    response.text,
-                )
+    # Airtable documentation seems to suggest that it is likely that errors retried
+    # by _maybe_retry_send mean that the record was not created.
+    response = await _maybe_retry_send(
+        airtable_client.build_request(
+            "POST",
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
+            json={"fields": fields, "typecast": typecast},
+        ),
+    )
+    if response.status_code != httpx.codes.OK:
+        raise RuntimeError(
+            await _resolve_error_message(
+                base_id.id,
+                table_id.id,
+                response.status_code,
+                response.text,
             )
-        await response.aread()
-        data = response.json()
+        )
+    await response.aread()
+    data = response.json()
     return AirtableRecord(
         record_id=AirtableRecordID(data["id"]),
         created_time=datetime.fromisoformat(data["createdTime"]),
@@ -427,48 +462,43 @@ async def airtable_records_create(
     """
     created_records = []
 
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_airtable)
-    ) as client:
-        # Process records in batches of 10
-        for i in range(0, len(records), 10):
-            batch = records[i : i + 10]
+    # Process records in batches of 10
+    for i in range(0, len(records), 10):
+        batch = records[i : i + 10]
 
-            # Airtable documentation seems to suggest that it is likely that errors retried
-            # by _maybe_retry_send mean that the records were not created.
-            response = await _maybe_retry_send(
-                client,
-                client.build_request(
-                    "POST",
-                    f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
-                    json={
-                        "records": [{"fields": record} for record in batch],
-                        "typecast": typecast,
-                    },
-                ),
+        # Airtable documentation seems to suggest that it is likely that errors retried
+        # by _maybe_retry_send mean that the records were not created.
+        response = await _maybe_retry_send(
+            airtable_client.build_request(
+                "POST",
+                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}",
+                json={
+                    "records": [{"fields": record} for record in batch],
+                    "typecast": typecast,
+                },
+            ),
+        )
+        if response.status_code != httpx.codes.OK:
+            raise RuntimeError(
+                await _resolve_error_message(
+                    base_id.id,
+                    table_id.id,
+                    response.status_code,
+                    response.text,
+                )
             )
-            if response.status_code != httpx.codes.OK:
-                raise RuntimeError(
-                    await _resolve_error_message(
-                        client,
-                        base_id.id,
-                        table_id.id,
-                        response.status_code,
-                        response.text,
-                    )
-                )
-            await response.aread()
-            data = response.json()
+        await response.aread()
+        data = response.json()
 
-            batch_records = [
-                AirtableRecord(
-                    record_id=AirtableRecordID(record["id"]),
-                    created_time=datetime.fromisoformat(record["createdTime"]),
-                    fields=record["fields"],
-                )
-                for record in data["records"]
-            ]
-            created_records.extend(batch_records)
+        batch_records = [
+            AirtableRecord(
+                record_id=AirtableRecordID(record["id"]),
+                created_time=datetime.fromisoformat(record["createdTime"]),
+                fields=record["fields"],
+            )
+            for record in data["records"]
+        ]
+        created_records.extend(batch_records)
 
     return created_records
 
@@ -487,25 +517,20 @@ async def airtable_record_update_patch(
 
     If typecast is True, Airtable will try to convert the value to the appropriate cell value.
     """
-    async with httpx.AsyncClient(
-        transport=AsyncAugmentedTransport(actions_v0.authenticated_request_airtable)
-    ) as client:
-        response = await _maybe_retry_send(
-            client,
-            client.build_request(
-                "PATCH",
-                f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/{record_id.id}",
-                json={"fields": fields, "typecast": typecast},
-            ),
-        )
-        if response.status_code != httpx.codes.OK:
-            raise RuntimeError(
-                await _resolve_error_message(
-                    client,
-                    base_id.id,
-                    table_id.id,
-                    response.status_code,
-                    response.text,
-                )
+    response = await _maybe_retry_send(
+        airtable_client.build_request(
+            "PATCH",
+            f"https://api.airtable.com/v0/{base_id.id}/{table_id.id}/{record_id.id}",
+            json={"fields": fields, "typecast": typecast},
+        ),
+    )
+    if response.status_code != httpx.codes.OK:
+        raise RuntimeError(
+            await _resolve_error_message(
+                base_id.id,
+                table_id.id,
+                response.status_code,
+                response.text,
             )
-        await response.aread()
+        )
+    await response.aread()
