@@ -27,7 +27,7 @@ from lutraai.dependencies.authentication import (
 )
 from lutraai.requests import raise_error_text
 
-hubspot_client = AuthenticatedAsyncClient(
+hubspot_read_client = AuthenticatedAsyncClient(
     InternalAuthenticatedClientConfig(
         action_name="authenticated_request_hubspot",
         allowed_urls=(
@@ -54,12 +54,351 @@ hubspot_client = AuthenticatedAsyncClient(
             scopes_spec={
                 "crm.lists.read": "Read Lists.",
                 "crm.objects.contacts.read": "View properties and other details about contacts.",
-                "crm.objects.contacts.write": "Create, update, and delete contacts.",
                 "crm.objects.companies.read": "View properties and other details about companies.",
+                "crm.objects.deals.read": "View properties and other details about deals.",
+            },
+            incremental_scopes=True,
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="user_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/14e0f204508b6be2d14f53aef66c6915f2be79263a5f6e4bc16883f0da7c3464.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="d1ba8f9a-c9bb-4524-b456-3d72662a306a",
+)
+
+hubspot_contacts_write_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_hubspot",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.hubapi.com",
+                add_auth=True,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="HubSpot",
+            auth_group="HubSpot",
+            auth_type="oauth2",
+            access_token_url="https://api.hubapi.com/oauth/v1/token",
+            authorize_url="https://app.hubspot.com/oauth/authorize",
+            api_base_url="https://api.hubapi.com",
+            checks=["pkce", "state"],
+            token_endpoint_auth_method="client_secret_post",
+            userinfo_endpoint="https://api.hubapi.com/oauth/v1/access-tokens/{access_token}",
+            userinfo_config=InternalUserInfoConfig(
+                auth_userinfo_type="basic",
+            ),
+            scopes_spec={
+                "crm.lists.read": "Read Lists.",
+                "crm.objects.contacts.read": "View properties and other details about contacts.",
+                "crm.objects.companies.read": "View properties and other details about companies.",
+                "crm.objects.deals.read": "View properties and other details about deals.",
+                "crm.objects.contacts.write": "Create, update, and delete contacts.",
+            },
+            incremental_scopes=True,
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="user_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/14e0f204508b6be2d14f53aef66c6915f2be79263a5f6e4bc16883f0da7c3464.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="d1ba8f9a-c9bb-4524-b456-3d72662a306a",
+)
+
+
+hubspot_companies_write_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_hubspot",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.hubapi.com",
+                add_auth=True,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="HubSpot",
+            auth_group="HubSpot",
+            auth_type="oauth2",
+            access_token_url="https://api.hubapi.com/oauth/v1/token",
+            authorize_url="https://app.hubspot.com/oauth/authorize",
+            api_base_url="https://api.hubapi.com",
+            checks=["pkce", "state"],
+            token_endpoint_auth_method="client_secret_post",
+            userinfo_endpoint="https://api.hubapi.com/oauth/v1/access-tokens/{access_token}",
+            userinfo_config=InternalUserInfoConfig(
+                auth_userinfo_type="basic",
+            ),
+            scopes_spec={
+                "crm.lists.read": "Read Lists.",
+                "crm.objects.contacts.read": "View properties and other details about contacts.",
+                "crm.objects.companies.read": "View properties and other details about companies.",
+                "crm.objects.deals.read": "View properties and other details about deals.",
                 "crm.objects.companies.write": "Create, update, and delete companies.",
+            },
+            incremental_scopes=True,
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="user_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/14e0f204508b6be2d14f53aef66c6915f2be79263a5f6e4bc16883f0da7c3464.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="d1ba8f9a-c9bb-4524-b456-3d72662a306a",
+)
+
+
+hubspot_deals_write_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_hubspot",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.hubapi.com",
+                add_auth=True,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="HubSpot",
+            auth_group="HubSpot",
+            auth_type="oauth2",
+            access_token_url="https://api.hubapi.com/oauth/v1/token",
+            authorize_url="https://app.hubspot.com/oauth/authorize",
+            api_base_url="https://api.hubapi.com",
+            checks=["pkce", "state"],
+            token_endpoint_auth_method="client_secret_post",
+            userinfo_endpoint="https://api.hubapi.com/oauth/v1/access-tokens/{access_token}",
+            userinfo_config=InternalUserInfoConfig(
+                auth_userinfo_type="basic",
+            ),
+            scopes_spec={
+                "crm.lists.read": "Read Lists.",
+                "crm.objects.contacts.read": "View properties and other details about contacts.",
+                "crm.objects.companies.read": "View properties and other details about companies.",
                 "crm.objects.deals.read": "View properties and other details about deals.",
                 "crm.objects.deals.write": "Write properties and other details about deals.",
             },
+            incremental_scopes=True,
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="user_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/14e0f204508b6be2d14f53aef66c6915f2be79263a5f6e4bc16883f0da7c3464.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="d1ba8f9a-c9bb-4524-b456-3d72662a306a",
+)
+
+hubspot_contacts_companies_write_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_hubspot",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.hubapi.com",
+                add_auth=True,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="HubSpot",
+            auth_group="HubSpot",
+            auth_type="oauth2",
+            access_token_url="https://api.hubapi.com/oauth/v1/token",
+            authorize_url="https://app.hubspot.com/oauth/authorize",
+            api_base_url="https://api.hubapi.com",
+            checks=["pkce", "state"],
+            token_endpoint_auth_method="client_secret_post",
+            userinfo_endpoint="https://api.hubapi.com/oauth/v1/access-tokens/{access_token}",
+            userinfo_config=InternalUserInfoConfig(
+                auth_userinfo_type="basic",
+            ),
+            scopes_spec={
+                "crm.lists.read": "Read Lists.",
+                "crm.objects.contacts.read": "View properties and other details about contacts.",
+                "crm.objects.companies.read": "View properties and other details about companies.",
+                "crm.objects.deals.read": "View properties and other details about deals.",
+                "crm.objects.contacts.write": "Write properties and other details about contacts.",
+                "crm.objects.companies.write": "Write properties and other details about companies.",
+            },
+            incremental_scopes=True,
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="user_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/14e0f204508b6be2d14f53aef66c6915f2be79263a5f6e4bc16883f0da7c3464.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="d1ba8f9a-c9bb-4524-b456-3d72662a306a",
+)
+
+hubspot_contacts_deals_write_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_hubspot",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.hubapi.com",
+                add_auth=True,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="HubSpot",
+            auth_group="HubSpot",
+            auth_type="oauth2",
+            access_token_url="https://api.hubapi.com/oauth/v1/token",
+            authorize_url="https://app.hubspot.com/oauth/authorize",
+            api_base_url="https://api.hubapi.com",
+            checks=["pkce", "state"],
+            token_endpoint_auth_method="client_secret_post",
+            userinfo_endpoint="https://api.hubapi.com/oauth/v1/access-tokens/{access_token}",
+            userinfo_config=InternalUserInfoConfig(
+                auth_userinfo_type="basic",
+            ),
+            scopes_spec={
+                "crm.lists.read": "Read Lists.",
+                "crm.objects.contacts.read": "View properties and other details about contacts.",
+                "crm.objects.companies.read": "View properties and other details about companies.",
+                "crm.objects.deals.read": "View properties and other details about deals.",
+                "crm.objects.contacts.write": "Write properties and other details about contacts.",
+                "crm.objects.deals.write": "Write properties and other details about deals.",
+            },
+            incremental_scopes=True,
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="",  # None available
+            access_type="offline",
+            profile_id_field="user_id",
+            logo="https://storage.googleapis.com/lutra-2407-public/14e0f204508b6be2d14f53aef66c6915f2be79263a5f6e4bc16883f0da7c3464.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="d1ba8f9a-c9bb-4524-b456-3d72662a306a",
+)
+
+hubspot_companies_deals_write_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_hubspot",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.hubapi.com",
+                add_auth=True,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="HubSpot",
+            auth_group="HubSpot",
+            auth_type="oauth2",
+            access_token_url="https://api.hubapi.com/oauth/v1/token",
+            authorize_url="https://app.hubspot.com/oauth/authorize",
+            api_base_url="https://api.hubapi.com",
+            checks=["pkce", "state"],
+            token_endpoint_auth_method="client_secret_post",
+            userinfo_endpoint="https://api.hubapi.com/oauth/v1/access-tokens/{access_token}",
+            userinfo_config=InternalUserInfoConfig(
+                auth_userinfo_type="basic",
+            ),
+            scopes_spec={
+                "crm.lists.read": "Read Lists.",
+                "crm.objects.contacts.read": "View properties and other details about contacts.",
+                "crm.objects.companies.read": "View properties and other details about companies.",
+                "crm.objects.deals.read": "View properties and other details about deals.",
+                "crm.objects.companies.write": "Write properties and other details about companies.",
+                "crm.objects.deals.write": "Write properties and other details about deals.",
+            },
+            incremental_scopes=True,
             scope_separator=" ",
             jwks_uri="",  # None available
             prompt="consent",
@@ -131,6 +470,7 @@ class _HubSpotPropertiesSchema:
 
 
 async def _get_hubspot_properties_schema(
+    hubspot_client: AuthenticatedAsyncClient,
     object_type: HubSpotObjectType,
 ) -> _HubSpotPropertiesSchema:
     response = await hubspot_client.get(
@@ -333,7 +673,7 @@ async def _list_contacts(
     if pagination_token:
         params["after"] = pagination_token.token
     params["properties"] = _get_all_property_names(schema)
-    response = await hubspot_client.get(url, params=params)
+    response = await hubspot_read_client.get(url, params=params)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -358,7 +698,9 @@ async def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[st
     Returns:
         A list of strings, where each string is the ID of a created contact.
     """
-    schema = await _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
+    schema = await _get_hubspot_properties_schema(
+        hubspot_contacts_write_client, HubSpotObjectType("CONTACTS")
+    )
 
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/create"
 
@@ -382,7 +724,7 @@ async def hubspot_create_contacts(contacts: Sequence[HubSpotContact]) -> List[st
 
     payload = {"inputs": contacts_payload}
 
-    response = await hubspot_client.post(url, json=payload)
+    response = await hubspot_contacts_write_client.post(url, json=payload)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -453,7 +795,9 @@ async def hubspot_update_contacts(
     hs_is_unworked: Contact has not been assigned or has not been engaged after last owner assignment/re-assignment.
     hs_sequences_is_enrolled: A yes/no field that indicates whether the contact is currently in a Sequence.
     """
-    schema = await _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
+    schema = await _get_hubspot_properties_schema(
+        hubspot_contacts_write_client, HubSpotObjectType("CONTACTS")
+    )
 
     url = "https://api.hubapi.com/crm/v3/objects/contacts/batch/update"
 
@@ -468,7 +812,7 @@ async def hubspot_update_contacts(
         for contact_id, properties in contact_updates.items()
     ]
 
-    response = await hubspot_client.post(url, json={"inputs": payload})
+    response = await hubspot_contacts_write_client.post(url, json={"inputs": payload})
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -491,7 +835,7 @@ async def _search_contacts(
     }
     if pagination_token:
         payload["after"] = pagination_token.token
-    response = await hubspot_client.post(url, json=payload)
+    response = await hubspot_read_client.post(url, json=payload)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -630,7 +974,9 @@ async def hubspot_search_contacts(
         ])
     ])
     """
-    schema = await _get_hubspot_properties_schema(HubSpotObjectType("CONTACTS"))
+    schema = await _get_hubspot_properties_schema(
+        hubspot_read_client, HubSpotObjectType("CONTACTS")
+    )
 
     if not query.or_groups:
         return await _list_contacts(schema, pagination_token)
@@ -688,7 +1034,7 @@ async def _list_companies(
     if pagination_token:
         params["after"] = pagination_token.token
     params["properties"] = _get_all_property_names(schema)
-    response = await hubspot_client.get(url, params=params)
+    response = await hubspot_read_client.get(url, params=params)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -731,7 +1077,7 @@ async def hubspot_create_companies(companies: Sequence[HubSpotCompany]) -> List[
 
     payload = {"inputs": company_payload}
 
-    response = await hubspot_client.post(url, json=payload)
+    response = await hubspot_companies_write_client.post(url, json=payload)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -798,7 +1144,9 @@ async def hubspot_update_companies(
     hs_is_target_account: Identifies whether this company is being marketed and sold to as part of your account-based strategy.
     is_public: Indicates if the company is publicly traded.
     """
-    schema = await _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
+    schema = await _get_hubspot_properties_schema(
+        hubspot_companies_write_client, HubSpotObjectType("COMPANIES")
+    )
     url = "https://api.hubapi.com/crm/v3/objects/companies/batch/update"
     payload = [
         {
@@ -810,7 +1158,7 @@ async def hubspot_update_companies(
         }
         for company_id, properties in company_updates.items()
     ]
-    response = await hubspot_client.post(url, json={"inputs": payload})
+    response = await hubspot_companies_write_client.post(url, json={"inputs": payload})
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -823,7 +1171,9 @@ async def hubspot_search_companies(
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotCompany], Optional[HubSpotPaginationToken]]:
     """Search for HubSpot companies using OR-of-ANDs boolean logic."""
-    schema = await _get_hubspot_properties_schema(HubSpotObjectType("COMPANIES"))
+    schema = await _get_hubspot_properties_schema(
+        hubspot_read_client, HubSpotObjectType("COMPANIES")
+    )
 
     if not query.or_groups:
         return await _list_companies(schema, pagination_token)
@@ -837,7 +1187,7 @@ async def hubspot_search_companies(
         "filterGroups": filter_groups,
         "properties": _get_all_property_names(schema),
     }
-    response = await hubspot_client.post(url, json=payload)
+    response = await hubspot_read_client.post(url, json=payload)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -904,7 +1254,7 @@ async def _list_deals(
     if pagination_token:
         params["after"] = pagination_token.token
 
-    response = await hubspot_client.get(url, params=params)
+    response = await hubspot_read_client.get(url, params=params)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -947,7 +1297,7 @@ async def hubspot_create_deals(deals: Sequence[HubSpotDeal]) -> List[str]:
 
     payload = {"inputs": deal_payload}
 
-    response = await hubspot_client.post(url, json=payload)
+    response = await hubspot_deals_write_client.post(url, json=payload)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -1006,7 +1356,9 @@ async def hubspot_update_deals(
     hs_is_closed: True if the deal was won or lost.
     hs_is_closed_won: True if the deal is in the closed-won state.
     """
-    schema = await _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
+    schema = await _get_hubspot_properties_schema(
+        hubspot_deals_write_client, HubSpotObjectType("DEALS")
+    )
     url = "https://api.hubapi.com/crm/v3/objects/deals/batch/update"
     payload = [
         {
@@ -1018,7 +1370,7 @@ async def hubspot_update_deals(
         }
         for deal_id, properties in deal_updates.items()
     ]
-    response = await hubspot_client.post(url, json={"inputs": payload})
+    response = await hubspot_deals_write_client.post(url, json={"inputs": payload})
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -1031,7 +1383,9 @@ async def hubspot_search_deals(
     pagination_token: Optional[HubSpotPaginationToken] = None,
 ) -> Tuple[List[HubSpotDeal], Optional[HubSpotPaginationToken]]:
     """Search for HubSpot deals using OR-of-ANDs boolean logic."""
-    schema = await _get_hubspot_properties_schema(HubSpotObjectType("DEALS"))
+    schema = await _get_hubspot_properties_schema(
+        hubspot_read_client, HubSpotObjectType("DEALS")
+    )
     if not query.or_groups:
         return await _list_deals(schema, pagination_token)
 
@@ -1044,7 +1398,7 @@ async def hubspot_search_deals(
         "properties": _get_all_property_names(schema),
     }
 
-    response = await hubspot_client.post(url, json=payload)
+    response = await hubspot_read_client.post(url, json=payload)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -1095,7 +1449,7 @@ async def hubspot_fetch_associated_object_ids(
     url = f"https://api.hubapi.com/crm/v4/associations/{source_type_name}/{target_type_name}/batch/read"
     params = {"inputs": [{"id": source_object_id}]}
 
-    response = await hubspot_client.post(url, json=params)
+    response = await hubspot_read_client.post(url, json=params)
     await raise_error_text(response)
     await response.aread()
     data = response.json()
@@ -1168,11 +1522,34 @@ async def hubspot_create_association_between_object_ids(
         ]
     }
 
+    hubspot_client = None
+    if association_type.type == "CONTACT_TO_CONTACT":
+        hubspot_client = hubspot_contacts_write_client
+    elif association_type.type == "CONTACT_TO_COMPANY":
+        hubspot_client = hubspot_contacts_companies_write_client
+    elif association_type.type == "CONTACT_TO_PRIMARY_COMPANY":
+        hubspot_client = hubspot_contacts_companies_write_client
+    elif association_type.type == "CONTACT_TO_DEAL":
+        hubspot_client = hubspot_contacts_deals_write_client
+    elif association_type.type == "COMPANY_TO_COMPANY":
+        hubspot_client = hubspot_companies_write_client
+    elif association_type.type == "COMPANY_TO_CONTACT":
+        hubspot_client = hubspot_companies_write_client
+    elif association_type.type == "COMPANY_TO_DEAL":
+        hubspot_client = hubspot_companies_deals_write_client
+    else:
+        raise ValueError(f"Invalid association type: {association_type.type}")
+
     response = await hubspot_client.post(url, json=params)
     await raise_error_text(response)
 
 
-async def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: str):
+async def _merge_objects(
+    hubspot_client: AuthenticatedAsyncClient,
+    url: str,
+    primary_object_id: str,
+    object_to_merge_id: str,
+):
     params = {
         "objectIdToMerge": object_to_merge_id,
         "primaryObjectId": primary_object_id,
@@ -1185,14 +1562,18 @@ async def _merge_objects(url: str, primary_object_id: str, object_to_merge_id: s
 async def hubspot_merge_contacts(primary_contact_id: str, contact_to_merge_id: str):
     """Merge contact_to_merge_id with primary_contact_id, retaining primary contact"""
     url = "https://api.hubapi.com/crm/v3/objects/contacts/merge"
-    await _merge_objects(url, primary_contact_id, contact_to_merge_id)
+    await _merge_objects(
+        hubspot_contacts_write_client, url, primary_contact_id, contact_to_merge_id
+    )
 
 
 @purpose("Merge companies.")
 async def hubspot_merge_companies(primary_company_id: str, company_to_merge_id: str):
     """Merge company_to_merge with primary_company, retaining primary company"""
     url = "https://api.hubapi.com/crm/v3/objects/companies/merge"
-    await _merge_objects(url, primary_company_id, company_to_merge_id)
+    await _merge_objects(
+        hubspot_companies_write_client, url, primary_company_id, company_to_merge_id
+    )
 
 
 @purpose("Fetch HubSpot List.")
@@ -1205,22 +1586,20 @@ async def hubspot_list_memberships(
     url = f"https://api.hubapi.com/crm/v3/lists/object-type-id/{object_type_id}/name/{escaped_list_name}"
     object_ids = []
     next_pagination_token = None
-    response = await hubspot_client.get(url)
+    response = await hubspot_read_client.get(url)
     await response.aread()
     await raise_error_text(response)
     data = response.json()
     if list_data := data.get("list"):
         list_id = list_data["listId"]
-        memberships_response = await hubspot_client.get(
+        memberships_response = await hubspot_read_client.get(
             f"https://api.hubapi.com/crm/v3/lists/{list_id}/memberships"
         )
         await raise_error_text(memberships_response)
         await memberships_response.aread()
         membership_data = memberships_response.json()
         token = data.get("paging", {}).get("next", {}).get("after")
-        next_pagination_token = (
-            HubSpotPaginationToken(token=token) if token else None
-        )
+        next_pagination_token = HubSpotPaginationToken(token=token) if token else None
         if results := membership_data.get("results"):
             object_ids = [result.get("recordId") for result in results]
     return object_ids, next_pagination_token
