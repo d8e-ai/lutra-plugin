@@ -1,0 +1,1903 @@
+import re
+import urllib.parse
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional, Tuple
+
+from dateutil.parser import parse as dateutil_parse
+from pydantic import TypeAdapter
+
+from lutraai.decorator import purpose
+from lutraai.dependencies import AuthenticatedAsyncClient
+from lutraai.dependencies.authentication import (
+    InternalAllowedURL,
+    InternalAuthenticatedClientConfig,
+    InternalAuthTransportConfig,
+    InternalOAuthSpec,
+    InternalRefreshTokenConfig,
+    InternalUserInfoConfig,
+)
+from lutraai.requests import raise_error_text
+
+
+def _parse_xero_date(date_value: Any) -> datetime:
+    """Parse Microsoft JSON date format: /Date(timestamp+offset)/"""
+    if not date_value:
+        return None
+
+    if isinstance(date_value, datetime):
+        return date_value
+
+    # Handle Microsoft JSON date format
+    match = re.match(r"/Date\((\d+)([+-]\d{4})\)/", str(date_value))
+    if match:
+        timestamp_ms = int(match.group(1))
+        timestamp_s = timestamp_ms / 1000
+        return datetime.fromtimestamp(timestamp_s)
+
+    # Fallback to regular date parsing
+    try:
+        return datetime.strptime(str(date_value), "%Y-%m-%d")
+    except (ValueError, TypeError):
+        # Try ISO format
+        try:
+            return datetime.fromisoformat(str(date_value).rstrip("Z"))
+        except (ValueError, TypeError):
+            raise ValueError(f"Unable to parse date: {date_value}")
+
+
+@dataclass
+class XeroAddress:
+    address_type: Literal["POBOX", "STREET", "UNIT"]
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    address_line3: Optional[str] = None
+    address_line4: Optional[str] = None
+    city: Optional[str] = None
+    region: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: Optional[str] = None
+    attention_to: Optional[str] = None
+
+
+@dataclass
+class XeroPhone:
+    phone_number: Optional[str] = None
+    phone_type: Optional[str] = None
+    phone_area_code: Optional[str] = None
+    phone_country_code: Optional[str] = None
+
+
+@dataclass
+class XeroContact:
+    contact_id: str
+    name: str
+    contact_number: Optional[str] = None
+    account_number: Optional[str] = None
+    contact_status: Optional[Literal["ACTIVE", "ARCHIVED", "DELETED"]] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email_address: Optional[str] = None
+    bank_account_details: Optional[str] = None
+    company_number: Optional[str] = None
+    tax_number: Optional[str] = None
+    accounts_receivable_tax_type: Optional[str] = None
+    accounts_payable_tax_type: Optional[str] = None
+    addresses: Optional[List[XeroAddress]] = None
+    phones: Optional[List[XeroPhone]] = None
+    is_supplier: Optional[bool] = None
+    is_customer: Optional[bool] = None
+    default_currency: Optional[str] = None
+    updated_date_utc: Optional[datetime] = None
+
+
+@dataclass
+class XeroLineItem:
+    """Line item on a Xero invoice.
+
+    IMPORTANT: Before creating line items, use xero_get_accounts() to get available
+    account codes. The account_code field must match an existing account code from
+    your Xero organization.
+
+    Workflow:
+    1. Call xero_get_accounts() to get available accounts
+    2. Choose appropriate account_code from the returned accounts
+    3. Use that account_code when creating XeroLineItem objects
+    """
+
+    description: str
+    quantity: float
+    unit_amount: float
+    line_amount: float
+    account_code: str  # Must match an account code from xero_get_accounts()
+    item_code: Optional[str] = None
+    tax_type: Optional[str] = None
+    tax_amount: Optional[float] = None
+    line_item_id: Optional[str] = None
+
+
+# Note: Payments, Credit Notes, Prepayments, Overpayments are not supported at this time
+@dataclass
+class XeroInvoice:
+    invoice_id: str
+    type: Literal["ACCPAY", "ACCREC"]
+    contact: XeroContact
+    date: datetime
+    due_date: datetime
+    status: Literal["DRAFT", "SUBMITTED", "AUTHORISED", "DELETED", "VOIDED", "PAID"]
+    line_amount_types: Literal["Exclusive", "Inclusive", "NoTax"]
+    line_items: List[XeroLineItem]
+    sub_total: float
+    total_tax: float
+    total: float
+    total_discount: Optional[float] = None
+    invoice_number: Optional[str] = None
+    reference: Optional[str] = None
+    currency_code: Optional[str] = None
+    currency_rate: Optional[float] = None
+    branding_theme_id: Optional[str] = None
+    url: Optional[str] = None
+    sent_to_contact: Optional[bool] = None
+    expected_payment_date: Optional[datetime] = None
+    planned_payment_date: Optional[datetime] = None
+    has_attachments: Optional[bool] = None
+    repeating_invoice_id: Optional[str] = None
+    amount_due: Optional[float] = None
+    amount_paid: Optional[float] = None
+    cis_deduction: Optional[float] = None
+    fully_paid_on_date: Optional[datetime] = None
+    amount_credited: Optional[float] = None
+    sales_tax_calculation_type_code: Optional[str] = None
+    invoice_addresses: Optional[List[Dict[str, Any]]] = None
+    updated_date_utc: Optional[datetime] = None
+
+
+@dataclass
+class XeroTenant:
+    """Information about a Xero tenant."""
+
+    tenant_name: str
+    tenant_id: str
+    connection_id: str
+
+
+@dataclass
+class XeroJournalLine:
+    """Journal line item on a Xero journal."""
+
+    journal_line_id: str
+    account_id: str
+    account_code: str
+    account_type: str
+    account_name: str
+    net_amount: float
+    gross_amount: float
+    tax_amount: float
+    description: Optional[str] = None
+    tax_type: Optional[str] = None
+    tax_name: Optional[str] = None
+    tracking_categories: Optional[List[Dict[str, Any]]] = None
+
+
+@dataclass
+class XeroJournal:
+    """Journal entry in Xero."""
+
+    journal_id: str
+    journal_date: datetime
+    journal_number: int
+    created_date_utc: datetime
+    journal_lines: List[XeroJournalLine]
+    reference: Optional[str] = None
+    source_id: Optional[str] = None
+    source_type: Optional[str] = None
+
+
+@dataclass
+class XeroBankAccount:
+    """Bank account information in Xero."""
+
+    account_id: str
+    name: str
+    code: Optional[str] = None
+
+
+@dataclass
+class XeroBankTransfer:
+    """Bank transfer in Xero."""
+
+    bank_transfer_id: str
+    date: datetime
+    amount: float
+    from_bank_account: XeroBankAccount
+    to_bank_account: XeroBankAccount
+    created_date_utc: datetime
+    from_bank_transaction_id: Optional[str] = None
+    to_bank_transaction_id: Optional[str] = None
+    from_is_reconciled: Optional[bool] = None
+    to_is_reconciled: Optional[bool] = None
+    reference: Optional[str] = None
+    currency_rate: Optional[float] = None
+    has_attachments: Optional[bool] = None
+
+
+@dataclass
+class XeroBankAccountSummary:
+    """Simplified bank account summary data."""
+
+    account_id: Optional[str]
+    account_name: str
+    opening_balance: float
+    cash_received: float
+    cash_spent: float
+    closing_balance: float
+
+
+@dataclass
+class XeroAccount:
+    """Account from Xero."""
+
+    account_id: str
+    code: Optional[str]
+    name: str
+    type: str
+    tax_type: Optional[str] = None
+    status: Optional[str] = None
+    description: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_account_type: Optional[str] = None
+    currency_code: Optional[str] = None
+    enable_payments_to_account: Optional[bool] = None
+    show_in_expense_claims: Optional[bool] = None
+    class_: Optional[str] = None  # 'class' is a reserved keyword in Python
+    system_account: Optional[str] = None
+    reporting_code: Optional[str] = None
+    reporting_code_updated_utc: Optional[datetime] = None
+    reporting_code_name: Optional[str] = None
+    has_attachments: Optional[bool] = None
+    updated_date_utc: Optional[datetime] = None
+    add_to_watchlist: Optional[bool] = None
+
+
+@dataclass
+class XeroBalanceSheetLineItem:
+    """A line item in the balance sheet - can be an account or a grouping of other line items."""
+
+    name: str
+    account_id: Optional[str]  # None for groupings, populated for actual accounts
+    value: float  # Value for this specific period
+    child_balance_line_items: List[Any]  # Recursive tree structure
+
+
+@dataclass
+class XeroBalanceSheetAssets:
+    """Assets portion of the balance sheet for a specific period."""
+
+    line_items: List[XeroBalanceSheetLineItem]
+    total: float
+
+
+@dataclass
+class XeroBalanceSheetLiabilitiesAndEquity:
+    """Liabilities and Equity portion of the balance sheet for a specific period."""
+
+    liabilities_line_items: List[XeroBalanceSheetLineItem]
+    equity_line_items: List[XeroBalanceSheetLineItem]
+    liabilities_total: float
+    equity_total: float
+    combined_total: float
+
+
+@dataclass
+class XeroBalanceSheetPeriodData:
+    """Complete financial data for a specific period."""
+
+    assets: XeroBalanceSheetAssets
+    liabilities_and_equity: XeroBalanceSheetLiabilitiesAndEquity
+
+
+@dataclass
+class XeroBalanceSheet:
+    """Balance sheet with meaningful financial structure supporting multiple periods.
+
+    Represents the fundamental accounting equation: Assets = Liabilities + Equity
+    """
+
+    report_date: str
+    periods: Dict[
+        datetime, XeroBalanceSheetPeriodData
+    ]  # Maps period datetime to complete period data
+
+
+@dataclass
+class XeroPaginationToken:
+    """Pagination token for Xero API requests."""
+
+    offset: int
+
+
+# Configure OAuth client for Xero API
+xero_client = AuthenticatedAsyncClient(
+    InternalAuthenticatedClientConfig(
+        action_name="authenticated_request_xero",
+        allowed_urls=(
+            InternalAllowedURL(
+                scheme=b"https",
+                domain_suffix=b"api.xero.com",
+                add_auth=True,
+            ),
+        ),
+        base_url=None,
+        auth_spec=InternalOAuthSpec(
+            auth_name="Xero",
+            auth_group="Xero",
+            auth_type="oauth2",
+            access_token_url="https://identity.xero.com/connect/token",
+            authorize_url="https://login.xero.com/identity/connect/authorize",
+            api_base_url="https://api.xero.com",
+            checks=["state", "pkce"],
+            userinfo_endpoint="https://api.xero.com/connections",
+            userinfo_config=InternalUserInfoConfig(
+                auth_userinfo_type="basic",
+            ),
+            userinfo_from_id_token=True,
+            auth_transport_config=InternalAuthTransportConfig(
+                transport_type="header",
+                param_name="Authorization",
+                param_value_format="Bearer {api_key}",
+            ),
+            profile_id_field="email",
+            scopes_spec={
+                "accounting.transactions": "Read and write access to bank transactions, credit notes, invoices, manual journals, overpayments, prepayments, purchase orders, and quotes.",
+                "accounting.contacts": "Read and write access to contacts and contact groups.",
+                "accounting.journals.read": "Read general ledger",
+                "offline_access": "Offline access",
+                "accounting.reports.read": "Read reports",
+                "accounting.settings": "Account configuration",
+                "openid": "Open ID",
+            },
+            scope_separator=" ",
+            jwks_uri="",  # None available
+            prompt="consent",
+            server_metadata_url="https://identity.xero.com/.well-known/openid-configuration",
+            access_type="offline",
+            logo="https://storage.googleapis.com/lutra-2407-public/d57d1f501344bcd670537713c949bf66cedf5cac401ee2b04505a39432348464.svg",
+            header_auth={
+                "Authorization": "Bearer {api_key}",
+                "Accept": "application/json",
+            },
+            refresh_token_config=InternalRefreshTokenConfig(
+                auth_refresh_type="form",
+                body_fields={
+                    "client_id": "{client_id}",
+                    "client_secret": "{client_secret}",
+                    "refresh_token": "{refresh_token}",
+                    "grant_type": "refresh_token",
+                },
+            ),
+        ),
+    ),
+    provider_id="cef71a99-d62d-41a1-85d4-eed1553d9de9",
+)
+
+_XC_TA = None
+_XC_LI = None
+_XJ_TA = None
+_XBA_TA = None
+_XBT_TA = None
+_XA_TA = None
+
+
+def _convert_address_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API address data from PascalCase to snake_case."""
+    return {
+        "address_type": data.get("AddressType"),
+        "address_line1": data.get("AddressLine1"),
+        "address_line2": data.get("AddressLine2"),
+        "address_line3": data.get("AddressLine3"),
+        "address_line4": data.get("AddressLine4"),
+        "city": data.get("City"),
+        "region": data.get("Region"),
+        "postal_code": data.get("PostalCode"),
+        "country": data.get("Country"),
+        "attention_to": data.get("AttentionTo"),
+    }
+
+
+def _convert_phone_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API phone data from PascalCase to snake_case."""
+    return {
+        "phone_number": data.get("PhoneNumber"),
+        "phone_type": data.get("PhoneType"),
+        "phone_area_code": data.get("PhoneAreaCode"),
+        "phone_country_code": data.get("PhoneCountryCode"),
+    }
+
+
+def _convert_bank_account_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API bank account data from PascalCase to snake_case."""
+    return {
+        "account_id": data.get("AccountID"),
+        "name": data.get("Name"),
+        "code": data.get("Code"),
+    }
+
+
+def _convert_bank_transfer_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API bank transfer data from PascalCase to snake_case."""
+    return {
+        "bank_transfer_id": data.get("BankTransferID"),
+        "date": _parse_xero_date(data.get("Date")),
+        "amount": float(data.get("Amount", 0.0)),
+        "from_bank_account": _convert_bank_account_to_snake_case(
+            data.get("FromBankAccount", {})
+        ),
+        "to_bank_account": _convert_bank_account_to_snake_case(
+            data.get("ToBankAccount", {})
+        ),
+        "created_date_utc": _parse_xero_date(data.get("CreatedDateUTC")),
+        "from_bank_transaction_id": data.get("FromBankTransactionID"),
+        "to_bank_transaction_id": data.get("ToBankTransactionID"),
+        "from_is_reconciled": data.get("FromIsReconciled") == "true"
+        if data.get("FromIsReconciled")
+        else None,
+        "to_is_reconciled": data.get("ToIsReconciled") == "true"
+        if data.get("ToIsReconciled")
+        else None,
+        "reference": data.get("Reference"),
+        "currency_rate": float(data.get("CurrencyRate"))
+        if data.get("CurrencyRate")
+        else None,
+        "has_attachments": data.get("HasAttachments"),
+    }
+
+
+def _convert_contact_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API contact data from PascalCase to snake_case."""
+    converted = {
+        "contact_id": data.get("ContactID"),
+        "name": data.get("Name"),
+        "contact_number": data.get("ContactNumber"),
+        "account_number": data.get("AccountNumber"),
+        "contact_status": data.get("ContactStatus"),
+        "first_name": data.get("FirstName"),
+        "last_name": data.get("LastName"),
+        "email_address": data.get("EmailAddress"),
+        "bank_account_details": data.get("BankAccountDetails"),
+        "company_number": data.get("CompanyNumber"),
+        "tax_number": data.get("TaxNumber"),
+        "accounts_receivable_tax_type": data.get("AccountsReceivableTaxType"),
+        "accounts_payable_tax_type": data.get("AccountsPayableTaxType"),
+        "is_supplier": data.get("IsSupplier"),
+        "is_customer": data.get("IsCustomer"),
+        "default_currency": data.get("DefaultCurrency"),
+        "updated_date_utc": _parse_xero_date(data.get("UpdatedDateUTC")),
+    }
+
+    # Handle addresses
+    if data.get("Addresses"):
+        converted["addresses"] = [
+            _convert_address_to_snake_case(addr) for addr in data["Addresses"]
+        ]
+    else:
+        converted["addresses"] = None
+
+    # Handle phones
+    if data.get("Phones"):
+        converted["phones"] = [
+            _convert_phone_to_snake_case(phone) for phone in data["Phones"]
+        ]
+    else:
+        converted["phones"] = None
+
+    return converted
+
+
+def _convert_line_item_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API line item data from PascalCase to snake_case."""
+    return {
+        "description": data.get("Description"),
+        "quantity": data.get("Quantity"),
+        "unit_amount": data.get("UnitAmount"),
+        "line_amount": data.get("LineAmount"),
+        "account_code": data.get("AccountCode"),
+        "item_code": data.get("ItemCode"),
+        "tax_type": data.get("TaxType"),
+        "tax_amount": data.get("TaxAmount"),
+        "line_item_id": data.get("LineItemID"),
+    }
+
+
+def _convert_journal_line_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API journal line data from PascalCase to snake_case."""
+    return {
+        "journal_line_id": data.get("JournalLineID"),
+        "account_id": data.get("AccountID"),
+        "account_code": data.get("AccountCode"),
+        "account_type": data.get("AccountType"),
+        "account_name": data.get("AccountName"),
+        "description": data.get("Description"),
+        "net_amount": data.get("NetAmount"),
+        "gross_amount": data.get("GrossAmount"),
+        "tax_amount": data.get("TaxAmount"),
+        "tax_type": data.get("TaxType"),
+        "tax_name": data.get("TaxName"),
+        "tracking_categories": data.get("TrackingCategories"),
+    }
+
+
+def _convert_journal_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API journal data from PascalCase to snake_case."""
+    converted = {
+        "journal_id": data.get("JournalID"),
+        "journal_date": _parse_xero_date(data.get("JournalDate")),
+        "journal_number": data.get("JournalNumber"),
+        "created_date_utc": _parse_xero_date(data.get("CreatedDateUTC")),
+        "reference": data.get("Reference"),
+        "source_id": data.get("SourceID"),
+        "source_type": data.get("SourceType"),
+    }
+
+    # Handle journal lines
+    if data.get("JournalLines"):
+        converted["journal_lines"] = [
+            _convert_journal_line_to_snake_case(line) for line in data["JournalLines"]
+        ]
+    else:
+        converted["journal_lines"] = []
+
+    return converted
+
+
+def _convert_account_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API account data from PascalCase to snake_case."""
+    return {
+        "account_id": data.get("AccountID"),
+        "code": data.get("Code"),
+        "name": data.get("Name"),
+        "type": data.get("Type"),
+        "tax_type": data.get("TaxType"),
+        "status": data.get("Status"),
+        "description": data.get("Description"),
+        "bank_account_number": data.get("BankAccountNumber"),
+        "bank_account_type": data.get("BankAccountType"),
+        "currency_code": data.get("CurrencyCode"),
+        "enable_payments_to_account": data.get("EnablePaymentsToAccount"),
+        "show_in_expense_claims": data.get("ShowInExpenseClaims"),
+        "class_": data.get("Class"),  # 'class' is a reserved keyword in Python
+        "system_account": data.get("SystemAccount"),
+        "reporting_code": data.get("ReportingCode"),
+        "reporting_code_updated_utc": _parse_xero_date(
+            data.get("ReportingCodeUpdatedUTC")
+        ),
+        "reporting_code_name": data.get("ReportingCodeName"),
+        "has_attachments": data.get("HasAttachments"),
+        "updated_date_utc": _parse_xero_date(data.get("UpdatedDateUTC")),
+        "add_to_watchlist": data.get("AddToWatchlist"),
+    }
+
+
+def _extract_period_line_items(
+    line_items_with_periods: List[Dict[str, Any]], period_label: str
+) -> List[XeroBalanceSheetLineItem]:
+    """Extract line items for a specific period from line items with period data."""
+    result = []
+    for item in line_items_with_periods:
+        # Extract value for this specific period
+        value = item["period_values"].get(period_label, 0.0)
+
+        # Recursively extract child items for this period
+        children = _extract_period_line_items(item["children"], period_label)
+
+        line_item = XeroBalanceSheetLineItem(
+            name=item["name"],
+            account_id=item["account_id"],
+            value=value,
+            child_balance_line_items=children,
+        )
+        result.append(line_item)
+
+    return result
+
+
+def _calculate_line_items_total(line_items: List[XeroBalanceSheetLineItem]) -> float:
+    """Calculate total value from a list of line items."""
+    return sum(item.value for item in line_items)
+
+
+def _parse_balance_sheet_data(data: Dict[str, Any]) -> XeroBalanceSheet:
+    """Parse raw Xero balance sheet API response into meaningful financial structure."""
+    if not data.get("Reports") or len(data["Reports"]) == 0:
+        raise ValueError("No balance sheet report found in response")
+
+    report = data["Reports"][0]
+    rows = report.get("Rows", [])
+
+    # Extract header information for period labels
+    period_labels = []
+
+    # Find header row to get period labels
+    for row in rows:
+        if row.get("RowType") == "Header" and row.get("Cells"):
+            cells = row["Cells"]
+            # Skip first cell (empty), extract period labels from remaining cells
+            for i in range(1, len(cells)):
+                label = cells[i].get("Value", "")
+                if label:
+                    period_labels.append(label)
+            break
+
+    # Default labels if none found
+    if not period_labels:
+        period_labels = ["Current Period"]
+
+    # Parse period dates from labels
+    period_dates = []
+    for label in period_labels:
+        # Try to parse the date from the label
+        parsed_date = None
+        # Parse the date from the label - Xero always provides valid date labels for balance sheets
+        # Use replace(tzinfo=None) to create timezone-naive datetime to avoid warnings
+        parsed_date = dateutil_parse(label).replace(tzinfo=None)
+
+        period_dates.append(parsed_date)
+
+    # Initialize major categories
+    assets_line_items = []
+    liabilities_line_items = []
+    equity_line_items = []
+
+    # Parse sections
+    current_major_category = None
+
+    for row in rows:
+        if row.get("RowType") == "Section":
+            title = row.get("Title", "").strip()
+
+            # Determine major category
+            if title in ["Assets", "Liabilities and Equity", "Liabilities", "Equity"]:
+                current_major_category = title
+
+                # If this major section has subsections, parse them
+                if row.get("Rows"):
+                    for sub_row in row["Rows"]:
+                        if sub_row.get("RowType") == "Section":
+                            line_item = _parse_balance_sheet_line_item(
+                                sub_row, period_labels
+                            )
+                            if line_item:
+                                if current_major_category == "Assets":
+                                    assets_line_items.append(line_item)
+                                elif current_major_category in [
+                                    "Liabilities",
+                                    "Liabilities and Equity",
+                                ]:
+                                    liabilities_line_items.append(line_item)
+                                elif current_major_category == "Equity":
+                                    equity_line_items.append(line_item)
+
+            # Handle sections within major categories
+            elif title and current_major_category and row.get("Rows"):
+                line_item = _parse_balance_sheet_line_item(row, period_labels)
+                if line_item:
+                    if current_major_category == "Assets":
+                        assets_line_items.append(line_item)
+                    elif current_major_category in [
+                        "Liabilities",
+                        "Liabilities and Equity",
+                    ]:
+                        liabilities_line_items.append(line_item)
+                    elif current_major_category == "Equity":
+                        equity_line_items.append(line_item)
+
+        # Now create period-specific data
+    periods_dict = {}
+
+    for i, period_date in enumerate(period_dates):
+        period_label = period_labels[
+            i
+        ]  # Still need the label for extracting from raw data
+
+        # Extract line items for this specific period
+        assets_line_items_for_period = _extract_period_line_items(
+            assets_line_items, period_label
+        )
+        liabilities_line_items_for_period = _extract_period_line_items(
+            liabilities_line_items, period_label
+        )
+        equity_line_items_for_period = _extract_period_line_items(
+            equity_line_items, period_label
+        )
+
+        # Calculate totals
+        assets_total = _calculate_line_items_total(assets_line_items_for_period)
+        liabilities_total = _calculate_line_items_total(
+            liabilities_line_items_for_period
+        )
+        equity_total = _calculate_line_items_total(equity_line_items_for_period)
+        combined_total = liabilities_total + equity_total
+
+        # Create period data
+        period_data = XeroBalanceSheetPeriodData(
+            assets=XeroBalanceSheetAssets(
+                line_items=assets_line_items_for_period,
+                total=assets_total,
+            ),
+            liabilities_and_equity=XeroBalanceSheetLiabilitiesAndEquity(
+                liabilities_line_items=liabilities_line_items_for_period,
+                equity_line_items=equity_line_items_for_period,
+                liabilities_total=liabilities_total,
+                equity_total=equity_total,
+                combined_total=combined_total,
+            ),
+        )
+
+        periods_dict[period_date] = period_data
+
+    return XeroBalanceSheet(
+        report_date=report.get("ReportDate", ""),
+        periods=periods_dict,
+    )
+
+
+def _parse_balance_sheet_line_item(
+    section_row: Dict[str, Any], period_labels: List[str]
+) -> Optional[Dict[str, Any]]:
+    """Parse a section row into a balance sheet line item (recursive for nested structure)."""
+    title = section_row.get("Title", "").strip()
+    if not title:
+        return None
+
+    children = []
+    period_totals = {}
+
+    for row in section_row.get("Rows", []):
+        if row.get("RowType") == "Row" and row.get("Cells"):
+            cells = row["Cells"]
+            if len(cells) >= 2:  # At least name + one period
+                # Extract account ID from attributes if available
+                account_id = None
+                if cells[0].get("Attributes"):
+                    for attr in cells[0]["Attributes"]:
+                        if attr.get("Id") == "account":
+                            account_id = attr.get("Value")
+                            break
+
+                # Extract period values (skip first cell which is the name)
+                period_values = {}
+                for i in range(1, len(cells)):
+                    if i - 1 < len(
+                        period_labels
+                    ):  # Ensure we have a corresponding period label
+                        period_label = period_labels[i - 1]
+                        try:
+                            value = float(cells[i].get("Value", "0"))
+                            period_values[period_label] = value
+                        except (ValueError, TypeError):
+                            period_values[period_label] = 0.0
+
+                # Create a temporary structure to hold period data
+                account_line_item = {
+                    "name": cells[0].get("Value", ""),
+                    "account_id": account_id,
+                    "period_values": period_values,
+                    "children": [],
+                }
+                children.append(account_line_item)
+
+        elif row.get("RowType") == "Section":
+            # Recursive parsing for nested sections
+            nested_line_item = _parse_balance_sheet_line_item(row, period_labels)
+            if nested_line_item:
+                children.append(nested_line_item)
+
+        elif row.get("RowType") == "SummaryRow" and row.get("Cells"):
+            cells = row["Cells"]
+            # Extract period totals (skip first cell which is the label)
+            for i in range(1, len(cells)):
+                if i - 1 < len(
+                    period_labels
+                ):  # Ensure we have a corresponding period label
+                    period_label = period_labels[i - 1]
+                    try:
+                        value = float(cells[i].get("Value", "0"))
+                        period_totals[period_label] = value
+                    except (ValueError, TypeError):
+                        period_totals[period_label] = 0.0
+
+    # If no summary row found, calculate totals from children
+    if not period_totals and children:
+        for period_label in period_labels:
+            total = sum(
+                child["period_values"].get(period_label, 0.0) for child in children
+            )
+            period_totals[period_label] = total
+
+    return {
+        "name": title,
+        "account_id": None,  # This is a grouping, not an individual account
+        "period_values": period_totals,
+        "children": children,
+    }
+
+
+def _xero_contact_to_lutra(data: Dict[str, Any]) -> XeroContact:
+    global _XC_TA
+    if _XC_TA is None:
+        _XC_TA = TypeAdapter(XeroContact)
+    converted_data = _convert_contact_to_snake_case(data)
+    return _XC_TA.validate_python(converted_data)
+
+
+def _xero_line_item_to_lutra(data: Dict[str, Any]) -> XeroLineItem:
+    global _XC_LI
+    if _XC_LI is None:
+        _XC_LI = TypeAdapter(XeroLineItem)
+    converted_data = _convert_line_item_to_snake_case(data)
+    return _XC_LI.validate_python(converted_data)
+
+
+def _xero_journal_to_lutra(data: Dict[str, Any]) -> XeroJournal:
+    global _XJ_TA
+    if _XJ_TA is None:
+        _XJ_TA = TypeAdapter(XeroJournal)
+    converted_data = _convert_journal_to_snake_case(data)
+    return _XJ_TA.validate_python(converted_data)
+
+
+def _xero_bank_account_to_lutra(data: Dict[str, Any]) -> XeroBankAccount:
+    global _XBA_TA
+    if _XBA_TA is None:
+        _XBA_TA = TypeAdapter(XeroBankAccount)
+    converted_data = _convert_bank_account_to_snake_case(data)
+    return _XBA_TA.validate_python(converted_data)
+
+
+def _xero_bank_transfer_to_lutra(data: Dict[str, Any]) -> XeroBankTransfer:
+    global _XBT_TA
+    if _XBT_TA is None:
+        _XBT_TA = TypeAdapter(XeroBankTransfer)
+    converted_data = _convert_bank_transfer_to_snake_case(data)
+    return _XBT_TA.validate_python(converted_data)
+
+
+def _xero_account_to_lutra(data: Dict[str, Any]) -> XeroAccount:
+    global _XA_TA
+    if _XA_TA is None:
+        _XA_TA = TypeAdapter(XeroAccount)
+    converted_data = _convert_account_to_snake_case(data)
+    return _XA_TA.validate_python(converted_data)
+
+
+def _xero_balance_sheet_to_lutra(data: Dict[str, Any]) -> XeroBalanceSheet:
+    return _parse_balance_sheet_data(data)
+
+
+@purpose("Get tenant id")
+async def xero_get_tenant() -> List[XeroTenant]:
+    """
+    Get the tenant ID and connection ID for the current user.
+    """
+    response = await xero_client.get(
+        "https://api.xero.com/connections",
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+    return [
+        XeroTenant(
+            tenant_name=tenant["tenantName"],
+            tenant_id=tenant["tenantId"],
+            connection_id=tenant["id"],
+        )
+        for tenant in data
+    ]
+
+
+@purpose("Disconnect a Xero tenant")
+async def xero_disconnect_tenant(xero_tenant: XeroTenant) -> None:
+    """
+    Disconnect a Xero tenant from your app. This removes the connection between
+    your app and the organization, but does not revoke the access tokens.
+    To revoke tokens, use the token revocation endpoint separately.
+
+    Args:
+        xero_tenant: The Xero tenant to disconnect (uses connection_id, not tenant_id)
+
+    Raises:
+        ValueError: If the disconnect fails
+    """
+    response = await xero_client.delete(
+        f"https://api.xero.com/connections/{xero_tenant.connection_id}",
+    )
+
+    # Xero returns 204 (No Content) on successful disconnect
+    if response.status_code != 204:
+        await raise_error_text(response)
+        raise ValueError(f"Failed to disconnect tenant {xero_tenant.tenant_name}")
+
+    # Success - 204 response with empty body, nothing to return
+
+
+@purpose("Get a specific invoice from Xero")
+async def xero_get_invoice(xero_tenant: XeroTenant, invoice_id: str) -> XeroInvoice:
+    """
+    Get a specific invoice from Xero by ID.
+
+    Args:
+        invoice_id: The ID of the invoice to retrieve
+
+    Returns:
+        The Xero invoice with the specified ID
+    """
+    response = await xero_client.get(
+        f"https://api.xero.com/api.xro/2.0/Invoices/{invoice_id}",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Invoices") or len(data.get("Invoices")) == 0:
+        raise ValueError(f"Invoice with ID {invoice_id} not found")
+
+    invoice_data = data.get("Invoices")[0]
+
+    return XeroInvoice(
+        invoice_id=invoice_data.get("InvoiceID", ""),
+        type=invoice_data.get("Type", ""),
+        contact=_xero_contact_to_lutra(invoice_data.get("Contact", {})),
+        date=_parse_xero_date(invoice_data.get("Date")),
+        due_date=_parse_xero_date(invoice_data.get("DueDate")),
+        status=invoice_data.get("Status", ""),
+        line_amount_types=invoice_data.get("LineAmountTypes", ""),
+        line_items=[
+            _xero_line_item_to_lutra(item) for item in invoice_data.get("LineItems", [])
+        ],
+        sub_total=invoice_data.get("SubTotal", 0.0),
+        total_tax=invoice_data.get("TotalTax", 0.0),
+        total=invoice_data.get("Total", 0.0),
+        total_discount=invoice_data.get("TotalDiscount", 0.0),
+        invoice_number=invoice_data.get("InvoiceNumber"),
+        reference=invoice_data.get("Reference"),
+        currency_code=invoice_data.get("CurrencyCode"),
+        currency_rate=invoice_data.get("CurrencyRate"),
+        branding_theme_id=invoice_data.get("BrandingThemeID"),
+        url=invoice_data.get("Url"),
+        sent_to_contact=invoice_data.get("SentToContact"),
+        expected_payment_date=_parse_xero_date(invoice_data.get("ExpectedPaymentDate")),
+        planned_payment_date=_parse_xero_date(invoice_data.get("PlannedPaymentDate")),
+        has_attachments=invoice_data.get("HasAttachments"),
+        repeating_invoice_id=invoice_data.get("RepeatingInvoiceID"),
+        amount_due=invoice_data.get("AmountDue"),
+        amount_paid=invoice_data.get("AmountPaid"),
+        cis_deduction=invoice_data.get("CISDeduction"),
+        fully_paid_on_date=_parse_xero_date(invoice_data.get("FullyPaidOnDate")),
+        amount_credited=invoice_data.get("AmountCredited"),
+        sales_tax_calculation_type_code=invoice_data.get("SalesTaxCalculationTypeCode"),
+        invoice_addresses=invoice_data.get("InvoiceAddresses"),
+        updated_date_utc=_parse_xero_date(invoice_data.get("UpdatedDateUTC")),
+    )
+
+
+@purpose("Get contacts from Xero")
+async def xero_get_contacts(xero_tenant: XeroTenant) -> List[XeroContact]:
+    """
+    Get all contacts from Xero.
+
+    Args:
+        xero_tenant: The Xero tenant to get contacts from
+
+    Returns:
+        A list of Xero contacts
+    """
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/Contacts",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Contacts"):
+        return []
+
+    return [_xero_contact_to_lutra(contact) for contact in data.get("Contacts", [])]
+
+
+@purpose("Create a contact in Xero")
+async def xero_create_contact(
+    xero_tenant: XeroTenant,
+    name: str,
+    contact_number: Optional[str] = None,
+    account_number: Optional[str] = None,
+    contact_status: Optional[Literal["ACTIVE", "ARCHIVED"]] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    email_address: Optional[str] = None,
+    bank_account_details: Optional[str] = None,
+    company_number: Optional[str] = None,
+    tax_number: Optional[str] = None,
+    accounts_receivable_tax_type: Optional[str] = None,
+    accounts_payable_tax_type: Optional[str] = None,
+    addresses: Optional[List[XeroAddress]] = None,
+    phones: Optional[List[XeroPhone]] = None,
+    default_currency: Optional[str] = None,
+) -> XeroContact:
+    """
+    Create a contact in Xero. Contacts can be customers (for sales invoices) or suppliers
+    (for bills/purchases). The IsSupplier and IsCustomer flags are automatically set when
+    invoices are created against the contact.
+
+    Args:
+        xero_tenant: The Xero tenant to create the contact in
+        name: Full name of contact/organisation (required, max 255 chars)
+        contact_number: External system identifier (max 50 chars, read-only in Xero UI)
+        account_number: User-defined account number (max 50 chars)
+        contact_status: Contact status (defaults to ACTIVE if not specified)
+        first_name: First name of contact person (max 255 chars)
+        last_name: Last name of contact person (max 255 chars)
+        email_address: Email address (max 255 chars, no umlauts)
+        bank_account_details: Bank account number
+        company_number: Company registration number (max 50 chars)
+        tax_number: Tax ID/ABN/GST/VAT number (max 50 chars)
+        accounts_receivable_tax_type: Default tax type for sales invoices
+        accounts_payable_tax_type: Default tax type for bills
+        addresses: List of addresses for the contact
+        phones: List of phone numbers for the contact
+        default_currency: Default currency for invoices
+
+    Returns:
+        The created Xero contact
+    """
+    # Prepare contact data for API (using PascalCase)
+    contact_data = {
+        "Name": name,
+    }
+
+    # Add optional fields if provided
+    if contact_number:
+        contact_data["ContactNumber"] = contact_number
+    if account_number:
+        contact_data["AccountNumber"] = account_number
+    if contact_status:
+        contact_data["ContactStatus"] = contact_status
+    if first_name:
+        contact_data["FirstName"] = first_name
+    if last_name:
+        contact_data["LastName"] = last_name
+    if email_address:
+        contact_data["EmailAddress"] = email_address
+    if bank_account_details:
+        contact_data["BankAccountDetails"] = bank_account_details
+    if company_number:
+        contact_data["CompanyNumber"] = company_number
+    if tax_number:
+        contact_data["TaxNumber"] = tax_number
+    if accounts_receivable_tax_type:
+        contact_data["AccountsReceivableTaxType"] = accounts_receivable_tax_type
+    if accounts_payable_tax_type:
+        contact_data["AccountsPayableTaxType"] = accounts_payable_tax_type
+    if default_currency:
+        contact_data["DefaultCurrency"] = default_currency
+
+    # Convert addresses to API format if provided
+    if addresses:
+        contact_data["Addresses"] = []
+        for address in addresses:
+            addr_dict = {
+                "AddressType": address.address_type,
+            }
+            if address.address_line1:
+                addr_dict["AddressLine1"] = address.address_line1
+            if address.address_line2:
+                addr_dict["AddressLine2"] = address.address_line2
+            if address.address_line3:
+                addr_dict["AddressLine3"] = address.address_line3
+            if address.address_line4:
+                addr_dict["AddressLine4"] = address.address_line4
+            if address.city:
+                addr_dict["City"] = address.city
+            if address.region:
+                addr_dict["Region"] = address.region
+            if address.postal_code:
+                addr_dict["PostalCode"] = address.postal_code
+            if address.country:
+                addr_dict["Country"] = address.country
+            if address.attention_to:
+                addr_dict["AttentionTo"] = address.attention_to
+            contact_data["Addresses"].append(addr_dict)
+
+    # Convert phones to API format if provided
+    if phones:
+        contact_data["Phones"] = []
+        for phone in phones:
+            phone_dict = {}
+            if phone.phone_number:
+                phone_dict["PhoneNumber"] = phone.phone_number
+            if phone.phone_type:
+                phone_dict["PhoneType"] = phone.phone_type
+            if phone.phone_area_code:
+                phone_dict["PhoneAreaCode"] = phone.phone_area_code
+            if phone.phone_country_code:
+                phone_dict["PhoneCountryCode"] = phone.phone_country_code
+            contact_data["Phones"].append(phone_dict)
+
+    response = await xero_client.post(
+        "https://api.xero.com/api.xro/2.0/Contacts",
+        headers={
+            "Xero-tenant-id": xero_tenant.tenant_id,
+            "Content-Type": "application/json",
+        },
+        json={"Contacts": [contact_data]},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Contacts") or len(data.get("Contacts")) == 0:
+        raise ValueError("Failed to create contact")
+
+    contact_data = data.get("Contacts")[0]
+    return _xero_contact_to_lutra(contact_data)
+
+
+@purpose("Create an invoice in Xero")
+async def xero_create_invoice(
+    xero_tenant: XeroTenant,
+    xero_contact: XeroContact,
+    type: Literal["ACCPAY", "ACCREC"],
+    line_items: List[XeroLineItem],
+    invoice_date: Optional[datetime] = None,
+    due_date: Optional[datetime] = None,
+    line_amount_types: Literal["Exclusive", "Inclusive", "NoTax"] = "Exclusive",
+    invoice_number: Optional[str] = None,
+    reference: Optional[str] = None,
+    currency_code: Optional[str] = None,
+) -> XeroInvoice:
+    """
+    Create an invoice in Xero. ACCPAY creates bills (money you owe to suppliers),
+    ACCREC creates sales invoices (money customers owe you). Both affect accounts
+    receivable/payable and will appear in aging reports.
+
+    IMPORTANT: Each line item must include an account_code to specify which account
+    to post the transaction to. Without account codes, invoices cannot be approved
+    (moved to AUTHORISED status) and will remain as drafts.
+
+    WORKFLOW EXAMPLE:
+    1. Get available accounts: accounts = await xero_get_accounts(xero_tenant)
+    2. Find appropriate account: expense_account = next(acc for acc in accounts if acc.name == "Office Expenses")
+    3. Create line item: line_item = XeroLineItem(..., account_code=expense_account.code)
+    4. Create invoice with line items
+
+    Args:
+        xero_tenant: The Xero tenant to create the invoice in
+        xero_contact: Must be marked as supplier (ACCPAY) or customer (ACCREC)
+        type: ACCPAY for bills/purchases, ACCREC for sales invoices
+        line_items: Line items with account codes - use xero_get_accounts() to find valid codes
+        invoice_date: Transaction date affecting period reporting
+        due_date: Payment due date affecting aging calculations
+        line_amount_types: Tax treatment - Exclusive/Inclusive affects tax calculations
+        invoice_number: Invoice identifier for tracking
+        reference: Internal reference for reconciliation
+        currency_code: Must match contact's default currency if multi-currency
+
+    Returns:
+        The created Xero invoice
+    """
+    # Default dates if not provided
+    if invoice_date is None:
+        invoice_date = datetime.now()
+    if due_date is None:
+        due_date = invoice_date
+
+    # Convert XeroLineItem objects to dictionaries for API
+    line_items_dict = []
+    for item in line_items:
+        item_dict = {
+            "Description": item.description,
+            "Quantity": item.quantity,
+            "UnitAmount": item.unit_amount,
+            "LineAmount": item.line_amount,
+            "AccountCode": item.account_code,  # Now required
+        }
+
+        # Add optional fields if they exist
+        if item.item_code:
+            item_dict["ItemCode"] = item.item_code
+        if item.tax_type:
+            item_dict["TaxType"] = item.tax_type
+        if item.tax_amount is not None:
+            item_dict["TaxAmount"] = item.tax_amount
+
+        line_items_dict.append(item_dict)
+
+    # Prepare invoice data for API (using PascalCase)
+    invoice_data = {
+        "Type": type,
+        "Contact": {"ContactID": xero_contact.contact_id},
+        "Date": invoice_date.isoformat(),
+        "DueDate": due_date.isoformat(),
+        "LineAmountTypes": line_amount_types,
+        "LineItems": line_items_dict,
+    }
+
+    # Add optional fields if provided
+    if invoice_number:
+        invoice_data["InvoiceNumber"] = invoice_number
+    if reference:
+        invoice_data["Reference"] = reference
+    if currency_code:
+        invoice_data["CurrencyCode"] = currency_code
+
+    response = await xero_client.post(
+        "https://api.xero.com/api.xro/2.0/Invoices",
+        headers={
+            "Xero-tenant-id": xero_tenant.tenant_id,
+            "Content-Type": "application/json",
+        },
+        json={"Invoices": [invoice_data]},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Invoices") or len(data.get("Invoices")) == 0:
+        raise ValueError("Failed to create invoice")
+
+    invoice_data = data.get("Invoices")[0]
+
+    return XeroInvoice(
+        invoice_id=invoice_data.get("InvoiceID", ""),
+        type=invoice_data.get("Type", ""),
+        contact=_xero_contact_to_lutra(invoice_data.get("Contact")),
+        date=_parse_xero_date(invoice_data.get("Date")),
+        due_date=_parse_xero_date(invoice_data.get("DueDate")),
+        status=invoice_data.get("Status", ""),
+        line_amount_types=invoice_data.get("LineAmountTypes", ""),
+        line_items=[
+            _xero_line_item_to_lutra(item) for item in invoice_data.get("LineItems", [])
+        ],
+        sub_total=invoice_data.get("SubTotal", 0.0),
+        total_tax=invoice_data.get("TotalTax", 0.0),
+        total=invoice_data.get("Total", 0.0),
+        total_discount=invoice_data.get("TotalDiscount", 0.0),
+        invoice_number=invoice_data.get("InvoiceNumber"),
+        reference=invoice_data.get("Reference"),
+        currency_code=invoice_data.get("CurrencyCode"),
+        currency_rate=invoice_data.get("CurrencyRate"),
+        branding_theme_id=invoice_data.get("BrandingThemeID"),
+        url=invoice_data.get("Url"),
+        sent_to_contact=invoice_data.get("SentToContact"),
+        expected_payment_date=_parse_xero_date(invoice_data.get("ExpectedPaymentDate")),
+        planned_payment_date=_parse_xero_date(invoice_data.get("PlannedPaymentDate")),
+        has_attachments=invoice_data.get("HasAttachments"),
+        repeating_invoice_id=invoice_data.get("RepeatingInvoiceID"),
+        amount_due=invoice_data.get("AmountDue"),
+        amount_paid=invoice_data.get("AmountPaid"),
+        cis_deduction=invoice_data.get("CISDeduction"),
+        fully_paid_on_date=_parse_xero_date(invoice_data.get("FullyPaidOnDate")),
+        amount_credited=invoice_data.get("AmountCredited"),
+        sales_tax_calculation_type_code=invoice_data.get("SalesTaxCalculationTypeCode"),
+        invoice_addresses=invoice_data.get("InvoiceAddresses"),
+        updated_date_utc=_parse_xero_date(invoice_data.get("UpdatedDateUTC")),
+    )
+
+
+@purpose("Update an invoice in Xero")
+async def xero_update_invoice(
+    xero_tenant: XeroTenant,
+    invoice_id: str,
+    type: Optional[Literal["ACCPAY", "ACCREC"]] = None,
+    contact: Optional[XeroContact] = None,
+    line_items: Optional[List[XeroLineItem]] = None,
+    invoice_date: Optional[datetime] = None,
+    due_date: Optional[datetime] = None,
+    line_amount_types: Optional[Literal["Exclusive", "Inclusive", "NoTax"]] = None,
+    invoice_number: Optional[str] = None,
+    reference: Optional[str] = None,
+    currency_code: Optional[str] = None,
+    branding_theme_id: Optional[str] = None,
+    url: Optional[str] = None,
+    status: Optional[
+        Literal["DRAFT", "SUBMITTED", "AUTHORISED", "DELETED", "VOIDED"]
+    ] = None,
+) -> XeroInvoice:
+    """
+    Update an invoice in Xero. Update capabilities depend on invoice type and payment status:
+
+    - ACCREC (sales invoices): Can update when unpaid; limited fields when paid
+    - ACCPAY (bills): Can update when unpaid; cannot update when paid
+    - Invoices in locked periods cannot be updated
+
+    When paid (partially/fully), only these fields can be updated:
+    Reference, DueDate, InvoiceNumber, BrandingThemeID, Contact (unless paid with Credit Note),
+    URL, LineItems (Description, AccountCode except CIS), Tracking
+
+    Invoice Status Transitions:
+    - DRAFT → SUBMITTED, AUTHORISED, DELETED
+    - SUBMITTED → AUTHORISED, DRAFT, DELETED
+    - AUTHORISED → VOIDED
+
+    IMPORTANT: To approve an invoice (status=AUTHORISED), all line items must have
+    account_code specified. Use xero_get_accounts() or xero_get_accounts_by_type()
+    to find valid account codes before updating line items.
+
+    Args:
+        xero_tenant: The Xero tenant containing the invoice
+        invoice_id: The ID of the invoice to update
+        type: Invoice type (ACCPAY for bills, ACCREC for sales invoices)
+        contact: Updated contact (not allowed if paid with Credit Note)
+        line_items: Updated line items with account codes - use xero_get_accounts() to find valid codes
+        invoice_date: Updated transaction date
+        due_date: Updated payment due date
+        line_amount_types: Updated tax treatment
+        invoice_number: Updated invoice identifier
+        reference: Updated internal reference
+        currency_code: Updated currency (must match contact's default if multi-currency)
+        branding_theme_id: Updated branding theme
+        url: Updated invoice URL
+        status: Updated invoice status (see valid transitions above)
+
+    Returns:
+        The updated Xero invoice
+
+    Raises:
+        ValueError: If update fails due to payment status, field restrictions, or invalid status transition
+    """
+    # Prepare invoice data for API (using PascalCase)
+    invoice_data = {}
+
+    # Add fields if provided
+    if type is not None:
+        invoice_data["Type"] = type
+    if contact is not None:
+        invoice_data["Contact"] = {"ContactID": contact.contact_id}
+    if invoice_date is not None:
+        invoice_data["Date"] = invoice_date.isoformat()
+    if due_date is not None:
+        invoice_data["DueDate"] = due_date.isoformat()
+    if line_amount_types is not None:
+        invoice_data["LineAmountTypes"] = line_amount_types
+    if invoice_number is not None:
+        invoice_data["InvoiceNumber"] = invoice_number
+    if reference is not None:
+        invoice_data["Reference"] = reference
+    if currency_code is not None:
+        invoice_data["CurrencyCode"] = currency_code
+    if branding_theme_id is not None:
+        invoice_data["BrandingThemeID"] = branding_theme_id
+    if url is not None:
+        invoice_data["Url"] = url
+    if status is not None:
+        invoice_data["Status"] = status
+
+    # Convert XeroLineItem objects to dictionaries for API if provided
+    if line_items is not None:
+        line_items_dict = []
+        for item in line_items:
+            item_dict = {
+                "Description": item.description,
+                "Quantity": item.quantity,
+                "UnitAmount": item.unit_amount,
+                "LineAmount": item.line_amount,
+                "AccountCode": item.account_code,  # Now required
+            }
+
+            # Add optional fields if they exist
+            if item.item_code:
+                item_dict["ItemCode"] = item.item_code
+            if item.tax_type:
+                item_dict["TaxType"] = item.tax_type
+            if item.tax_amount is not None:
+                item_dict["TaxAmount"] = item.tax_amount
+            if item.line_item_id:
+                item_dict["LineItemID"] = item.line_item_id
+
+            line_items_dict.append(item_dict)
+
+        invoice_data["LineItems"] = line_items_dict
+
+    response = await xero_client.post(
+        f"https://api.xero.com/api.xro/2.0/Invoices/{invoice_id}",
+        headers={
+            "Xero-tenant-id": xero_tenant.tenant_id,
+            "Content-Type": "application/json",
+        },
+        json={"Invoices": [invoice_data]},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Invoices") or len(data.get("Invoices")) == 0:
+        raise ValueError(f"Failed to update invoice with ID {invoice_id}")
+
+    invoice_data = data.get("Invoices")[0]
+
+    return XeroInvoice(
+        invoice_id=invoice_data.get("InvoiceID", ""),
+        type=invoice_data.get("Type", ""),
+        contact=_xero_contact_to_lutra(invoice_data.get("Contact")),
+        date=_parse_xero_date(invoice_data.get("Date")),
+        due_date=_parse_xero_date(invoice_data.get("DueDate")),
+        status=invoice_data.get("Status", ""),
+        line_amount_types=invoice_data.get("LineAmountTypes", ""),
+        line_items=[
+            _xero_line_item_to_lutra(item) for item in invoice_data.get("LineItems", [])
+        ],
+        sub_total=invoice_data.get("SubTotal", 0.0),
+        total_tax=invoice_data.get("TotalTax", 0.0),
+        total=invoice_data.get("Total", 0.0),
+        total_discount=invoice_data.get("TotalDiscount", 0.0),
+        invoice_number=invoice_data.get("InvoiceNumber"),
+        reference=invoice_data.get("Reference"),
+        currency_code=invoice_data.get("CurrencyCode"),
+        currency_rate=invoice_data.get("CurrencyRate"),
+        branding_theme_id=invoice_data.get("BrandingThemeID"),
+        url=invoice_data.get("Url"),
+        sent_to_contact=invoice_data.get("SentToContact"),
+        expected_payment_date=_parse_xero_date(invoice_data.get("ExpectedPaymentDate")),
+        planned_payment_date=_parse_xero_date(invoice_data.get("PlannedPaymentDate")),
+        has_attachments=invoice_data.get("HasAttachments"),
+        repeating_invoice_id=invoice_data.get("RepeatingInvoiceID"),
+        amount_due=invoice_data.get("AmountDue"),
+        amount_paid=invoice_data.get("AmountPaid"),
+        cis_deduction=invoice_data.get("CISDeduction"),
+        fully_paid_on_date=_parse_xero_date(invoice_data.get("FullyPaidOnDate")),
+        amount_credited=invoice_data.get("AmountCredited"),
+        sales_tax_calculation_type_code=invoice_data.get("SalesTaxCalculationTypeCode"),
+        invoice_addresses=invoice_data.get("InvoiceAddresses"),
+        updated_date_utc=_parse_xero_date(invoice_data.get("UpdatedDateUTC")),
+    )
+
+
+@purpose("List journals from Xero")
+async def xero_list_journals(
+    xero_tenant: XeroTenant,
+    pagination_token: Optional[XeroPaginationToken] = None,
+    payments_only: Optional[bool] = None,
+) -> Tuple[List[XeroJournal], Optional[XeroPaginationToken]]:
+    """
+    List journals from Xero. Journals include both accounts payable (bills/vendor payments)
+    and accounts receivable (invoices/customer payments) transactions, so filtering by
+    source_type may be needed for specific use cases.
+
+    Args:
+        xero_tenant: The Xero tenant to get journals from
+        pagination_token: Offset for pagination - journals are ordered by journal_number
+        payments_only: Cash basis (true) vs accrual basis (false, default) accounting
+
+    Returns:
+        A tuple containing:
+        - List of Xero journals (maximum 100 per request)
+        - Next pagination token (None if no more journals available)
+    """
+    url = "https://api.xero.com/api.xro/2.0/Journals"
+    params = {}
+
+    if pagination_token is not None:
+        params["offset"] = pagination_token.offset
+    if payments_only is not None:
+        params["paymentsOnly"] = str(payments_only).lower()
+
+    response = await xero_client.get(
+        url,
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+        params=params if params else None,
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Journals"):
+        return [], None
+
+    journals = [_xero_journal_to_lutra(journal) for journal in data.get("Journals", [])]
+
+    # Create next pagination token if we got a full page (100 journals)
+    # The next offset should be the journal number of the last journal
+    next_token = None
+    if len(journals) == 100:  # Full page indicates more results may be available
+        last_journal_number = journals[-1].journal_number
+        next_token = XeroPaginationToken(offset=last_journal_number)
+
+    return journals, next_token
+
+
+@purpose("Get a specific journal from Xero")
+async def xero_get_journal(
+    xero_tenant: XeroTenant, journal_identifier: str
+) -> XeroJournal:
+    """
+    Get a specific journal from Xero. Journal entries show the double-entry bookkeeping
+    behind transactions - each journal has multiple lines that must balance (debits = credits).
+
+    Args:
+        xero_tenant: The Xero tenant to get the journal from
+        journal_identifier: Either journal ID (UUID) or journal number (integer)
+
+    Returns:
+        The Xero journal with the specified identifier
+    """
+    response = await xero_client.get(
+        f"https://api.xero.com/api.xro/2.0/Journals/{journal_identifier}",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Journals") or len(data.get("Journals")) == 0:
+        raise ValueError(f"Journal with identifier {journal_identifier} not found")
+
+    journal_data = data.get("Journals")[0]
+    return _xero_journal_to_lutra(journal_data)
+
+
+@purpose("List bank transfers from Xero")
+async def xero_list_bank_transfers(
+    xero_tenant: XeroTenant,
+    from_date: Optional[datetime] = None,
+    to_date: Optional[datetime] = None,
+) -> List[XeroBankTransfer]:
+    """
+    List bank transfers from Xero, optionally filtered by date range.
+
+    Args:
+        xero_tenant: The Xero tenant to get bank transfers from
+        from_date: Optional start datetime to filter bank transfers from (inclusive)
+        to_date: Optional end datetime to filter bank transfers to (inclusive)
+
+    Returns:
+        A list of Xero bank transfers
+    """
+    headers = {"Xero-tenant-id": xero_tenant.tenant_id}
+    params = {}
+
+    # Build where clause for date filtering if dates are provided
+    if from_date or to_date:
+        where_conditions = []
+
+        if from_date:
+            # Format: Date >= DateTime(year, month, day)
+            where_conditions.append(
+                f"Date >= DateTime({from_date.year}, {from_date.month:02d}, {from_date.day:02d})"
+            )
+
+        if to_date:
+            # Format: Date <= DateTime(year, month, day)
+            where_conditions.append(
+                f"Date <= DateTime({to_date.year}, {to_date.month:02d}, {to_date.day:02d})"
+            )
+
+        # Join conditions with &&
+        where_clause = " && ".join(where_conditions)
+
+        # Percent encode the where clause
+        params["where"] = urllib.parse.quote(where_clause)
+
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/BankTransfers",
+        headers=headers,
+        params=params if params else None,
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("BankTransfers"):
+        return []
+
+    return [
+        _xero_bank_transfer_to_lutra(transfer)
+        for transfer in data.get("BankTransfers", [])
+    ]
+
+
+@purpose("Get a specific bank transfer from Xero")
+async def xero_get_bank_transfer(
+    xero_tenant: XeroTenant, bank_transfer_id: str
+) -> XeroBankTransfer:
+    """
+    Get a specific bank transfer from Xero. Bank transfers move money between bank accounts
+    within the same organization and create corresponding journal entries.
+
+    Args:
+        xero_tenant: The Xero tenant to get the bank transfer from
+        bank_transfer_id: UUID of the bank transfer
+
+    Returns:
+        The Xero bank transfer with the specified ID
+    """
+    response = await xero_client.get(
+        f"https://api.xero.com/api.xro/2.0/BankTransfers/{bank_transfer_id}",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("BankTransfers") or len(data.get("BankTransfers")) == 0:
+        raise ValueError(f"Bank transfer with ID {bank_transfer_id} not found")
+
+    transfer_data = data.get("BankTransfers")[0]
+    return _xero_bank_transfer_to_lutra(transfer_data)
+
+
+@purpose("Get bank summary report from Xero")
+async def xero_get_bank_summary(
+    xero_tenant: XeroTenant,
+    from_date: Optional[datetime] = None,
+    to_date: Optional[datetime] = None,
+) -> List[XeroBankAccountSummary]:
+    """
+    Get bank summary report from Xero. This provides cash flow analysis showing actual
+    money movement (not accrual accounting) - useful for cash position analysis.
+
+    Args:
+        xero_tenant: The Xero tenant to get the bank summary from
+        from_date: Period start - affects cash received/spent calculations
+        to_date: Period end - affects cash received/spent calculations
+
+    Returns:
+        A list of bank account summaries with balances and cash movements
+    """
+    params = {}
+
+    if from_date:
+        params["fromDate"] = from_date.strftime("%Y-%m-%d")
+    if to_date:
+        params["toDate"] = to_date.strftime("%Y-%m-%d")
+
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/Reports/BankSummary",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+        params=params if params else None,
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    # Extract bank account data from the response
+    bank_accounts = []
+
+    if data.get("Reports"):
+        for report in data["Reports"]:
+            if report.get("Rows"):
+                for row in report["Rows"]:
+                    if row.get("RowType") == "Section" and row.get("Rows"):
+                        for section_row in row["Rows"]:
+                            if section_row.get("RowType") == "Row" and section_row.get(
+                                "Cells"
+                            ):
+                                cells = section_row["Cells"]
+                                if len(cells) >= 5:
+                                    # Extract account ID from attributes if available
+                                    account_id = None
+                                    if cells[0].get("Attributes"):
+                                        for attr in cells[0]["Attributes"]:
+                                            if attr.get("Id") == "accountID":
+                                                account_id = attr.get("Value")
+                                                break
+
+                                    bank_account = XeroBankAccountSummary(
+                                        account_id=account_id,
+                                        account_name=cells[0]["Value"],
+                                        opening_balance=float(cells[1]["Value"]),
+                                        cash_received=float(cells[2]["Value"]),
+                                        cash_spent=float(cells[3]["Value"]),
+                                        closing_balance=float(cells[4]["Value"]),
+                                    )
+                                    bank_accounts.append(bank_account)
+
+    return bank_accounts
+
+
+@purpose("Get accounts from Xero")
+async def xero_get_accounts(
+    xero_tenant: XeroTenant,
+    modified_after: Optional[datetime] = None,
+) -> List[XeroAccount]:
+    """
+    Get all accounts from Xero.
+
+    Args:
+        xero_tenant: The Xero tenant to get accounts from
+        modified_after: Optional datetime to filter accounts created or modified after this timestamp
+
+    Returns:
+        A list of Xero accounts
+    """
+    headers = {"Xero-tenant-id": xero_tenant.tenant_id}
+
+    # Add If-Modified-Since header if modified_after is provided
+    if modified_after:
+        # Format as required by Xero API: yyyy-mm-ddThh:mm:ss
+        headers["If-Modified-Since"] = modified_after.strftime("%Y-%m-%dT%H:%M:%S")
+
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/Accounts",
+        headers=headers,
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Accounts"):
+        return []
+
+    return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
+
+
+@purpose("List bank accounts from Xero")
+async def xero_list_bank_accounts(xero_tenant: XeroTenant) -> List[XeroAccount]:
+    """
+    Get all bank accounts from Xero (accounts with Type="BANK").
+
+    Args:
+        xero_tenant: The Xero tenant to get bank accounts from
+
+    Returns:
+        A list of Xero bank accounts
+    """
+    # Filter for bank accounts only
+    params = {"where": 'Type=="BANK"'}
+
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/Accounts",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+        params=params,
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Accounts"):
+        return []
+
+    return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
+
+
+@purpose("Get a specific bank account from Xero")
+async def xero_get_bank_account(
+    xero_tenant: XeroTenant, account_id: str
+) -> XeroAccount:
+    """
+    Get a specific bank account from Xero. Validates the account is actually a bank account
+    (Type="BANK") rather than other account types like revenue, expense, or asset accounts.
+
+    Args:
+        xero_tenant: The Xero tenant to get the bank account from
+        account_id: UUID of the account
+
+    Returns:
+        The Xero bank account with the specified ID
+
+    Raises:
+        ValueError: If the account is not found or is not a bank account
+    """
+    response = await xero_client.get(
+        f"https://api.xero.com/api.xro/2.0/Accounts/{account_id}",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Accounts") or len(data.get("Accounts")) == 0:
+        raise ValueError(f"Account with ID {account_id} not found")
+
+    account_data = data.get("Accounts")[0]
+    account = _xero_account_to_lutra(account_data)
+
+    # Verify it's a bank account
+    if account.type != "BANK":
+        raise ValueError(
+            f"Account with ID {account_id} is not a bank account (type: {account.type})"
+        )
+
+    return account
+
+
+@purpose("Get balance sheet report from Xero")
+async def xero_get_balance_sheet(
+    xero_tenant: XeroTenant,
+    report_date: Optional[datetime] = None,
+    periods: Optional[int] = None,
+    timeframe: Optional[Literal["MONTH", "QUARTER", "YEAR"]] = None,
+) -> XeroBalanceSheet:
+    """
+    Get balance sheet report from Xero. Balance sheet shows financial position at a specific
+    point in time following the accounting equation: Assets = Liabilities + Equity.
+    Use periods and timeframe to get comparative data across multiple periods.
+
+    Args:
+        xero_tenant: The Xero tenant to get the balance sheet from
+        report_date: End date for the balance sheet - used with periods/timeframe for comparisons
+        periods: Number of comparison periods (1-11) - enables period-over-period analysis
+        timeframe: Size of each comparison period (MONTH, QUARTER, YEAR)
+
+    Returns:
+        The Xero balance sheet report with hierarchical structure
+    """
+    params = {}
+
+    if report_date:
+        params["date"] = report_date.strftime("%Y-%m-%d")
+    if periods is not None:
+        if not (1 <= periods <= 11):
+            raise ValueError("periods must be between 1 and 11")
+        params["periods"] = periods
+    if timeframe:
+        params["timeframe"] = timeframe
+
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/Reports/BalanceSheet",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+        params=params if params else None,
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    return _xero_balance_sheet_to_lutra(data)
+
+
+@purpose("Get accounts by type from Xero")
+async def xero_get_accounts_by_type(
+    xero_tenant: XeroTenant,
+    account_type: Literal[
+        "BANK",
+        "CURRENT",
+        "CURRLIAB",
+        "DEPRECIATN",
+        "DIRECTCOSTS",
+        "EQUITY",
+        "EXPENSE",
+        "FIXED",
+        "INVENTORY",
+        "LIABILITY",
+        "NONCURRENT",
+        "OTHERINCOME",
+        "OVERHEADS",
+        "PREPAYMENT",
+        "REVENUE",
+        "SALES",
+        "TERMLIAB",
+    ],
+) -> List[XeroAccount]:
+    """
+    Get accounts filtered by type from Xero. This is a convenience function to help
+    find appropriate account codes for invoice line items.
+
+    Common account types for invoices:
+    - REVENUE: For sales invoice line items (money coming in)
+    - EXPENSE/OVERHEADS: For bill line items (money going out)
+    - DIRECTCOSTS: For cost of goods sold
+    - BANK: For bank account transactions
+
+    Args:
+        xero_tenant: The Xero tenant to get accounts from
+        account_type: The type of accounts to filter by
+
+    Returns:
+        A list of Xero accounts of the specified type
+    """
+    # Filter for specific account type
+    params = {"where": f'Type=="{account_type}"'}
+
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/Accounts",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+        params=params,
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Accounts"):
+        return []
+
+    return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
+
