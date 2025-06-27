@@ -2,7 +2,7 @@ import re
 import urllib.parse
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional
 
 from dateutil.parser import parse as dateutil_parse
 from pydantic import TypeAdapter
@@ -29,7 +29,7 @@ def _parse_xero_date(date_value: Any) -> datetime:
         return date_value
 
     # Handle Microsoft JSON date format
-    match = re.match(r"/Date\((\d+)([+-]\d{4})\)/", str(date_value))
+    match = re.match(r"/Date\((\d+)(?:([+-]\d{4}))?\)/", str(date_value))
     if match:
         timestamp_ms = int(match.group(1))
         timestamp_s = timestamp_ms / 1000
@@ -159,6 +159,40 @@ class XeroTenant:
     tenant_name: str
     tenant_id: str
     connection_id: str
+
+
+@dataclass
+class XeroOrganisation:
+    """Information about a Xero organisation."""
+
+    organisation_id: str
+    name: str
+    short_code: str
+    legal_name: Optional[str] = None
+    pays_tax: Optional[bool] = None
+    version: Optional[str] = None
+    organisation_type: Optional[str] = None
+    base_currency: Optional[str] = None
+    country_code: Optional[str] = None
+    is_demo_company: Optional[bool] = None
+    organisation_status: Optional[str] = None
+    registration_number: Optional[str] = None
+    employer_identification_number: Optional[str] = None
+    tax_number: Optional[str] = None
+    financial_year_end_day: Optional[int] = None
+    financial_year_end_month: Optional[int] = None
+    sales_tax_basis: Optional[str] = None
+    sales_tax_period: Optional[str] = None
+    default_sales_tax: Optional[str] = None
+    default_purchases_tax: Optional[str] = None
+    period_lock_date: Optional[datetime] = None
+    end_of_year_lock_date: Optional[datetime] = None
+    created_date_utc: Optional[datetime] = None
+    timezone: Optional[str] = None
+    organisation_entity_type: Optional[str] = None
+    edition: Optional[str] = None
+    class_: Optional[str] = None  # 'class' is a reserved keyword
+    line_of_business: Optional[str] = None
 
 
 @dataclass
@@ -304,7 +338,7 @@ class XeroBalanceSheet:
     """
 
     report_date: str
-    periods: Dict[
+    periods: dict[
         datetime, XeroBalanceSheetPeriodData
     ]  # Maps period datetime to complete period data
 
@@ -314,6 +348,16 @@ class XeroPaginationToken:
     """Pagination token for Xero API requests."""
 
     offset: int
+
+
+@dataclass
+class XeroOnlineInvoice:
+    online_invoice_url: str
+
+
+@dataclass
+class XeroOnlineInvoiceResponse:
+    online_invoices: List[XeroOnlineInvoice]
 
 
 # Configure OAuth client for Xero API
@@ -386,6 +430,8 @@ _XJ_TA = None
 _XBA_TA = None
 _XBT_TA = None
 _XA_TA = None
+_XOURL_TA = None
+_XO_TA = None
 
 
 def _convert_address_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -577,6 +623,40 @@ def _convert_account_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _convert_organisation_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Xero API organisation data from PascalCase to snake_case."""
+    return {
+        "organisation_id": data.get("OrganisationID"),
+        "name": data.get("Name"),
+        "short_code": data.get("ShortCode"),
+        "legal_name": data.get("LegalName"),
+        "pays_tax": data.get("PaysTax"),
+        "version": data.get("Version"),
+        "organisation_type": data.get("OrganisationType"),
+        "base_currency": data.get("BaseCurrency"),
+        "country_code": data.get("CountryCode"),
+        "is_demo_company": data.get("IsDemoCompany"),
+        "organisation_status": data.get("OrganisationStatus"),
+        "registration_number": data.get("RegistrationNumber"),
+        "employer_identification_number": data.get("EmployerIdentificationNumber"),
+        "tax_number": data.get("TaxNumber"),
+        "financial_year_end_day": data.get("FinancialYearEndDay"),
+        "financial_year_end_month": data.get("FinancialYearEndMonth"),
+        "sales_tax_basis": data.get("SalesTaxBasis"),
+        "sales_tax_period": data.get("SalesTaxPeriod"),
+        "default_sales_tax": data.get("DefaultSalesTax"),
+        "default_purchases_tax": data.get("DefaultPurchasesTax"),
+        "period_lock_date": _parse_xero_date(data.get("PeriodLockDate")),
+        "end_of_year_lock_date": _parse_xero_date(data.get("EndOfYearLockDate")),
+        "created_date_utc": _parse_xero_date(data.get("CreatedDateUTC")),
+        "timezone": data.get("Timezone"),
+        "organisation_entity_type": data.get("OrganisationEntityType"),
+        "edition": data.get("Edition"),
+        "class_": data.get("Class"),  # 'class' is a reserved keyword in Python
+        "line_of_business": data.get("LineOfBusiness"),
+    }
+
+
 def _extract_period_line_items(
     line_items_with_periods: List[Dict[str, Any]], period_label: str
 ) -> List[XeroBalanceSheetLineItem]:
@@ -742,7 +822,7 @@ def _parse_balance_sheet_data(data: Dict[str, Any]) -> XeroBalanceSheet:
 
 def _parse_balance_sheet_line_item(
     section_row: Dict[str, Any], period_labels: List[str]
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any] | None:
     """Parse a section row into a balance sheet line item (recursive for nested structure)."""
     title = section_row.get("Title", "").strip()
     if not title:
@@ -821,6 +901,30 @@ def _parse_balance_sheet_line_item(
     }
 
 
+def _convert_online_invoice_response_to_snake_case(
+    data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Convert Xero API online invoice response data from PascalCase to snake_case."""
+    online_invoices = []
+    if data.get("OnlineInvoices"):
+        for invoice in data["OnlineInvoices"]:
+            online_invoices.append(
+                {"online_invoice_url": invoice.get("OnlineInvoiceUrl")}
+            )
+
+    return {"online_invoices": online_invoices}
+
+
+def _xero_online_url_response_to_lutra(
+    data: Dict[str, Any],
+) -> XeroOnlineInvoiceResponse:
+    global _XOURL_TA
+    if _XOURL_TA is None:
+        _XOURL_TA = TypeAdapter(XeroOnlineInvoiceResponse)
+    converted_data = _convert_online_invoice_response_to_snake_case(data)
+    return _XOURL_TA.validate_python(converted_data)
+
+
 def _xero_contact_to_lutra(data: Dict[str, Any]) -> XeroContact:
     global _XC_TA
     if _XC_TA is None:
@@ -869,8 +973,43 @@ def _xero_account_to_lutra(data: Dict[str, Any]) -> XeroAccount:
     return _XA_TA.validate_python(converted_data)
 
 
+def _xero_organisation_to_lutra(data: Dict[str, Any]) -> XeroOrganisation:
+    global _XO_TA
+    if _XO_TA is None:
+        _XO_TA = TypeAdapter(XeroOrganisation)
+    converted_data = _convert_organisation_to_snake_case(data)
+    return _XO_TA.validate_python(converted_data)
+
+
 def _xero_balance_sheet_to_lutra(data: Dict[str, Any]) -> XeroBalanceSheet:
     return _parse_balance_sheet_data(data)
+
+
+def _get_invoice_url(short_code: str, invoice_id: str, status: str) -> Optional[str]:
+    """
+    Generate the appropriate Xero invoice URL based on status.
+
+    Args:
+        short_code: The organisation short code from _xero_get_organisation()
+        invoice_id: The invoice ID
+        status: The invoice status (DRAFT, SUBMITTED, AUTHORISED, etc.)
+
+    Returns:
+        The appropriate URL for the invoice
+    """
+    # Determine the URL path based on status
+    if status in ["DRAFT", "SUBMITTED"]:
+        path = "edit"
+    elif status == "AUTHORISED":
+        path = "view"
+    else:
+        # Default to view for other statuses (PAID, VOIDED, etc.)
+        path = None
+
+    if path:
+        return f"https://go.xero.com/app/{short_code}/invoicing/{path}/{invoice_id}"
+    else:
+        return None
 
 
 @purpose("Get tenant id")
@@ -892,6 +1031,31 @@ async def xero_get_tenant() -> List[XeroTenant]:
         )
         for tenant in data
     ]
+
+
+async def _xero_get_organisation(xero_tenant: XeroTenant) -> XeroOrganisation:
+    """
+    Get organisation information from Xero including the short code needed for URLs.
+
+    Args:
+        xero_tenant: The Xero tenant to get organisation information for
+
+    Returns:
+        The Xero organisation information including short_code for URL construction
+    """
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/Organisation",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Organisations") or len(data.get("Organisations")) == 0:
+        raise ValueError("No organisation data found")
+
+    organisation_data = data.get("Organisations")[0]
+    return _xero_organisation_to_lutra(organisation_data)
 
 
 @purpose("Disconnect a Xero tenant")
@@ -943,6 +1107,22 @@ async def xero_get_invoice(xero_tenant: XeroTenant, invoice_id: str) -> XeroInvo
 
     invoice_data = data.get("Invoices")[0]
 
+    # Get organisation info once to get the short code
+    try:
+        org = await _xero_get_organisation(xero_tenant)
+        short_code = org.short_code
+    except Exception:
+        short_code = ""  # Fallback if org info can't be fetched
+
+    # Generate the appropriate URL based on invoice status
+    url = (
+        _get_invoice_url(
+            short_code, invoice_data.get("InvoiceID"), invoice_data.get("Status", "")
+        )
+        if short_code
+        else None
+    )
+
     return XeroInvoice(
         invoice_id=invoice_data.get("InvoiceID", ""),
         type=invoice_data.get("Type", ""),
@@ -963,7 +1143,7 @@ async def xero_get_invoice(xero_tenant: XeroTenant, invoice_id: str) -> XeroInvo
         currency_code=invoice_data.get("CurrencyCode"),
         currency_rate=invoice_data.get("CurrencyRate"),
         branding_theme_id=invoice_data.get("BrandingThemeID"),
-        url=invoice_data.get("Url"),
+        url=url,
         sent_to_contact=invoice_data.get("SentToContact"),
         expected_payment_date=_parse_xero_date(invoice_data.get("ExpectedPaymentDate")),
         planned_payment_date=_parse_xero_date(invoice_data.get("PlannedPaymentDate")),
@@ -1247,6 +1427,22 @@ async def xero_create_invoice(
 
     invoice_data = data.get("Invoices")[0]
 
+    # Get organisation info once to get the short code
+    try:
+        org = await _xero_get_organisation(xero_tenant)
+        short_code = org.short_code
+    except Exception:
+        short_code = ""  # Fallback if org info can't be fetched
+
+    # Generate the appropriate URL based on invoice status
+    url = (
+        _get_invoice_url(
+            short_code, invoice_data.get("InvoiceID"), invoice_data.get("Status", "")
+        )
+        if short_code
+        else None
+    )
+
     return XeroInvoice(
         invoice_id=invoice_data.get("InvoiceID", ""),
         type=invoice_data.get("Type", ""),
@@ -1267,7 +1463,7 @@ async def xero_create_invoice(
         currency_code=invoice_data.get("CurrencyCode"),
         currency_rate=invoice_data.get("CurrencyRate"),
         branding_theme_id=invoice_data.get("BrandingThemeID"),
-        url=invoice_data.get("Url"),
+        url=url,
         sent_to_contact=invoice_data.get("SentToContact"),
         expected_payment_date=_parse_xero_date(invoice_data.get("ExpectedPaymentDate")),
         planned_payment_date=_parse_xero_date(invoice_data.get("PlannedPaymentDate")),
@@ -1415,6 +1611,22 @@ async def xero_update_invoice(
 
     invoice_data = data.get("Invoices")[0]
 
+    # Get organisation info once to get the short code
+    try:
+        org = await _xero_get_organisation(xero_tenant)
+        short_code = org.short_code
+    except Exception:
+        short_code = ""  # Fallback if org info can't be fetched
+
+    # Generate the appropriate URL based on invoice status
+    url = (
+        _get_invoice_url(
+            short_code, invoice_data.get("InvoiceID"), invoice_data.get("Status", "")
+        )
+        if short_code
+        else None
+    )
+
     return XeroInvoice(
         invoice_id=invoice_data.get("InvoiceID", ""),
         type=invoice_data.get("Type", ""),
@@ -1435,7 +1647,7 @@ async def xero_update_invoice(
         currency_code=invoice_data.get("CurrencyCode"),
         currency_rate=invoice_data.get("CurrencyRate"),
         branding_theme_id=invoice_data.get("BrandingThemeID"),
-        url=invoice_data.get("Url"),
+        url=url,
         sent_to_contact=invoice_data.get("SentToContact"),
         expected_payment_date=_parse_xero_date(invoice_data.get("ExpectedPaymentDate")),
         planned_payment_date=_parse_xero_date(invoice_data.get("PlannedPaymentDate")),
@@ -1452,16 +1664,158 @@ async def xero_update_invoice(
     )
 
 
+@purpose("List invoices from Xero")
+async def xero_list_invoices(
+    xero_tenant: XeroTenant,
+    pagination_token: Optional[XeroPaginationToken] = None,
+    status: Optional[
+        Literal["DRAFT", "SUBMITTED", "AUTHORISED", "DELETED", "VOIDED", "PAID"]
+    ] = None,
+    from_date: Optional[datetime] = None,
+    to_date: Optional[datetime] = None,
+    contact_id: Optional[str] = None,
+) -> tuple[List[XeroInvoice], Optional[XeroPaginationToken]]:
+    """
+    List invoices from Xero with pagination and optional filtering.
+
+    Args:
+        xero_tenant: The Xero tenant to get invoices from
+        pagination_token: Page number for pagination (starts at 1)
+        status: Filter by invoice status (DRAFT, SUBMITTED, AUTHORISED, etc.)
+        from_date: Filter invoices from this date (based on invoice date)
+        to_date: Filter invoices to this date (based on invoice date)
+        contact_id: Filter invoices for a specific contact
+
+    Returns:
+        A tuple containing:
+        - List of Xero invoices (maximum 100 per request)
+        - Next pagination token (None if no more invoices available)
+    """
+    params = {}
+
+    # Add pagination
+    if pagination_token is not None:
+        params["page"] = pagination_token.offset
+
+    # Build where clause for filtering
+    where_conditions = []
+
+    if status:
+        where_conditions.append(f'Status=="{status}"')
+
+    if from_date:
+        where_conditions.append(
+            f"Date >= DateTime({from_date.year}, {from_date.month:02d}, {from_date.day:02d})"
+        )
+
+    if to_date:
+        where_conditions.append(
+            f"Date <= DateTime({to_date.year}, {to_date.month:02d}, {to_date.day:02d})"
+        )
+
+    if contact_id:
+        where_conditions.append(f'Contact.ContactID.ToString()=="{contact_id}"')
+
+    if where_conditions:
+        where_clause = " && ".join(where_conditions)
+        params["where"] = urllib.parse.quote(where_clause)
+
+    response = await xero_client.get(
+        "https://api.xero.com/api.xro/2.0/Invoices",
+        headers={"Xero-tenant-id": xero_tenant.tenant_id},
+        params=params if params else None,
+    )
+    await raise_error_text(response)
+    await response.aread()
+    data = response.json()
+
+    if not data.get("Invoices"):
+        return [], None
+
+    # Get organisation info once to get the short code for all invoices
+    try:
+        org = await _xero_get_organisation(xero_tenant)
+        short_code = org.short_code
+    except Exception:
+        short_code = ""  # Fallback if org info can't be fetched
+
+    # Convert each invoice and generate URLs
+    invoices = []
+    for invoice_data in data.get("Invoices", []):
+        # Generate the appropriate URL based on invoice status
+        url = (
+            _get_invoice_url(
+                short_code,
+                invoice_data.get("InvoiceID"),
+                invoice_data.get("Status", ""),
+            )
+            if short_code
+            else None
+        )
+
+        invoice = XeroInvoice(
+            invoice_id=invoice_data.get("InvoiceID", ""),
+            type=invoice_data.get("Type", ""),
+            contact=_xero_contact_to_lutra(invoice_data.get("Contact", {})),
+            date=_parse_xero_date(invoice_data.get("Date")),
+            due_date=_parse_xero_date(invoice_data.get("DueDate")),
+            status=invoice_data.get("Status", ""),
+            line_amount_types=invoice_data.get("LineAmountTypes", ""),
+            line_items=[
+                _xero_line_item_to_lutra(item)
+                for item in invoice_data.get("LineItems", [])
+            ],
+            sub_total=invoice_data.get("SubTotal", 0.0),
+            total_tax=invoice_data.get("TotalTax", 0.0),
+            total=invoice_data.get("Total", 0.0),
+            total_discount=invoice_data.get("TotalDiscount", 0.0),
+            invoice_number=invoice_data.get("InvoiceNumber"),
+            reference=invoice_data.get("Reference"),
+            currency_code=invoice_data.get("CurrencyCode"),
+            currency_rate=invoice_data.get("CurrencyRate"),
+            branding_theme_id=invoice_data.get("BrandingThemeID"),
+            url=url,
+            sent_to_contact=invoice_data.get("SentToContact"),
+            expected_payment_date=_parse_xero_date(
+                invoice_data.get("ExpectedPaymentDate")
+            ),
+            planned_payment_date=_parse_xero_date(
+                invoice_data.get("PlannedPaymentDate")
+            ),
+            has_attachments=invoice_data.get("HasAttachments"),
+            repeating_invoice_id=invoice_data.get("RepeatingInvoiceID"),
+            amount_due=invoice_data.get("AmountDue"),
+            amount_paid=invoice_data.get("AmountPaid"),
+            cis_deduction=invoice_data.get("CISDeduction"),
+            fully_paid_on_date=_parse_xero_date(invoice_data.get("FullyPaidOnDate")),
+            amount_credited=invoice_data.get("AmountCredited"),
+            sales_tax_calculation_type_code=invoice_data.get(
+                "SalesTaxCalculationTypeCode"
+            ),
+            invoice_addresses=invoice_data.get("InvoiceAddresses"),
+            updated_date_utc=_parse_xero_date(invoice_data.get("UpdatedDateUTC")),
+        )
+        invoices.append(invoice)
+
+    # Create next pagination token if we got a full page (100 invoices)
+    next_token = None
+    if len(invoices) == 100:  # Full page indicates more results may be available
+        current_page = pagination_token.offset if pagination_token else 1
+        next_token = XeroPaginationToken(offset=current_page + 1)
+
+    return invoices, next_token
+
+
 @purpose("List journals from Xero")
 async def xero_list_journals(
     xero_tenant: XeroTenant,
     pagination_token: Optional[XeroPaginationToken] = None,
     payments_only: Optional[bool] = None,
-) -> Tuple[List[XeroJournal], Optional[XeroPaginationToken]]:
+) -> tuple[List[XeroJournal], Optional[XeroPaginationToken]]:
     """
     List journals from Xero. Journals include both accounts payable (bills/vendor payments)
     and accounts receivable (invoices/customer payments) transactions, so filtering by
-    source_type may be needed for specific use cases.
+    source_type may be needed for specific use cases. Invoices have status
 
     Args:
         xero_tenant: The Xero tenant to get journals from
@@ -1900,4 +2254,3 @@ async def xero_get_accounts_by_type(
         return []
 
     return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
-
