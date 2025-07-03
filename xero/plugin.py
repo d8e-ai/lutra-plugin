@@ -195,152 +195,152 @@ class XeroOrganisation:
     line_of_business: Optional[str] = None
 
 
-@dataclass
-class XeroJournalLine:
-    """Journal line item on a Xero journal."""
+# @dataclass
+# class XeroJournalLine:
+#     """Journal line item on a Xero journal."""
 
-    journal_line_id: str
-    account_id: str
-    account_code: str
-    account_type: str
-    account_name: str
-    net_amount: float
-    gross_amount: float
-    tax_amount: float
-    description: Optional[str] = None
-    tax_type: Optional[str] = None
-    tax_name: Optional[str] = None
-    tracking_categories: Optional[List[Dict[str, Any]]] = None
-
-
-@dataclass
-class XeroJournal:
-    """Journal entry in Xero."""
-
-    journal_id: str
-    journal_date: datetime
-    journal_number: int
-    created_date_utc: datetime
-    journal_lines: List[XeroJournalLine]
-    reference: Optional[str] = None
-    source_id: Optional[str] = None
-    source_type: Optional[str] = None
+#     journal_line_id: str
+#     account_id: str
+#     account_code: str
+#     account_type: str
+#     account_name: str
+#     net_amount: float
+#     gross_amount: float
+#     tax_amount: float
+#     description: Optional[str] = None
+#     tax_type: Optional[str] = None
+#     tax_name: Optional[str] = None
+#     tracking_categories: Optional[List[Dict[str, Any]]] = None
 
 
-@dataclass
-class XeroBankAccount:
-    """Bank account information in Xero."""
+# @dataclass
+# class XeroJournal:
+#     """Journal entry in Xero."""
 
-    account_id: str
-    name: str
-    code: Optional[str] = None
-
-
-@dataclass
-class XeroBankTransfer:
-    """Bank transfer in Xero."""
-
-    bank_transfer_id: str
-    date: datetime
-    amount: float
-    from_bank_account: XeroBankAccount
-    to_bank_account: XeroBankAccount
-    created_date_utc: datetime
-    from_bank_transaction_id: Optional[str] = None
-    to_bank_transaction_id: Optional[str] = None
-    from_is_reconciled: Optional[bool] = None
-    to_is_reconciled: Optional[bool] = None
-    reference: Optional[str] = None
-    currency_rate: Optional[float] = None
-    has_attachments: Optional[bool] = None
+#     journal_id: str
+#     journal_date: datetime
+#     journal_number: int
+#     created_date_utc: datetime
+#     journal_lines: List[XeroJournalLine]
+#     reference: Optional[str] = None
+#     source_id: Optional[str] = None
+#     source_type: Optional[str] = None
 
 
-@dataclass
-class XeroBankAccountSummary:
-    """Simplified bank account summary data."""
+# @dataclass
+# class XeroBankAccount:
+#     """Bank account information in Xero."""
 
-    account_id: Optional[str]
-    account_name: str
-    opening_balance: float
-    cash_received: float
-    cash_spent: float
-    closing_balance: float
+#     account_id: str
+#     name: str
+#     code: Optional[str] = None
 
 
-@dataclass
-class XeroAccount:
-    """Account from Xero."""
+# @dataclass
+# class XeroBankTransfer:
+#     """Bank transfer in Xero."""
 
-    account_id: str
-    code: Optional[str]
-    name: str
-    type: str
-    tax_type: Optional[str] = None
-    status: Optional[str] = None
-    description: Optional[str] = None
-    bank_account_number: Optional[str] = None
-    bank_account_type: Optional[str] = None
-    currency_code: Optional[str] = None
-    enable_payments_to_account: Optional[bool] = None
-    show_in_expense_claims: Optional[bool] = None
-    class_: Optional[str] = None  # 'class' is a reserved keyword in Python
-    system_account: Optional[str] = None
-    reporting_code: Optional[str] = None
-    reporting_code_updated_utc: Optional[datetime] = None
-    reporting_code_name: Optional[str] = None
-    has_attachments: Optional[bool] = None
-    updated_date_utc: Optional[datetime] = None
-    add_to_watchlist: Optional[bool] = None
+#     bank_transfer_id: str
+#     date: datetime
+#     amount: float
+#     from_bank_account: XeroBankAccount
+#     to_bank_account: XeroBankAccount
+#     created_date_utc: datetime
+#     from_bank_transaction_id: Optional[str] = None
+#     to_bank_transaction_id: Optional[str] = None
+#     from_is_reconciled: Optional[bool] = None
+#     to_is_reconciled: Optional[bool] = None
+#     reference: Optional[str] = None
+#     currency_rate: Optional[float] = None
+#     has_attachments: Optional[bool] = None
 
 
-@dataclass
-class XeroBalanceSheetLineItem:
-    """A line item in the balance sheet - can be an account or a grouping of other line items."""
+# @dataclass
+# class XeroBankAccountSummary:
+#     """Simplified bank account summary data."""
 
-    name: str
-    account_id: Optional[str]  # None for groupings, populated for actual accounts
-    value: float  # Value for this specific period
-    child_balance_line_items: List[Any]  # Recursive tree structure
-
-
-@dataclass
-class XeroBalanceSheetAssets:
-    """Assets portion of the balance sheet for a specific period."""
-
-    line_items: List[XeroBalanceSheetLineItem]
-    total: float
+#     account_id: Optional[str]
+#     account_name: str
+#     opening_balance: float
+#     cash_received: float
+#     cash_spent: float
+#     closing_balance: float
 
 
-@dataclass
-class XeroBalanceSheetLiabilitiesAndEquity:
-    """Liabilities and Equity portion of the balance sheet for a specific period."""
+# @dataclass
+# class XeroAccount:
+#     """Account from Xero."""
 
-    liabilities_line_items: List[XeroBalanceSheetLineItem]
-    equity_line_items: List[XeroBalanceSheetLineItem]
-    liabilities_total: float
-    equity_total: float
-    combined_total: float
+#     account_id: str
+#     code: Optional[str]
+#     name: str
+#     type: str
+#     tax_type: Optional[str] = None
+#     status: Optional[str] = None
+#     description: Optional[str] = None
+#     bank_account_number: Optional[str] = None
+#     bank_account_type: Optional[str] = None
+#     currency_code: Optional[str] = None
+#     enable_payments_to_account: Optional[bool] = None
+#     show_in_expense_claims: Optional[bool] = None
+#     class_: Optional[str] = None  # 'class' is a reserved keyword in Python
+#     system_account: Optional[str] = None
+#     reporting_code: Optional[str] = None
+#     reporting_code_updated_utc: Optional[datetime] = None
+#     reporting_code_name: Optional[str] = None
+#     has_attachments: Optional[bool] = None
+#     updated_date_utc: Optional[datetime] = None
+#     add_to_watchlist: Optional[bool] = None
 
 
-@dataclass
-class XeroBalanceSheetPeriodData:
-    """Complete financial data for a specific period."""
+# @dataclass
+# class XeroBalanceSheetLineItem:
+#     """A line item in the balance sheet - can be an account or a grouping of other line items."""
 
-    assets: XeroBalanceSheetAssets
-    liabilities_and_equity: XeroBalanceSheetLiabilitiesAndEquity
+#     name: str
+#     account_id: Optional[str]  # None for groupings, populated for actual accounts
+#     value: float  # Value for this specific period
+#     child_balance_line_items: List[Any]  # Recursive tree structure
 
 
-@dataclass
-class XeroBalanceSheet:
-    """Balance sheet with meaningful financial structure supporting multiple periods.
+# @dataclass
+# class XeroBalanceSheetAssets:
+#     """Assets portion of the balance sheet for a specific period."""
 
-    Represents the fundamental accounting equation: Assets = Liabilities + Equity
-    """
+#     line_items: List[XeroBalanceSheetLineItem]
+#     total: float
 
-    report_date: str
-    periods: dict[
-        datetime, XeroBalanceSheetPeriodData
-    ]  # Maps period datetime to complete period data
+
+# @dataclass
+# class XeroBalanceSheetLiabilitiesAndEquity:
+#     """Liabilities and Equity portion of the balance sheet for a specific period."""
+
+#     liabilities_line_items: List[XeroBalanceSheetLineItem]
+#     equity_line_items: List[XeroBalanceSheetLineItem]
+#     liabilities_total: float
+#     equity_total: float
+#     combined_total: float
+
+
+# @dataclass
+# class XeroBalanceSheetPeriodData:
+#     """Complete financial data for a specific period."""
+
+#     assets: XeroBalanceSheetAssets
+#     liabilities_and_equity: XeroBalanceSheetLiabilitiesAndEquity
+
+
+# @dataclass
+# class XeroBalanceSheet:
+#     """Balance sheet with meaningful financial structure supporting multiple periods.
+
+#     Represents the fundamental accounting equation: Assets = Liabilities + Equity
+#     """
+
+#     report_date: str
+#     periods: dict[
+#         datetime, XeroBalanceSheetPeriodData
+#     ]  # Maps period datetime to complete period data
 
 
 @dataclass
@@ -350,14 +350,14 @@ class XeroPaginationToken:
     offset: int
 
 
-@dataclass
-class XeroOnlineInvoice:
-    online_invoice_url: str
+# @dataclass
+# class XeroOnlineInvoice:
+#     online_invoice_url: str
 
 
-@dataclass
-class XeroOnlineInvoiceResponse:
-    online_invoices: List[XeroOnlineInvoice]
+# @dataclass
+# class XeroOnlineInvoiceResponse:
+#     online_invoices: List[XeroOnlineInvoice]
 
 
 # Configure OAuth client for Xero API
@@ -657,167 +657,167 @@ def _convert_organisation_to_snake_case(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _extract_period_line_items(
-    line_items_with_periods: List[Dict[str, Any]], period_label: str
-) -> List[XeroBalanceSheetLineItem]:
-    """Extract line items for a specific period from line items with period data."""
-    result = []
-    for item in line_items_with_periods:
-        # Extract value for this specific period
-        value = item["period_values"].get(period_label, 0.0)
+# def _extract_period_line_items(
+#     line_items_with_periods: List[Dict[str, Any]], period_label: str
+# ) -> List[XeroBalanceSheetLineItem]:
+#     """Extract line items for a specific period from line items with period data."""
+#     result = []
+#     for item in line_items_with_periods:
+#         # Extract value for this specific period
+#         value = item["period_values"].get(period_label, 0.0)
 
-        # Recursively extract child items for this period
-        children = _extract_period_line_items(item["children"], period_label)
+#         # Recursively extract child items for this period
+#         children = _extract_period_line_items(item["children"], period_label)
 
-        line_item = XeroBalanceSheetLineItem(
-            name=item["name"],
-            account_id=item["account_id"],
-            value=value,
-            child_balance_line_items=children,
-        )
-        result.append(line_item)
+#         line_item = XeroBalanceSheetLineItem(
+#             name=item["name"],
+#             account_id=item["account_id"],
+#             value=value,
+#             child_balance_line_items=children,
+#         )
+#         result.append(line_item)
 
-    return result
-
-
-def _calculate_line_items_total(line_items: List[XeroBalanceSheetLineItem]) -> float:
-    """Calculate total value from a list of line items."""
-    return sum(item.value for item in line_items)
+#     return result
 
 
-def _parse_balance_sheet_data(data: Dict[str, Any]) -> XeroBalanceSheet:
-    """Parse raw Xero balance sheet API response into meaningful financial structure."""
-    if not data.get("Reports") or len(data["Reports"]) == 0:
-        raise ValueError("No balance sheet report found in response")
+# def _calculate_line_items_total(line_items: List[XeroBalanceSheetLineItem]) -> float:
+#     """Calculate total value from a list of line items."""
+#     return sum(item.value for item in line_items)
 
-    report = data["Reports"][0]
-    rows = report.get("Rows", [])
 
-    # Extract header information for period labels
-    period_labels = []
+# def _parse_balance_sheet_data(data: Dict[str, Any]) -> XeroBalanceSheet:
+#     """Parse raw Xero balance sheet API response into meaningful financial structure."""
+#     if not data.get("Reports") or len(data["Reports"]) == 0:
+#         raise ValueError("No balance sheet report found in response")
 
-    # Find header row to get period labels
-    for row in rows:
-        if row.get("RowType") == "Header" and row.get("Cells"):
-            cells = row["Cells"]
-            # Skip first cell (empty), extract period labels from remaining cells
-            for i in range(1, len(cells)):
-                label = cells[i].get("Value", "")
-                if label:
-                    period_labels.append(label)
-            break
+#     report = data["Reports"][0]
+#     rows = report.get("Rows", [])
 
-    # Default labels if none found
-    if not period_labels:
-        period_labels = ["Current Period"]
+#     # Extract header information for period labels
+#     period_labels = []
 
-    # Parse period dates from labels
-    period_dates = []
-    for label in period_labels:
-        # Try to parse the date from the label
-        parsed_date = None
-        # Parse the date from the label - Xero always provides valid date labels for balance sheets
-        # Use replace(tzinfo=None) to create timezone-naive datetime to avoid warnings
-        parsed_date = dateutil_parse(label).replace(tzinfo=None)
+#     # Find header row to get period labels
+#     for row in rows:
+#         if row.get("RowType") == "Header" and row.get("Cells"):
+#             cells = row["Cells"]
+#             # Skip first cell (empty), extract period labels from remaining cells
+#             for i in range(1, len(cells)):
+#                 label = cells[i].get("Value", "")
+#                 if label:
+#                     period_labels.append(label)
+#             break
 
-        period_dates.append(parsed_date)
+#     # Default labels if none found
+#     if not period_labels:
+#         period_labels = ["Current Period"]
 
-    # Initialize major categories
-    assets_line_items = []
-    liabilities_line_items = []
-    equity_line_items = []
+#     # Parse period dates from labels
+#     period_dates = []
+#     for label in period_labels:
+#         # Try to parse the date from the label
+#         parsed_date = None
+#         # Parse the date from the label - Xero always provides valid date labels for balance sheets
+#         # Use replace(tzinfo=None) to create timezone-naive datetime to avoid warnings
+#         parsed_date = dateutil_parse(label).replace(tzinfo=None)
 
-    # Parse sections
-    current_major_category = None
+#         period_dates.append(parsed_date)
 
-    for row in rows:
-        if row.get("RowType") == "Section":
-            title = row.get("Title", "").strip()
+#     # Initialize major categories
+#     assets_line_items = []
+#     liabilities_line_items = []
+#     equity_line_items = []
 
-            # Determine major category
-            if title in ["Assets", "Liabilities and Equity", "Liabilities", "Equity"]:
-                current_major_category = title
+#     # Parse sections
+#     current_major_category = None
 
-                # If this major section has subsections, parse them
-                if row.get("Rows"):
-                    for sub_row in row["Rows"]:
-                        if sub_row.get("RowType") == "Section":
-                            line_item = _parse_balance_sheet_line_item(
-                                sub_row, period_labels
-                            )
-                            if line_item:
-                                if current_major_category == "Assets":
-                                    assets_line_items.append(line_item)
-                                elif current_major_category in [
-                                    "Liabilities",
-                                    "Liabilities and Equity",
-                                ]:
-                                    liabilities_line_items.append(line_item)
-                                elif current_major_category == "Equity":
-                                    equity_line_items.append(line_item)
+#     for row in rows:
+#         if row.get("RowType") == "Section":
+#             title = row.get("Title", "").strip()
 
-            # Handle sections within major categories
-            elif title and current_major_category and row.get("Rows"):
-                line_item = _parse_balance_sheet_line_item(row, period_labels)
-                if line_item:
-                    if current_major_category == "Assets":
-                        assets_line_items.append(line_item)
-                    elif current_major_category in [
-                        "Liabilities",
-                        "Liabilities and Equity",
-                    ]:
-                        liabilities_line_items.append(line_item)
-                    elif current_major_category == "Equity":
-                        equity_line_items.append(line_item)
+#             # Determine major category
+#             if title in ["Assets", "Liabilities and Equity", "Liabilities", "Equity"]:
+#                 current_major_category = title
 
-        # Now create period-specific data
-    periods_dict = {}
+#                 # If this major section has subsections, parse them
+#                 if row.get("Rows"):
+#                     for sub_row in row["Rows"]:
+#                         if sub_row.get("RowType") == "Section":
+#                             line_item = _parse_balance_sheet_line_item(
+#                                 sub_row, period_labels
+#                             )
+#                             if line_item:
+#                                 if current_major_category == "Assets":
+#                                     assets_line_items.append(line_item)
+#                                 elif current_major_category in [
+#                                     "Liabilities",
+#                                     "Liabilities and Equity",
+#                                 ]:
+#                                     liabilities_line_items.append(line_item)
+#                                 elif current_major_category == "Equity":
+#                                     equity_line_items.append(line_item)
 
-    for i, period_date in enumerate(period_dates):
-        period_label = period_labels[
-            i
-        ]  # Still need the label for extracting from raw data
+#             # Handle sections within major categories
+#             elif title and current_major_category and row.get("Rows"):
+#                 line_item = _parse_balance_sheet_line_item(row, period_labels)
+#                 if line_item:
+#                     if current_major_category == "Assets":
+#                         assets_line_items.append(line_item)
+#                     elif current_major_category in [
+#                         "Liabilities",
+#                         "Liabilities and Equity",
+#                     ]:
+#                         liabilities_line_items.append(line_item)
+#                     elif current_major_category == "Equity":
+#                         equity_line_items.append(line_item)
 
-        # Extract line items for this specific period
-        assets_line_items_for_period = _extract_period_line_items(
-            assets_line_items, period_label
-        )
-        liabilities_line_items_for_period = _extract_period_line_items(
-            liabilities_line_items, period_label
-        )
-        equity_line_items_for_period = _extract_period_line_items(
-            equity_line_items, period_label
-        )
+#         # Now create period-specific data
+#     periods_dict = {}
 
-        # Calculate totals
-        assets_total = _calculate_line_items_total(assets_line_items_for_period)
-        liabilities_total = _calculate_line_items_total(
-            liabilities_line_items_for_period
-        )
-        equity_total = _calculate_line_items_total(equity_line_items_for_period)
-        combined_total = liabilities_total + equity_total
+#     for i, period_date in enumerate(period_dates):
+#         period_label = period_labels[
+#             i
+#         ]  # Still need the label for extracting from raw data
 
-        # Create period data
-        period_data = XeroBalanceSheetPeriodData(
-            assets=XeroBalanceSheetAssets(
-                line_items=assets_line_items_for_period,
-                total=assets_total,
-            ),
-            liabilities_and_equity=XeroBalanceSheetLiabilitiesAndEquity(
-                liabilities_line_items=liabilities_line_items_for_period,
-                equity_line_items=equity_line_items_for_period,
-                liabilities_total=liabilities_total,
-                equity_total=equity_total,
-                combined_total=combined_total,
-            ),
-        )
+#         # Extract line items for this specific period
+#         assets_line_items_for_period = _extract_period_line_items(
+#             assets_line_items, period_label
+#         )
+#         liabilities_line_items_for_period = _extract_period_line_items(
+#             liabilities_line_items, period_label
+#         )
+#         equity_line_items_for_period = _extract_period_line_items(
+#             equity_line_items, period_label
+#         )
 
-        periods_dict[period_date] = period_data
+#         # Calculate totals
+#         assets_total = _calculate_line_items_total(assets_line_items_for_period)
+#         liabilities_total = _calculate_line_items_total(
+#             liabilities_line_items_for_period
+#         )
+#         equity_total = _calculate_line_items_total(equity_line_items_for_period)
+#         combined_total = liabilities_total + equity_total
 
-    return XeroBalanceSheet(
-        report_date=report.get("ReportDate", ""),
-        periods=periods_dict,
-    )
+#         # Create period data
+#         period_data = XeroBalanceSheetPeriodData(
+#             assets=XeroBalanceSheetAssets(
+#                 line_items=assets_line_items_for_period,
+#                 total=assets_total,
+#             ),
+#             liabilities_and_equity=XeroBalanceSheetLiabilitiesAndEquity(
+#                 liabilities_line_items=liabilities_line_items_for_period,
+#                 equity_line_items=equity_line_items_for_period,
+#                 liabilities_total=liabilities_total,
+#                 equity_total=equity_total,
+#                 combined_total=combined_total,
+#             ),
+#         )
+
+#         periods_dict[period_date] = period_data
+
+#     return XeroBalanceSheet(
+#         report_date=report.get("ReportDate", ""),
+#         periods=periods_dict,
+#     )
 
 
 def _parse_balance_sheet_line_item(
@@ -915,14 +915,14 @@ def _convert_online_invoice_response_to_snake_case(
     return {"online_invoices": online_invoices}
 
 
-def _xero_online_url_response_to_lutra(
-    data: Dict[str, Any],
-) -> XeroOnlineInvoiceResponse:
-    global _XOURL_TA
-    if _XOURL_TA is None:
-        _XOURL_TA = TypeAdapter(XeroOnlineInvoiceResponse)
-    converted_data = _convert_online_invoice_response_to_snake_case(data)
-    return _XOURL_TA.validate_python(converted_data)
+# def _xero_online_url_response_to_lutra(
+#     data: Dict[str, Any],
+# ) -> XeroOnlineInvoiceResponse:
+#     global _XOURL_TA
+#     if _XOURL_TA is None:
+#         _XOURL_TA = TypeAdapter(XeroOnlineInvoiceResponse)
+#     converted_data = _convert_online_invoice_response_to_snake_case(data)
+#     return _XOURL_TA.validate_python(converted_data)
 
 
 def _xero_contact_to_lutra(data: Dict[str, Any]) -> XeroContact:
@@ -941,36 +941,36 @@ def _xero_line_item_to_lutra(data: Dict[str, Any]) -> XeroLineItem:
     return _XC_LI.validate_python(converted_data)
 
 
-def _xero_journal_to_lutra(data: Dict[str, Any]) -> XeroJournal:
-    global _XJ_TA
-    if _XJ_TA is None:
-        _XJ_TA = TypeAdapter(XeroJournal)
-    converted_data = _convert_journal_to_snake_case(data)
-    return _XJ_TA.validate_python(converted_data)
+# # def _xero_journal_to_lutra(data: Dict[str, Any]) -> XeroJournal:
+# #     global _XJ_TA
+# #     if _XJ_TA is None:
+# #         _XJ_TA = TypeAdapter(XeroJournal)
+# #     converted_data = _convert_journal_to_snake_case(data)
+# #     return _XJ_TA.validate_python(converted_data)
 
 
-def _xero_bank_account_to_lutra(data: Dict[str, Any]) -> XeroBankAccount:
-    global _XBA_TA
-    if _XBA_TA is None:
-        _XBA_TA = TypeAdapter(XeroBankAccount)
-    converted_data = _convert_bank_account_to_snake_case(data)
-    return _XBA_TA.validate_python(converted_data)
+# def _xero_bank_account_to_lutra(data: Dict[str, Any]) -> XeroBankAccount:
+#     global _XBA_TA
+#     if _XBA_TA is None:
+#         _XBA_TA = TypeAdapter(XeroBankAccount)
+#     converted_data = _convert_bank_account_to_snake_case(data)
+#     return _XBA_TA.validate_python(converted_data)
 
 
-def _xero_bank_transfer_to_lutra(data: Dict[str, Any]) -> XeroBankTransfer:
-    global _XBT_TA
-    if _XBT_TA is None:
-        _XBT_TA = TypeAdapter(XeroBankTransfer)
-    converted_data = _convert_bank_transfer_to_snake_case(data)
-    return _XBT_TA.validate_python(converted_data)
+# def _xero_bank_transfer_to_lutra(data: Dict[str, Any]) -> XeroBankTransfer:
+#     global _XBT_TA
+#     if _XBT_TA is None:
+#         _XBT_TA = TypeAdapter(XeroBankTransfer)
+#     converted_data = _convert_bank_transfer_to_snake_case(data)
+#     return _XBT_TA.validate_python(converted_data)
 
 
-def _xero_account_to_lutra(data: Dict[str, Any]) -> XeroAccount:
-    global _XA_TA
-    if _XA_TA is None:
-        _XA_TA = TypeAdapter(XeroAccount)
-    converted_data = _convert_account_to_snake_case(data)
-    return _XA_TA.validate_python(converted_data)
+# def _xero_account_to_lutra(data: Dict[str, Any]) -> XeroAccount:
+#     global _XA_TA
+#     if _XA_TA is None:
+#         _XA_TA = TypeAdapter(XeroAccount)
+#     converted_data = _convert_account_to_snake_case(data)
+#     return _XA_TA.validate_python(converted_data)
 
 
 def _xero_organisation_to_lutra(data: Dict[str, Any]) -> XeroOrganisation:
@@ -981,8 +981,8 @@ def _xero_organisation_to_lutra(data: Dict[str, Any]) -> XeroOrganisation:
     return _XO_TA.validate_python(converted_data)
 
 
-def _xero_balance_sheet_to_lutra(data: Dict[str, Any]) -> XeroBalanceSheet:
-    return _parse_balance_sheet_data(data)
+# def _xero_balance_sheet_to_lutra(data: Dict[str, Any]) -> XeroBalanceSheet:
+#     return _parse_balance_sheet_data(data)
 
 
 def _get_invoice_url(short_code: str, invoice_id: str, status: str) -> Optional[str]:
@@ -1058,27 +1058,27 @@ async def _xero_get_organisation(xero_tenant: XeroTenant) -> XeroOrganisation:
     return _xero_organisation_to_lutra(organisation_data)
 
 
-@purpose("Disconnect a Xero tenant")
-async def xero_disconnect_tenant(xero_tenant: XeroTenant) -> None:
-    """
-    Disconnect a Xero tenant from your app. This removes the connection between
-    your app and the organization, but does not revoke the access tokens.
-    To revoke tokens, use the token revocation endpoint separately.
+# @purpose("Disconnect a Xero tenant")
+# async def xero_disconnect_tenant(xero_tenant: XeroTenant) -> None:
+#     """
+#     Disconnect a Xero tenant from your app. This removes the connection between
+#     your app and the organization, but does not revoke the access tokens.
+#     To revoke tokens, use the token revocation endpoint separately.
 
-    Args:
-        xero_tenant: The Xero tenant to disconnect (uses connection_id, not tenant_id)
+#     Args:
+#         xero_tenant: The Xero tenant to disconnect (uses connection_id, not tenant_id)
 
-    Raises:
-        ValueError: If the disconnect fails
-    """
-    response = await xero_client.delete(
-        f"https://api.xero.com/connections/{xero_tenant.connection_id}",
-    )
+#     Raises:
+#         ValueError: If the disconnect fails
+#     """
+#     response = await xero_client.delete(
+#         f"https://api.xero.com/connections/{xero_tenant.connection_id}",
+#     )
 
-    # Xero returns 204 (No Content) on successful disconnect
-    if response.status_code != 204:
-        await raise_error_text(response)
-        raise ValueError(f"Failed to disconnect tenant {xero_tenant.tenant_name}")
+#     # Xero returns 204 (No Content) on successful disconnect
+#     if response.status_code != 204:
+#         await raise_error_text(response)
+#         raise ValueError(f"Failed to disconnect tenant {xero_tenant.tenant_name}")
 
     # Success - 204 response with empty body, nothing to return
 
@@ -1806,451 +1806,451 @@ async def xero_list_invoices(
     return invoices, next_token
 
 
-@purpose("List journals from Xero")
-async def xero_list_journals(
-    xero_tenant: XeroTenant,
-    pagination_token: Optional[XeroPaginationToken] = None,
-    payments_only: Optional[bool] = None,
-) -> tuple[List[XeroJournal], Optional[XeroPaginationToken]]:
-    """
-    List journals from Xero. Journals include both accounts payable (bills/vendor payments)
-    and accounts receivable (invoices/customer payments) transactions, so filtering by
-    source_type may be needed for specific use cases. Invoices have status
-
-    Args:
-        xero_tenant: The Xero tenant to get journals from
-        pagination_token: Offset for pagination - journals are ordered by journal_number
-        payments_only: Cash basis (true) vs accrual basis (false, default) accounting
-
-    Returns:
-        A tuple containing:
-        - List of Xero journals (maximum 100 per request)
-        - Next pagination token (None if no more journals available)
-    """
-    url = "https://api.xero.com/api.xro/2.0/Journals"
-    params = {}
-
-    if pagination_token is not None:
-        params["offset"] = pagination_token.offset
-    if payments_only is not None:
-        params["paymentsOnly"] = str(payments_only).lower()
-
-    response = await xero_client.get(
-        url,
-        headers={"Xero-tenant-id": xero_tenant.tenant_id},
-        params=params if params else None,
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    if not data.get("Journals"):
-        return [], None
-
-    journals = [_xero_journal_to_lutra(journal) for journal in data.get("Journals", [])]
-
-    # Create next pagination token if we got a full page (100 journals)
-    # The next offset should be the journal number of the last journal
-    next_token = None
-    if len(journals) == 100:  # Full page indicates more results may be available
-        last_journal_number = journals[-1].journal_number
-        next_token = XeroPaginationToken(offset=last_journal_number)
-
-    return journals, next_token
-
-
-@purpose("Get a specific journal from Xero")
-async def xero_get_journal(
-    xero_tenant: XeroTenant, journal_identifier: str
-) -> XeroJournal:
-    """
-    Get a specific journal from Xero. Journal entries show the double-entry bookkeeping
-    behind transactions - each journal has multiple lines that must balance (debits = credits).
-
-    Args:
-        xero_tenant: The Xero tenant to get the journal from
-        journal_identifier: Either journal ID (UUID) or journal number (integer)
-
-    Returns:
-        The Xero journal with the specified identifier
-    """
-    response = await xero_client.get(
-        f"https://api.xero.com/api.xro/2.0/Journals/{journal_identifier}",
-        headers={"Xero-tenant-id": xero_tenant.tenant_id},
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    if not data.get("Journals") or len(data.get("Journals")) == 0:
-        raise ValueError(f"Journal with identifier {journal_identifier} not found")
-
-    journal_data = data.get("Journals")[0]
-    return _xero_journal_to_lutra(journal_data)
-
-
-@purpose("List bank transfers from Xero")
-async def xero_list_bank_transfers(
-    xero_tenant: XeroTenant,
-    from_date: Optional[datetime] = None,
-    to_date: Optional[datetime] = None,
-) -> List[XeroBankTransfer]:
-    """
-    List bank transfers from Xero, optionally filtered by date range.
-
-    Args:
-        xero_tenant: The Xero tenant to get bank transfers from
-        from_date: Optional start datetime to filter bank transfers from (inclusive)
-        to_date: Optional end datetime to filter bank transfers to (inclusive)
-
-    Returns:
-        A list of Xero bank transfers
-    """
-    headers = {"Xero-tenant-id": xero_tenant.tenant_id}
-    params = {}
-
-    # Build where clause for date filtering if dates are provided
-    if from_date or to_date:
-        where_conditions = []
-
-        if from_date:
-            # Format: Date >= DateTime(year, month, day)
-            where_conditions.append(
-                f"Date >= DateTime({from_date.year}, {from_date.month:02d}, {from_date.day:02d})"
-            )
-
-        if to_date:
-            # Format: Date <= DateTime(year, month, day)
-            where_conditions.append(
-                f"Date <= DateTime({to_date.year}, {to_date.month:02d}, {to_date.day:02d})"
-            )
-
-        # Join conditions with &&
-        where_clause = " && ".join(where_conditions)
-
-        # Percent encode the where clause
-        params["where"] = urllib.parse.quote(where_clause)
-
-    response = await xero_client.get(
-        "https://api.xero.com/api.xro/2.0/BankTransfers",
-        headers=headers,
-        params=params if params else None,
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    if not data.get("BankTransfers"):
-        return []
-
-    return [
-        _xero_bank_transfer_to_lutra(transfer)
-        for transfer in data.get("BankTransfers", [])
-    ]
-
-
-@purpose("Get a specific bank transfer from Xero")
-async def xero_get_bank_transfer(
-    xero_tenant: XeroTenant, bank_transfer_id: str
-) -> XeroBankTransfer:
-    """
-    Get a specific bank transfer from Xero. Bank transfers move money between bank accounts
-    within the same organization and create corresponding journal entries.
-
-    Args:
-        xero_tenant: The Xero tenant to get the bank transfer from
-        bank_transfer_id: UUID of the bank transfer
-
-    Returns:
-        The Xero bank transfer with the specified ID
-    """
-    response = await xero_client.get(
-        f"https://api.xero.com/api.xro/2.0/BankTransfers/{bank_transfer_id}",
-        headers={"Xero-tenant-id": xero_tenant.tenant_id},
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    if not data.get("BankTransfers") or len(data.get("BankTransfers")) == 0:
-        raise ValueError(f"Bank transfer with ID {bank_transfer_id} not found")
-
-    transfer_data = data.get("BankTransfers")[0]
-    return _xero_bank_transfer_to_lutra(transfer_data)
-
-
-@purpose("Get bank summary report from Xero")
-async def xero_get_bank_summary(
-    xero_tenant: XeroTenant,
-    from_date: Optional[datetime] = None,
-    to_date: Optional[datetime] = None,
-) -> List[XeroBankAccountSummary]:
-    """
-    Get bank summary report from Xero. This provides cash flow analysis showing actual
-    money movement (not accrual accounting) - useful for cash position analysis.
-
-    Args:
-        xero_tenant: The Xero tenant to get the bank summary from
-        from_date: Period start - affects cash received/spent calculations
-        to_date: Period end - affects cash received/spent calculations
-
-    Returns:
-        A list of bank account summaries with balances and cash movements
-    """
-    params = {}
-
-    if from_date:
-        params["fromDate"] = from_date.strftime("%Y-%m-%d")
-    if to_date:
-        params["toDate"] = to_date.strftime("%Y-%m-%d")
-
-    response = await xero_client.get(
-        "https://api.xero.com/api.xro/2.0/Reports/BankSummary",
-        headers={"Xero-tenant-id": xero_tenant.tenant_id},
-        params=params if params else None,
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    # Extract bank account data from the response
-    bank_accounts = []
-
-    if data.get("Reports"):
-        for report in data["Reports"]:
-            if report.get("Rows"):
-                for row in report["Rows"]:
-                    if row.get("RowType") == "Section" and row.get("Rows"):
-                        for section_row in row["Rows"]:
-                            if section_row.get("RowType") == "Row" and section_row.get(
-                                "Cells"
-                            ):
-                                cells = section_row["Cells"]
-                                if len(cells) >= 5:
-                                    # Extract account ID from attributes if available
-                                    account_id = None
-                                    if cells[0].get("Attributes"):
-                                        for attr in cells[0]["Attributes"]:
-                                            if attr.get("Id") == "accountID":
-                                                account_id = attr.get("Value")
-                                                break
-
-                                    bank_account = XeroBankAccountSummary(
-                                        account_id=account_id,
-                                        account_name=cells[0]["Value"],
-                                        opening_balance=float(cells[1]["Value"]),
-                                        cash_received=float(cells[2]["Value"]),
-                                        cash_spent=float(cells[3]["Value"]),
-                                        closing_balance=float(cells[4]["Value"]),
-                                    )
-                                    bank_accounts.append(bank_account)
-
-    return bank_accounts
-
-
-@purpose("Get accounts from Xero")
-async def xero_get_accounts(
-    xero_tenant: XeroTenant,
-    modified_after: Optional[datetime] = None,
-) -> List[XeroAccount]:
-    """
-    Get all accounts from Xero.
-
-    Args:
-        xero_tenant: The Xero tenant to get accounts from
-        modified_after: Optional datetime to filter accounts created or modified after this timestamp
-
-    Returns:
-        A list of Xero accounts
-    """
-    headers = {"Xero-tenant-id": xero_tenant.tenant_id}
-
-    # Add If-Modified-Since header if modified_after is provided
-    if modified_after:
-        # Format as required by Xero API: yyyy-mm-ddThh:mm:ss
-        headers["If-Modified-Since"] = modified_after.strftime("%Y-%m-%dT%H:%M:%S")
-
-    response = await xero_client.get(
-        "https://api.xero.com/api.xro/2.0/Accounts",
-        headers=headers,
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    if not data.get("Accounts"):
-        return []
-
-    return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
-
-
-@purpose("List bank accounts from Xero")
-async def xero_list_bank_accounts(xero_tenant: XeroTenant) -> List[XeroAccount]:
-    """
-    Get all bank accounts from Xero (accounts with Type="BANK").
-
-    Args:
-        xero_tenant: The Xero tenant to get bank accounts from
-
-    Returns:
-        A list of Xero bank accounts
-    """
-    # Filter for bank accounts only
-    params = {"where": 'Type=="BANK"'}
-
-    response = await xero_client.get(
-        "https://api.xero.com/api.xro/2.0/Accounts",
-        headers={"Xero-tenant-id": xero_tenant.tenant_id},
-        params=params,
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    if not data.get("Accounts"):
-        return []
-
-    return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
-
-
-@purpose("Get a specific bank account from Xero")
-async def xero_get_bank_account(
-    xero_tenant: XeroTenant, account_id: str
-) -> XeroAccount:
-    """
-    Get a specific bank account from Xero. Validates the account is actually a bank account
-    (Type="BANK") rather than other account types like revenue, expense, or asset accounts.
-
-    Args:
-        xero_tenant: The Xero tenant to get the bank account from
-        account_id: UUID of the account
-
-    Returns:
-        The Xero bank account with the specified ID
-
-    Raises:
-        ValueError: If the account is not found or is not a bank account
-    """
-    response = await xero_client.get(
-        f"https://api.xero.com/api.xro/2.0/Accounts/{account_id}",
-        headers={"Xero-tenant-id": xero_tenant.tenant_id},
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    if not data.get("Accounts") or len(data.get("Accounts")) == 0:
-        raise ValueError(f"Account with ID {account_id} not found")
-
-    account_data = data.get("Accounts")[0]
-    account = _xero_account_to_lutra(account_data)
-
-    # Verify it's a bank account
-    if account.type != "BANK":
-        raise ValueError(
-            f"Account with ID {account_id} is not a bank account (type: {account.type})"
-        )
-
-    return account
-
-
-@purpose("Get balance sheet report from Xero")
-async def xero_get_balance_sheet(
-    xero_tenant: XeroTenant,
-    report_date: Optional[datetime] = None,
-    periods: Optional[int] = None,
-    timeframe: Optional[Literal["MONTH", "QUARTER", "YEAR"]] = None,
-) -> XeroBalanceSheet:
-    """
-    Get balance sheet report from Xero. Balance sheet shows financial position at a specific
-    point in time following the accounting equation: Assets = Liabilities + Equity.
-    Use periods and timeframe to get comparative data across multiple periods.
-
-    Args:
-        xero_tenant: The Xero tenant to get the balance sheet from
-        report_date: End date for the balance sheet - used with periods/timeframe for comparisons
-        periods: Number of comparison periods (1-11) - enables period-over-period analysis
-        timeframe: Size of each comparison period (MONTH, QUARTER, YEAR)
-
-    Returns:
-        The Xero balance sheet report with hierarchical structure
-    """
-    params = {}
-
-    if report_date:
-        params["date"] = report_date.strftime("%Y-%m-%d")
-    if periods is not None:
-        if not (1 <= periods <= 11):
-            raise ValueError("periods must be between 1 and 11")
-        params["periods"] = periods
-    if timeframe:
-        params["timeframe"] = timeframe
-
-    response = await xero_client.get(
-        "https://api.xero.com/api.xro/2.0/Reports/BalanceSheet",
-        headers={"Xero-tenant-id": xero_tenant.tenant_id},
-        params=params if params else None,
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    return _xero_balance_sheet_to_lutra(data)
-
-
-@purpose("Get accounts by type from Xero")
-async def xero_get_accounts_by_type(
-    xero_tenant: XeroTenant,
-    account_type: Literal[
-        "BANK",
-        "CURRENT",
-        "CURRLIAB",
-        "DEPRECIATN",
-        "DIRECTCOSTS",
-        "EQUITY",
-        "EXPENSE",
-        "FIXED",
-        "INVENTORY",
-        "LIABILITY",
-        "NONCURRENT",
-        "OTHERINCOME",
-        "OVERHEADS",
-        "PREPAYMENT",
-        "REVENUE",
-        "SALES",
-        "TERMLIAB",
-    ],
-) -> List[XeroAccount]:
-    """
-    Get accounts filtered by type from Xero. This is a convenience function to help
-    find appropriate account codes for invoice line items.
-
-    Common account types for invoices:
-    - REVENUE: For sales invoice line items (money coming in)
-    - EXPENSE/OVERHEADS: For bill line items (money going out)
-    - DIRECTCOSTS: For cost of goods sold
-    - BANK: For bank account transactions
-
-    Args:
-        xero_tenant: The Xero tenant to get accounts from
-        account_type: The type of accounts to filter by
-
-    Returns:
-        A list of Xero accounts of the specified type
-    """
-    # Filter for specific account type
-    params = {"where": f'Type=="{account_type}"'}
-
-    response = await xero_client.get(
-        "https://api.xero.com/api.xro/2.0/Accounts",
-        headers={"Xero-tenant-id": xero_tenant.tenant_id},
-        params=params,
-    )
-    await raise_error_text(response)
-    await response.aread()
-    data = response.json()
-
-    if not data.get("Accounts"):
-        return []
-
-    return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
+# @purpose("List journals from Xero")
+# async def xero_list_journals(
+#     xero_tenant: XeroTenant,
+#     pagination_token: Optional[XeroPaginationToken] = None,
+#     payments_only: Optional[bool] = None,
+# ) -> tuple[List[XeroJournal], Optional[XeroPaginationToken]]:
+#     """
+#     List journals from Xero. Journals include both accounts payable (bills/vendor payments)
+#     and accounts receivable (invoices/customer payments) transactions, so filtering by
+#     source_type may be needed for specific use cases. Invoices have status
+
+#     Args:
+#         xero_tenant: The Xero tenant to get journals from
+#         pagination_token: Offset for pagination - journals are ordered by journal_number
+#         payments_only: Cash basis (true) vs accrual basis (false, default) accounting
+
+#     Returns:
+#         A tuple containing:
+#         - List of Xero journals (maximum 100 per request)
+#         - Next pagination token (None if no more journals available)
+#     """
+#     url = "https://api.xero.com/api.xro/2.0/Journals"
+#     params = {}
+
+#     if pagination_token is not None:
+#         params["offset"] = pagination_token.offset
+#     if payments_only is not None:
+#         params["paymentsOnly"] = str(payments_only).lower()
+
+#     response = await xero_client.get(
+#         url,
+#         headers={"Xero-tenant-id": xero_tenant.tenant_id},
+#         params=params if params else None,
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     if not data.get("Journals"):
+#         return [], None
+
+#     journals = [_xero_journal_to_lutra(journal) for journal in data.get("Journals", [])]
+
+#     # Create next pagination token if we got a full page (100 journals)
+#     # The next offset should be the journal number of the last journal
+#     next_token = None
+#     if len(journals) == 100:  # Full page indicates more results may be available
+#         last_journal_number = journals[-1].journal_number
+#         next_token = XeroPaginationToken(offset=last_journal_number)
+
+#     return journals, next_token
+
+
+# @purpose("Get a specific journal from Xero")
+# async def xero_get_journal(
+#     xero_tenant: XeroTenant, journal_identifier: str
+# ) -> XeroJournal:
+#     """
+#     Get a specific journal from Xero. Journal entries show the double-entry bookkeeping
+#     behind transactions - each journal has multiple lines that must balance (debits = credits).
+
+#     Args:
+#         xero_tenant: The Xero tenant to get the journal from
+#         journal_identifier: Either journal ID (UUID) or journal number (integer)
+
+#     Returns:
+#         The Xero journal with the specified identifier
+#     """
+#     response = await xero_client.get(
+#         f"https://api.xero.com/api.xro/2.0/Journals/{journal_identifier}",
+#         headers={"Xero-tenant-id": xero_tenant.tenant_id},
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     if not data.get("Journals") or len(data.get("Journals")) == 0:
+#         raise ValueError(f"Journal with identifier {journal_identifier} not found")
+
+#     journal_data = data.get("Journals")[0]
+#     return _xero_journal_to_lutra(journal_data)
+
+
+# @purpose("List bank transfers from Xero")
+# async def xero_list_bank_transfers(
+#     xero_tenant: XeroTenant,
+#     from_date: Optional[datetime] = None,
+#     to_date: Optional[datetime] = None,
+# ) -> List[XeroBankTransfer]:
+#     """
+#     List bank transfers from Xero, optionally filtered by date range.
+
+#     Args:
+#         xero_tenant: The Xero tenant to get bank transfers from
+#         from_date: Optional start datetime to filter bank transfers from (inclusive)
+#         to_date: Optional end datetime to filter bank transfers to (inclusive)
+
+#     Returns:
+#         A list of Xero bank transfers
+#     """
+#     headers = {"Xero-tenant-id": xero_tenant.tenant_id}
+#     params = {}
+
+#     # Build where clause for date filtering if dates are provided
+#     if from_date or to_date:
+#         where_conditions = []
+
+#         if from_date:
+#             # Format: Date >= DateTime(year, month, day)
+#             where_conditions.append(
+#                 f"Date >= DateTime({from_date.year}, {from_date.month:02d}, {from_date.day:02d})"
+#             )
+
+#         if to_date:
+#             # Format: Date <= DateTime(year, month, day)
+#             where_conditions.append(
+#                 f"Date <= DateTime({to_date.year}, {to_date.month:02d}, {to_date.day:02d})"
+#             )
+
+#         # Join conditions with &&
+#         where_clause = " && ".join(where_conditions)
+
+#         # Percent encode the where clause
+#         params["where"] = urllib.parse.quote(where_clause)
+
+#     response = await xero_client.get(
+#         "https://api.xero.com/api.xro/2.0/BankTransfers",
+#         headers=headers,
+#         params=params if params else None,
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     if not data.get("BankTransfers"):
+#         return []
+
+#     return [
+#         _xero_bank_transfer_to_lutra(transfer)
+#         for transfer in data.get("BankTransfers", [])
+#     ]
+
+
+# @purpose("Get a specific bank transfer from Xero")
+# async def xero_get_bank_transfer(
+#     xero_tenant: XeroTenant, bank_transfer_id: str
+# ) -> XeroBankTransfer:
+#     """
+#     Get a specific bank transfer from Xero. Bank transfers move money between bank accounts
+#     within the same organization and create corresponding journal entries.
+
+#     Args:
+#         xero_tenant: The Xero tenant to get the bank transfer from
+#         bank_transfer_id: UUID of the bank transfer
+
+#     Returns:
+#         The Xero bank transfer with the specified ID
+#     """
+#     response = await xero_client.get(
+#         f"https://api.xero.com/api.xro/2.0/BankTransfers/{bank_transfer_id}",
+#         headers={"Xero-tenant-id": xero_tenant.tenant_id},
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     if not data.get("BankTransfers") or len(data.get("BankTransfers")) == 0:
+#         raise ValueError(f"Bank transfer with ID {bank_transfer_id} not found")
+
+#     transfer_data = data.get("BankTransfers")[0]
+#     return _xero_bank_transfer_to_lutra(transfer_data)
+
+
+# @purpose("Get bank summary report from Xero")
+# async def xero_get_bank_summary(
+#     xero_tenant: XeroTenant,
+#     from_date: Optional[datetime] = None,
+#     to_date: Optional[datetime] = None,
+# ) -> List[XeroBankAccountSummary]:
+#     """
+#     Get bank summary report from Xero. This provides cash flow analysis showing actual
+#     money movement (not accrual accounting) - useful for cash position analysis.
+
+#     Args:
+#         xero_tenant: The Xero tenant to get the bank summary from
+#         from_date: Period start - affects cash received/spent calculations
+#         to_date: Period end - affects cash received/spent calculations
+
+#     Returns:
+#         A list of bank account summaries with balances and cash movements
+#     """
+#     params = {}
+
+#     if from_date:
+#         params["fromDate"] = from_date.strftime("%Y-%m-%d")
+#     if to_date:
+#         params["toDate"] = to_date.strftime("%Y-%m-%d")
+
+#     response = await xero_client.get(
+#         "https://api.xero.com/api.xro/2.0/Reports/BankSummary",
+#         headers={"Xero-tenant-id": xero_tenant.tenant_id},
+#         params=params if params else None,
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     # Extract bank account data from the response
+#     bank_accounts = []
+
+#     if data.get("Reports"):
+#         for report in data["Reports"]:
+#             if report.get("Rows"):
+#                 for row in report["Rows"]:
+#                     if row.get("RowType") == "Section" and row.get("Rows"):
+#                         for section_row in row["Rows"]:
+#                             if section_row.get("RowType") == "Row" and section_row.get(
+#                                 "Cells"
+#                             ):
+#                                 cells = section_row["Cells"]
+#                                 if len(cells) >= 5:
+#                                     # Extract account ID from attributes if available
+#                                     account_id = None
+#                                     if cells[0].get("Attributes"):
+#                                         for attr in cells[0]["Attributes"]:
+#                                             if attr.get("Id") == "accountID":
+#                                                 account_id = attr.get("Value")
+#                                                 break
+
+#                                     bank_account = XeroBankAccountSummary(
+#                                         account_id=account_id,
+#                                         account_name=cells[0]["Value"],
+#                                         opening_balance=float(cells[1]["Value"]),
+#                                         cash_received=float(cells[2]["Value"]),
+#                                         cash_spent=float(cells[3]["Value"]),
+#                                         closing_balance=float(cells[4]["Value"]),
+#                                     )
+#                                     bank_accounts.append(bank_account)
+
+#     return bank_accounts
+
+
+# @purpose("Get accounts from Xero")
+# async def xero_get_accounts(
+#     xero_tenant: XeroTenant,
+#     modified_after: Optional[datetime] = None,
+# ) -> List[XeroAccount]:
+#     """
+#     Get all accounts from Xero.
+
+#     Args:
+#         xero_tenant: The Xero tenant to get accounts from
+#         modified_after: Optional datetime to filter accounts created or modified after this timestamp
+
+#     Returns:
+#         A list of Xero accounts
+#     """
+#     headers = {"Xero-tenant-id": xero_tenant.tenant_id}
+
+#     # Add If-Modified-Since header if modified_after is provided
+#     if modified_after:
+#         # Format as required by Xero API: yyyy-mm-ddThh:mm:ss
+#         headers["If-Modified-Since"] = modified_after.strftime("%Y-%m-%dT%H:%M:%S")
+
+#     response = await xero_client.get(
+#         "https://api.xero.com/api.xro/2.0/Accounts",
+#         headers=headers,
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     if not data.get("Accounts"):
+#         return []
+
+#     return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
+
+
+# @purpose("List bank accounts from Xero")
+# async def xero_list_bank_accounts(xero_tenant: XeroTenant) -> List[XeroAccount]:
+#     """
+#     Get all bank accounts from Xero (accounts with Type="BANK").
+
+#     Args:
+#         xero_tenant: The Xero tenant to get bank accounts from
+
+#     Returns:
+#         A list of Xero bank accounts
+#     """
+#     # Filter for bank accounts only
+#     params = {"where": 'Type=="BANK"'}
+
+#     response = await xero_client.get(
+#         "https://api.xero.com/api.xro/2.0/Accounts",
+#         headers={"Xero-tenant-id": xero_tenant.tenant_id},
+#         params=params,
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     if not data.get("Accounts"):
+#         return []
+
+#     return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
+
+
+# @purpose("Get a specific bank account from Xero")
+# async def xero_get_bank_account(
+#     xero_tenant: XeroTenant, account_id: str
+# ) -> XeroAccount:
+#     """
+#     Get a specific bank account from Xero. Validates the account is actually a bank account
+#     (Type="BANK") rather than other account types like revenue, expense, or asset accounts.
+
+#     Args:
+#         xero_tenant: The Xero tenant to get the bank account from
+#         account_id: UUID of the account
+
+#     Returns:
+#         The Xero bank account with the specified ID
+
+#     Raises:
+#         ValueError: If the account is not found or is not a bank account
+#     """
+#     response = await xero_client.get(
+#         f"https://api.xero.com/api.xro/2.0/Accounts/{account_id}",
+#         headers={"Xero-tenant-id": xero_tenant.tenant_id},
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     if not data.get("Accounts") or len(data.get("Accounts")) == 0:
+#         raise ValueError(f"Account with ID {account_id} not found")
+
+#     account_data = data.get("Accounts")[0]
+#     account = _xero_account_to_lutra(account_data)
+
+#     # Verify it's a bank account
+#     if account.type != "BANK":
+#         raise ValueError(
+#             f"Account with ID {account_id} is not a bank account (type: {account.type})"
+#         )
+
+#     return account
+
+
+# @purpose("Get balance sheet report from Xero")
+# async def xero_get_balance_sheet(
+#     xero_tenant: XeroTenant,
+#     report_date: Optional[datetime] = None,
+#     periods: Optional[int] = None,
+#     timeframe: Optional[Literal["MONTH", "QUARTER", "YEAR"]] = None,
+# ) -> XeroBalanceSheet:
+#     """
+#     Get balance sheet report from Xero. Balance sheet shows financial position at a specific
+#     point in time following the accounting equation: Assets = Liabilities + Equity.
+#     Use periods and timeframe to get comparative data across multiple periods.
+
+#     Args:
+#         xero_tenant: The Xero tenant to get the balance sheet from
+#         report_date: End date for the balance sheet - used with periods/timeframe for comparisons
+#         periods: Number of comparison periods (1-11) - enables period-over-period analysis
+#         timeframe: Size of each comparison period (MONTH, QUARTER, YEAR)
+
+#     Returns:
+#         The Xero balance sheet report with hierarchical structure
+#     """
+#     params = {}
+
+#     if report_date:
+#         params["date"] = report_date.strftime("%Y-%m-%d")
+#     if periods is not None:
+#         if not (1 <= periods <= 11):
+#             raise ValueError("periods must be between 1 and 11")
+#         params["periods"] = periods
+#     if timeframe:
+#         params["timeframe"] = timeframe
+
+#     response = await xero_client.get(
+#         "https://api.xero.com/api.xro/2.0/Reports/BalanceSheet",
+#         headers={"Xero-tenant-id": xero_tenant.tenant_id},
+#         params=params if params else None,
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     return _xero_balance_sheet_to_lutra(data)
+
+
+# @purpose("Get accounts by type from Xero")
+# async def xero_get_accounts_by_type(
+#     xero_tenant: XeroTenant,
+#     account_type: Literal[
+#         "BANK",
+#         "CURRENT",
+#         "CURRLIAB",
+#         "DEPRECIATN",
+#         "DIRECTCOSTS",
+#         "EQUITY",
+#         "EXPENSE",
+#         "FIXED",
+#         "INVENTORY",
+#         "LIABILITY",
+#         "NONCURRENT",
+#         "OTHERINCOME",
+#         "OVERHEADS",
+#         "PREPAYMENT",
+#         "REVENUE",
+#         "SALES",
+#         "TERMLIAB",
+#     ],
+# ) -> List[XeroAccount]:
+#     """
+#     Get accounts filtered by type from Xero. This is a convenience function to help
+#     find appropriate account codes for invoice line items.
+
+#     Common account types for invoices:
+#     - REVENUE: For sales invoice line items (money coming in)
+#     - EXPENSE/OVERHEADS: For bill line items (money going out)
+#     - DIRECTCOSTS: For cost of goods sold
+#     - BANK: For bank account transactions
+
+#     Args:
+#         xero_tenant: The Xero tenant to get accounts from
+#         account_type: The type of accounts to filter by
+
+#     Returns:
+#         A list of Xero accounts of the specified type
+#     """
+#     # Filter for specific account type
+#     params = {"where": f'Type=="{account_type}"'}
+
+#     response = await xero_client.get(
+#         "https://api.xero.com/api.xro/2.0/Accounts",
+#         headers={"Xero-tenant-id": xero_tenant.tenant_id},
+#         params=params,
+#     )
+#     await raise_error_text(response)
+#     await response.aread()
+#     data = response.json()
+
+#     if not data.get("Accounts"):
+#         return []
+
+#     return [_xero_account_to_lutra(account) for account in data.get("Accounts", [])]
